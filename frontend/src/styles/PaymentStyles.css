@@ -1,0 +1,155 @@
+/* PayPal Button Styles */
+.paypal-button-container {
+  position: relative;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 4px;
+}
+
+.loading-spinner {
+  padding: 10px 20px;
+  background: #007cba;
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.payment-info {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.payment-info .text-muted {
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* Payment Page Styles */
+.payment-page {
+  padding: 20px 0;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.payment-page .card {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 8px;
+}
+
+.payment-page .card-header {
+  background-color: #007cba;
+  color: white;
+  border-radius: 8px 8px 0 0;
+}
+
+.booking-info {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #007cba;
+}
+
+.payment-methods .form-check {
+  margin-bottom: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.payment-methods .form-check:hover {
+  background-color: #f8f9fa;
+  border-color: #007cba;
+}
+
+.payment-methods .form-check-input:checked + .form-check-label {
+  color: #007cba;
+  font-weight: 500;
+}
+
+.paypal-payment {
+  border: 2px solid #ffc439;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fffbf0;
+}
+
+.bank-transfer .card {
+  border-left: 4px solid #28a745;
+}
+
+/* Payment Success Page Styles */
+.payment-success-page {
+  padding: 40px 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.payment-success-page .card {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 15px;
+}
+
+.payment-details {
+  border: 1px solid #e9ecef;
+}
+
+.action-buttons .btn {
+  margin: 5px;
+  min-width: 150px;
+}
+
+/* Loading Container */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  text-align: center;
+}
+
+/* Error Container */
+.error-container {
+  text-align: center;
+  padding: 40px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .payment-page .container {
+    padding: 0 15px;
+  }
+  
+  .paypal-button-container {
+    max-width: 100%;
+  }
+  
+  .action-buttons .btn {
+    display: block;
+    width: 100%;
+    margin: 10px 0;
+  }
+  
+  .payment-methods .form-check {
+    padding: 10px;
+  }
+}

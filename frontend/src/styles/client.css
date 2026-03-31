@@ -1,0 +1,146 @@
+
+/* nút giả lập glow trong Hero */
+.btn-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .8rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  line-height: 1;             /* giúp icon căn dọc đẹp */
+  vertical-align: middle;
+  /* Khóa lại để không bị CSS link chung đè */
+  color: inherit;
+}
+
+.btn-primary-glow {
+  background: #0d6efd;
+  color: #fff;
+  box-shadow: 0 12px 25px rgba(13,110,253,.25);
+}
+.btn-secondary-glow {
+  background: #fff;
+  color: #0d6efd;
+  box-shadow: 0 12px 25px rgba(0,0,0,.15);
+}
+
+/* Hero floating shapes (tối giản) */
+.floating-shapes .shape {
+  position: absolute;
+  border-radius: 50%;
+  opacity: .15;
+}
+.shape-1 { width: 120px; height: 120px; background:#fff; top: 10%; left: -30px; }
+.shape-2 { width: 80px;  height: 80px;  background:#fff; bottom: 20%; left: 10%; }
+.shape-3 { width: 160px; height: 160px; background:#fff; top: 15%; right: 8%; }
+.shape-4 { width: 60px;  height: 60px;  background:#fff; bottom: 10%; right: 15%; }
+.shape-5 { width: 100px; height: 100px; background:#fff; top: 50%; left: 45%; }
+
+/* ==== Hero carousel (right banner) ==== */
+.carousel-card {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0,0,0,.25);
+  background: #000;
+}
+
+.slides-wrap {
+  position: relative;
+  width: 100%;
+  height: 500px;         /* khớp chiều cao ảnh */
+}
+
+@media (max-width: 1400px) {
+  .slides-wrap { height: 460px; }
+}
+@media (max-width: 1200px) {
+  .slides-wrap { height: 420px; }
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.03);
+  transition: opacity .6s ease, transform .6s ease;
+}
+.slide.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* arrows */
+.carousel-card .nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.35);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease;
+  z-index: 5;
+}
+.carousel-card .nav:hover {
+  background: rgba(0,0,0,.55);
+  transform: translateY(-50%) scale(1.05);
+}
+.carousel-card .nav.prev { left: 12px; }
+.carousel-card .nav.next { right: 12px; }
+
+/* dots */
+.carousel-card .dots {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+}
+.carousel-card .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255,255,255,.55);
+  transition: transform .15s ease, background .15s ease;
+  cursor: pointer;
+}
+.carousel-card .dot.active {
+  background: #fff;
+  transform: scale(1.15);
+}
+/* Go To Top Button */
+.go-top {
+  position: fixed !important; /* Dùng !important để đảm bảo ghi đè bootstrap nếu cần */
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  z-index: 1050; /* Cao hơn hầu hết các element khác */
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.go-top:hover {
+  transform: translateY(-5px);
+}
+
+
+

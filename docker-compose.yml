@@ -1,0 +1,66 @@
+services:
+
+  nhom09_mysql:
+    image: mysql:8.0
+    container_name: nhom09_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: tourbookingdb
+      MYSQL_USER: tour_user
+      MYSQL_PASSWORD: tour_pass123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - nhom09_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  nhom09_backend:
+    build: ./backend
+    container_name: nhom09_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@nhom09_mysql:3306/tourbookingdb
+    depends_on:
+      nhom09_mysql:
+        condition: service_healthy
+    networks:
+      - nhom09_network
+
+  nhom09_frontend:
+    build: ./frontend
+    container_name: nhom09_frontend
+    ports:
+      - "3000:3000"          # ⬅️ QUAN TRỌNG
+    environment:
+      - VITE_API_URL=http://nhom09_backend:8000
+    depends_on:
+      - nhom09_backend
+    networks:
+      - nhom09_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: nhom09_phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: nhom09_mysql
+      PMA_USER: root
+      PMA_PASSWORD: root123
+    depends_on:
+      - nhom09_mysql
+    networks:
+      - nhom09_network
+
+networks:
+  nhom09_network:
+
+volumes:
+  mysql_data:

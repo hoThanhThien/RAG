@@ -1,0 +1,156 @@
+
+/* =========================
+   Responsive Layout Helpers
+   ========================= */
+
+/* Fallback header height (JS trong Header.jsx sẽ cập nhật động biến này) */
+:root {
+  --header-h: 80px;
+}
+
+/* Hero luôn full viewport nhưng chừa phần header, tránh 100vw gây cuộn ngang */
+.hero-section {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100svh - var(--header-h)) !important;
+  width: 100%;
+  background-size: cover;
+  background-position: center center;
+}
+
+/* Container: đảm bảo có gutter 2 bên khi co nhỏ */
+
+
+/* Ảnh mặc định co giãn đúng tỉ lệ */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Card/btn transition nhẹ nhàng */
+.card { transition: transform .3s ease, box-shadow .3s ease; }
+.card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,.15) !important; }
+.btn { transition: transform .3s ease; }
+.btn:hover { transform: translateY(-2px); }
+
+/* Navbar khi scrolled (nếu bạn thêm class .scrolled bằng JS) */
+.navbar { transition: all .3s ease; }
+.navbar.scrolled {
+  background-color: rgba(255,255,255,.95) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 20px rgba(0,0,0,.1);
+}
+
+/* Smooth scroll */
+html { scroll-behavior: smooth; }
+
+/* Touch device: tắt hover lifting mạnh để đỡ giật */
+@media (hover: none) and (pointer: coarse) {
+  .card:hover, .btn:hover { transform: none; }
+}
+
+/* Better focus for a11y */
+.btn:focus, .nav-link:focus, a:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* =========================
+   Breakpoints
+   ========================= */
+
+/* < 576px: phones */
+@media (max-width: 575.98px) {
+  :root { --header-h: 64px; } /* fallback nếu JS chưa set kịp */
+
+  .hero-section {
+    padding: 56px 0 24px !important;             /* thở nhẹ */
+    min-height: calc(100svh - var(--header-h)) !important;
+    background-attachment: scroll !important;
+  }
+
+  .heading-responsive { font-size: clamp(1.5rem, 7vw, 2.2rem); }
+  .text-responsive    { font-size: clamp(.9rem, 3.5vw, 1rem); }
+
+  .btn-lg { padding: .7rem 1.2rem !important; font-size: .95rem !important; }
+
+  /* Ảnh trong card/hero hạn chế chiều cao để tránh kéo dài */
+  .card-img-top, .img-fluid {
+    object-fit: cover;
+    height: auto;
+    max-height: 200px;
+  }
+
+  /* Spacing tiện dụng */
+  .py-5 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+  .mb-5 { margin-bottom: 2rem !important; }
+  .mt-5 { margin-top: 2rem !important; }
+
+  /* Tăng vùng chạm */
+  .btn, .nav-link, a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Tỉ lệ ảnh tour */
+  .tour-image { aspect-ratio: 16/9; object-fit: cover; }
+}
+
+/* 576–767: small devices */
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .hero-section {
+    min-height: calc(100svh - var(--header-h)) !important;
+    background-attachment: scroll !important;
+  }
+  .heading-responsive { font-size: clamp(1.75rem, 5vw, 2.5rem); }
+}
+
+/* 768–991: tablets */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .hero-section {
+    min-height: calc(100svh - var(--header-h)) !important;
+    background-attachment: scroll !important;
+  }
+  .heading-responsive { font-size: clamp(2rem, 4vw, 3rem); }
+}
+
+/* 992–1199: desktops nhỏ */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .hero-section {
+    min-height: calc(100svh - var(--header-h)) !important;
+  }
+}
+
+/* ≥ 1200: desktops lớn */
+@media (min-width: 1200px) {
+  .hero-section {
+    min-height: calc(100svh - var(--header-h)) !important;
+    background-attachment: fixed !important;      /* parallax nhẹ */
+  }
+}
+
+/* =========================
+   Utilities
+   ========================= */
+
+.tour-image { aspect-ratio: 16/10; object-fit: cover; }
+
+.text-responsive   { font-size: clamp(.9rem, 1.2vw, 1rem); }
+.heading-responsive{ font-size: clamp(1.5rem, 3.5vw, 3rem); }
+
+/* Simple fade-in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp .8s ease-out; }
+
+/* Custom scrollbar (webkit) */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+

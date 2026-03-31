@@ -1,0 +1,29 @@
+# Môi trường ảo
+venv/
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode settings
+.vscode/
+
+# Pytest cache
+.pytest_cache/
+
+
+
+# Logs
+*.log
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# MacOS / Windows
+.DS_Store
+Thumbs.db
+

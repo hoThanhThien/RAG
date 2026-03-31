@@ -1,0 +1,36 @@
+/* BookingHistory.css */
+.booking-history-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.booking-card {
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.booking-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+.booking-details i {
+  width: 20px;
+  text-align: center;
+}
+
+.btn-group .btn {
+  flex: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.5rem;
+  }
+}

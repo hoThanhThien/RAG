@@ -1,0 +1,87 @@
+/* Additional styles for payment method selection */
+.payment-method-selection {
+    margin-bottom: 24px;
+}
+
+.payment-method-selection h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.method-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.method-option {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: white;
+}
+
+.method-option:hover {
+    border-color: #a50064;
+    background-color: #fff5fb;
+}
+
+.method-option.active {
+    border-color: #a50064;
+    background-color: #fff5fb;
+    box-shadow: 0 2px 8px rgba(165, 0, 100, 0.2);
+}
+
+.method-option input[type="radio"] {
+    margin-right: 12px;
+    width: 20px;
+    height: 20px;
+    accent-color: #a50064;
+    cursor: pointer;
+}
+
+.method-option input[type="radio"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.method-option:has(input:disabled) {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f5f5f5;
+}
+
+.method-option:has(input:disabled):hover {
+    border-color: #e0e0e0;
+    background-color: #f5f5f5;
+}
+
+.method-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.method-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.method-text strong {
+    color: #333;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.method-text small {
+    color: #666;
+    font-size: 13px;
+    margin-top: 4px;
+}
