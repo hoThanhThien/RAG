@@ -19,20 +19,35 @@ from app.controllers import (
 app = FastAPI(title="Tour Booking API", version="1.0.0")
 
 # Mount thư mục uploads
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
 
-# --- PHẦN QUAN TRỌNG NHẤT: CẤU HÌNH CORS ---
-# Chỉ dùng 1 danh sách duy nhất, không khai báo lặp lại
+load_dotenv()
+
+app = FastAPI(title="Tour Booking API", version="1.0.0")
+
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
-        "http://52.64.184.203:",       # IP Public Frontend
-        "http://52.64.184.203::3000",  # IP Public Frontend kèm port
+        "http://52.64.184.203",
+        "http://52.64.184.203:3000",
         "http://52.64.184.203:8000",
-	"http://52.64.184.203:8080",
-  # IP Public Backend
+        "http://52.64.184.203:8080",
     ],
     allow_credentials=True,
     allow_methods=["*"],

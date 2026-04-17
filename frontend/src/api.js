@@ -1,1 +1,1 @@
-const API_URL = "http://52.64.184.203:3000:8000"
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
