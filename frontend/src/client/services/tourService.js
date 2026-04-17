@@ -4,7 +4,7 @@ import { api } from "./api";
 
 /** Base URL của API để ghép ảnh tương đối */
 const API_BASE_URL = api?.defaults?.baseURL ?? "";
-const API_URL = "http://nhom09_backend:8000"
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
 /** Ghép URL ảnh tương đối thành tuyệt đối (handle https, data, blob, //cdn) */
 function resolveImageUrl(url) {

@@ -19,7 +19,16 @@ from app.controllers import (
 app = FastAPI(title="Tour Booking API", version="1.0.0")
 
 # Mount thư mục uploads
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+import os
+from fastapi.staticfiles import StaticFiles
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- PHẦN QUAN TRỌNG NHẤT: CẤU HÌNH CORS ---
 # Chỉ dùng 1 danh sách duy nhất, không khai báo lặp lại
