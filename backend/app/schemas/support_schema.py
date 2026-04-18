@@ -9,7 +9,7 @@ class MessageIn(BaseModel):
 
 class MessageOut(BaseModel):
     id: int
-    sender_id: int
+    sender_id: Optional[int] = None
     is_admin: int
     content: str
     created_at: datetime

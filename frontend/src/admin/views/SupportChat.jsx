@@ -18,11 +18,11 @@ export default function SupportChat() {
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [adminName, setAdminName] = useState("Admin");
   const bottomRef = useRef(null);
   const wsRef = useRef(null);
-  const roomRef = useRef(null);
   const textareaRef = useRef(null);
 
   // Get admin name from token
@@ -64,25 +64,9 @@ export default function SupportChat() {
     const ws = connectSupportWS(token);
     wsRef.current = ws;
 
-    ws.onopen = async () => {
+    ws.onopen = () => {
       console.log("✅ WebSocket connected (Admin)");
       setIsConnected(true);
-
-      // Admin tự động join room chung "support:admin"
-      // Backend đã tự join room này rồi khi admin connect
-      
-      try {
-        const res = await supportApi.getThreadInfo(thread_id);
-        const userId = res.data?.user_id;
-        if (userId) {
-          const room = `support:user:${userId}`;
-          roomRef.current = room;
-          ws.send(JSON.stringify({ type: "join", room }));
-          console.log(`✅ Admin joined room: ${room}`);
-        }
-      } catch (err) {
-        console.error("❌ Không thể join room:", err);
-      }
     };
 
     ws.onclose = () => {
@@ -104,11 +88,27 @@ export default function SupportChat() {
           msg.type === "support:new_message" &&
           msg.message?.thread_id == thread_id
         ) {
-          // Tránh duplicate
           setMessages((prev) => {
-            const exists = prev.some(m => m.id === msg.message.id);
-            if (exists) return prev;
-            return [...prev, msg.message];
+            const existsById = prev.some(
+              (m) => String(m.id) === String(msg.message.id)
+            );
+            if (existsById) return prev;
+
+            const optimisticIndex = prev.findIndex(
+              (m) =>
+                m.pending &&
+                m.is_admin &&
+                m.content === msg.message.content &&
+                Number(m.thread_id) === Number(msg.message.thread_id)
+            );
+
+            if (optimisticIndex !== -1) {
+              const next = [...prev];
+              next[optimisticIndex] = { ...msg.message, pending: false };
+              return next;
+            }
+
+            return [...prev, { ...msg.message, pending: false }];
           });
         }
       } catch (e) {
@@ -123,12 +123,11 @@ export default function SupportChat() {
 
   // Gửi tin nhắn
   const send = async () => {
-    if (!text.trim() || isLoading) return;
-    
+    if (!text.trim() || isLoading || isSending) return;
+
     const content = text.trim();
     const tempId = `temp_${Date.now()}`;
-    
-    // Optimistic update
+
     const optimisticMessage = {
       id: tempId,
       content,
@@ -138,22 +137,44 @@ export default function SupportChat() {
       created_at: new Date().toISOString(),
       pending: true,
     };
-    
-    setMessages(prev => [...prev, optimisticMessage]);
+
+    setIsSending(true);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setText("");
-    
+
     try {
       const response = await supportApi.postMessage(thread_id, content);
-      // Replace optimistic message with real message from API
-      setMessages(prev => 
-        prev.map(m => m.id === tempId ? { ...response.data, pending: false } : m)
-      );
+      setMessages((prev) => {
+        const existingIndex = prev.findIndex(
+          (m) => String(m.id) === String(response.data.id)
+        );
+
+        if (existingIndex !== -1) {
+          const next = [...prev];
+          next[existingIndex] = {
+            ...next[existingIndex],
+            ...response.data,
+            pending: false,
+          };
+          return next;
+        }
+
+        const tempIndex = prev.findIndex((m) => m.id === tempId);
+        if (tempIndex !== -1) {
+          const next = [...prev];
+          next[tempIndex] = { ...response.data, pending: false };
+          return next;
+        }
+
+        return [...prev, { ...response.data, pending: false }];
+      });
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn:", error);
-      // Remove failed message
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setText(content);
       alert("Không thể gửi tin nhắn. Vui lòng thử lại!");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -353,7 +374,7 @@ export default function SupportChat() {
               }
             }}
             placeholder="Nhập tin nhắn... (Shift + Enter để xuống dòng)"
-            disabled={isLoading || !isConnected}
+            disabled={isLoading || isSending}
             rows="1"
             style={{
               resize: 'none',
@@ -365,7 +386,7 @@ export default function SupportChat() {
           <button 
             className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
             onClick={send}
-            disabled={!text.trim() || isLoading || !isConnected}
+            disabled={!text.trim() || isLoading || isSending}
             title="Gửi tin nhắn"
             style={{
               width: '44px',
@@ -380,7 +401,7 @@ export default function SupportChat() {
         {!isConnected && (
           <div className="alert alert-warning mt-2 mb-0 py-2 px-3 small d-flex align-items-center gap-2">
             <i className="bi bi-exclamation-triangle-fill"></i>
-            <span>Mất kết nối. Đang thử kết nối lại...</span>
+            <span>Realtime đang gián đoạn, nhưng bạn vẫn có thể gửi tin nhắn. Hệ thống sẽ lưu lại.</span>
           </div>
         )}
       </div>

@@ -12,10 +12,20 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
+      // ✅ Kiểm tra token trước khi gọi API
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       try {
         const data = await getCurrentUser();
         setUser(data);
       } catch (err) {
+        // Token không hợp lệ hoặc hết hạn -> xóa token
+        localStorage.removeItem("access_token");
         setUser(null);
       } finally {
         setLoading(false);

@@ -120,14 +120,36 @@ async def get_tour_live_stats(tour_id: int):
 
 SUPPORT_CONNECTIONS = {}  # room → set of websockets
 
+# Global reference to main event loop (set when first WS connects)
+_main_loop = None
+
 def ws_broadcast_safe(room: str, message: dict):
+    """Broadcast message to all connections in a room (thread-safe)"""
+    import asyncio
+    import threading
+    
     async def _send():
         for ws in list(SUPPORT_CONNECTIONS.get(room, [])):
             try:
                 await ws.send_json(message)
-            except:
-                pass
-    anyio.from_thread.run(_send)
+            except Exception as e:
+                print(f"⚠️ WS broadcast error to {room}: {e}")
+    
+    global _main_loop
+    
+    if _main_loop and _main_loop.is_running():
+        # Schedule in the main event loop
+        asyncio.run_coroutine_threadsafe(_send(), _main_loop)
+    else:
+        # Fallback: run in new thread with new event loop
+        def run_in_thread():
+            try:
+                asyncio.run(_send())
+            except Exception as e:
+                print(f"⚠️ WS broadcast thread error: {e}")
+        
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
 
 async def support_join(room: str, ws: WebSocket):
     SUPPORT_CONNECTIONS.setdefault(room, set()).add(ws)
@@ -141,10 +163,20 @@ async def support_leave(ws: WebSocket):
 
 @router.websocket("/ws/support")
 async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
+    import asyncio
+    global _main_loop
+    
+    # Store reference to main event loop for cross-thread broadcasting
+    _main_loop = asyncio.get_event_loop()
+    
     await websocket.accept()
+    
+    # 🔧 FIX: Database trả về RoleID (chữ hoa), không phải role_id
+    is_admin = user.get("RoleID") == 1
+    user_id = user.get("UserID")
 
-    if user.get("role_id") != 1:
-        await support_join(f"support:user:{user['UserID']}", websocket)
+    if not is_admin:
+        await support_join(f"support:user:{user_id}", websocket)
     else:
         await support_join("support:admin", websocket)
 
@@ -155,7 +187,7 @@ async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
 
             if t == "join":
                 room = data.get("room")
-                if user.get("role_id") == 1 and room and room.startswith("support:user:"):
+                if is_admin and room and room.startswith("support:user:"):
                     await support_join(room, websocket)
 
             elif t == "typing":
@@ -166,12 +198,12 @@ async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
                     typing_payload = {
                         "type": "support:typing",
                         "thread_id": thread_id,
-                        "user_id": user["UserID"],
-                        "is_admin": 1 if user.get("role_id") == 1 else 0
+                        "user_id": user_id,
+                        "is_admin": 1 if is_admin else 0
                     }
                     
                     # Gửi cho admin nếu user đang gõ
-                    if user.get("role_id") != 1:
+                    if not is_admin:
                         ws_broadcast_safe("support:admin", typing_payload)
                     # Gửi cho user nếu admin đang gõ
                     else:
@@ -186,9 +218,9 @@ async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
                         "type": "message",
                         "room": room,
                         "content": message,
-                        "user_id": user["UserID"],
-                        "is_admin": user.get("role_id") == 1,
-                        "full_name": user.get("full_name", "Unknown")
+                        "user_id": user_id,
+                        "is_admin": is_admin,
+                        "full_name": user.get("FullName", "Unknown")
                     })
 
     except WebSocketDisconnect:
