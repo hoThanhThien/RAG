@@ -35,8 +35,8 @@ export function connectSupportWS(token) {
 
   const wsHost = getWsBaseUrl();
   const url = `${wsHost}/ws/support?token=${token}`;
-  
-  console.log(`🔌 Connecting to Support WebSocket: ${url}`);
+
+  console.log("🔌 Connecting to Support WebSocket");
 
   const ws = new WebSocket(url);
   ws.onopen = () => console.log("✅ WS support connected");
@@ -70,8 +70,8 @@ export function connectSupportWSWithRetry(token, options = {}) {
 
     const wsHost = getWsBaseUrl();
     const url = `${wsHost}/ws/support?token=${token}`;
-    
-    console.log(`🔌 Connecting to Support WebSocket: ${url}`);
+
+    console.log("🔌 Connecting to Support WebSocket");
 
     ws = new WebSocket(url);
     
