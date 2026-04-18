@@ -54,9 +54,7 @@ def require_role(required_role: str):
 
 def require_admin(current_user: Dict[str, Any] = Depends(get_current_user)):
     role = current_user.get("RoleName", "").lower()
-    print("🔐 current_user:", current_user)
     if role != "admin":
-        print("⛔ Từ chối vì RoleName =", role)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -88,7 +86,6 @@ async def get_current_user_ws(websocket: WebSocket):
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print("📦 payload:", payload)  # debug
         user_id = int(payload.get("sub"))
 
         connection = get_db_connection()
