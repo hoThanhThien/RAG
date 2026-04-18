@@ -1,13 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const HEADER_H = 80; // phải khớp với ClientLayout
+const HEADER_H = 80;
 
 export default function Hero() {
-  // ===== Slides cho banner (có thể sửa URL tuỳ ý) =====
   const slides = [
-    "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1600&q=80",
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80",
-    "https://images.unsplash.com/photo-1559827260-dc66d52bef19?auto=format&fit=crop&w=1600&q=80",
+    {
+      image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+      place: "Thụy Sĩ",
+      title: "Chạm tới bình minh trên dãy Alps",
+      subtitle: "Hành trình thư giãn, cảnh sắc điện ảnh và trải nghiệm cao cấp.",
+    },
+    {
+      image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
+      place: "Maldives",
+      title: "Kỳ nghỉ biển sang trọng và riêng tư",
+      subtitle: "Biển xanh, resort đẹp và lịch trình tối ưu cho cặp đôi, gia đình.",
+    },
+    {
+      image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
+      place: "Na Uy",
+      title: "Săn cảnh sắc Bắc Âu đầy mê hoặc",
+      subtitle: "Những điểm đến nổi bật được chọn lọc cho chuyến đi đáng nhớ.",
+    },
   ];
 
   const [active, setActive] = useState(0);
@@ -19,8 +33,9 @@ export default function Hero() {
 
   const startAuto = () => {
     stopAuto();
-    timerRef.current = setInterval(next, 5000); // 5s đổi ảnh
+    timerRef.current = setInterval(next, 5000);
   };
+
   const stopAuto = () => {
     if (timerRef.current) clearInterval(timerRef.current);
   };
@@ -28,28 +43,24 @@ export default function Hero() {
   useEffect(() => {
     startAuto();
     return stopAuto;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const current = slides[active];
 
   return (
     <section
       id="home"
       className="hero-section d-flex align-items-center"
       style={{
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        // Chiếm full viewport
+        background: "linear-gradient(135deg, #5b63f6 0%, #7b4cc2 50%, #5d4fd8 100%)",
         minHeight: "100vh",
-        // Kéo section lên để không bị đẩy xuống
         marginTop: `-${HEADER_H}px`,
-        // Bù lại phần bị header che
         paddingTop: `${HEADER_H}px`,
-        // Thêm chút khoảng thở dưới cho đẹp
-        paddingBottom: "24px",
+        paddingBottom: "32px",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {/* Floating Shapes */}
       <div className="floating-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>
@@ -59,71 +70,49 @@ export default function Hero() {
       </div>
 
       <div className="container">
-        <div className="row align-items-center">
-          {/* Left content */}
+        <div className="row align-items-center gy-5">
           <div className="col-lg-6 text-white">
             <div className="hero-content">
-              <p
-                className="section-subtitle mb-3"
-                style={{
-                  fontSize: "1.1rem",
-                  letterSpacing: "3px",
-                  textTransform: "uppercase",
-                  opacity: "0.9",
-                  fontWeight: "500",
-                }}
-              >
-                KHÁM PHÁ CHUYẾN DU LỊCH CỦA BẠN
+              <div className="hero-badge mb-3">
+                <i className="bi bi-stars"></i>
+                <span>Tour tuyển chọn • Trải nghiệm tinh gọn</span>
+              </div>
+
+              <h1 className="hero-title mb-3">Du lịch đẹp hơn, dễ chọn hơn, đáng nhớ hơn</h1>
+
+              <p className="hero-text mb-4">
+                Khám phá những hành trình được thiết kế chỉn chu với lịch trình hợp lý,
+                điểm đến nổi bật và mức giá rõ ràng cho chuyến đi tiếp theo của bạn.
               </p>
 
-              <h1
-                className="hero-title mb-4"
-                style={{
-                  fontSize: "clamp(2.5rem, 6vw, 5rem)",
-                  fontWeight: "800",
-                  lineHeight: "1.1",
-                  background:
-                    "linear-gradient(45deg, #ffffff, #f8f9fa, #e9ecef)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  textShadow: "0 0 30px rgba(255,255,255,0.5)",
-                }}
-              >
-               Khám phá thế giới
-              </h1>
-
-              <p
-                className="hero-text mb-5"
-                style={{
-                  fontSize: "1.3rem",
-                  opacity: "0.9",
-                  lineHeight: "1.6",
-                  fontWeight: "300",
-                }}
-              >
-                Cuộc phiêu lưu của bạn bắt đầu từ đây. Khám phá những điểm đến ngoạn mục và tạo nên những kỷ niệm khó quên với những trải nghiệm du lịch được thiết kế chuyên nghiệp của chúng tôi.
-              </p>
-
-              <div className="hero-buttons d-flex flex-column flex-sm-row gap-4">
-                <a
-                  href="#tours"
-                  className="btn-hero btn-primary-glow text-decoration-none"
-                >
-                  <span>Explore Tours</span>
-                  <i className="bi bi-arrow-right ms-2"></i>
+              <div className="hero-buttons d-flex flex-column flex-sm-row gap-3 mb-4">
+                <a href="#tours" className="btn-hero btn-primary-glow text-decoration-none">
+                  <span>Khám phá tour</span>
+                  <i className="bi bi-arrow-right"></i>
                 </a>
-                <a
-                  href="#about"
-                  className="btn-hero btn-secondary-glow text-decoration-none"
-                >
-                  <span>Learn More</span>
-                  <i className="bi bi-play-circle ms-2"></i>
+                <a href="#about" className="btn-hero btn-secondary-glow text-decoration-none">
+                  <span>Xem thêm</span>
+                  <i className="bi bi-play-circle"></i>
                 </a>
+              </div>
+
+              <div className="hero-metrics">
+                <div className="metric-card">
+                  <strong>500+</strong>
+                  <span>Hành trình nổi bật</span>
+                </div>
+                <div className="metric-card">
+                  <strong>24/7</strong>
+                  <span>Hỗ trợ nhanh</span>
+                </div>
+                <div className="metric-card">
+                  <strong>4.9/5</strong>
+                  <span>Khách hàng hài lòng</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Right banner: CAROUSEL */}
           <div className="col-lg-6 d-none d-lg-block">
             <div
               className="hero-banner carousel-card"
@@ -131,15 +120,29 @@ export default function Hero() {
               onMouseLeave={startAuto}
             >
               <div className="slides-wrap">
-                {slides.map((src, i) => (
+                {slides.map((slide, i) => (
                   <img
-                    key={src}
-                    src={src}
-                    alt={`slide-${i}`}
+                    key={slide.image}
+                    src={slide.image}
+                    alt={slide.title}
                     className={`slide ${i === active ? "active" : ""}`}
                     loading="lazy"
                   />
                 ))}
+              </div>
+
+              <div className="slide-overlay">
+                <span className="slide-place">{current.place}</span>
+                <h3>{current.title}</h3>
+                <p>{current.subtitle}</p>
+              </div>
+
+              <div className="hero-float-card">
+                <i className="bi bi-geo-alt-fill"></i>
+                <div>
+                  <strong>Điểm đến nổi bật</strong>
+                  <span>Cập nhật liên tục mỗi tuần</span>
+                </div>
               </div>
 
               <button className="nav prev" aria-label="Previous" onClick={prev}>
@@ -163,7 +166,6 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Scroll Indicator */}
         <div className="scroll-indicator position-absolute bottom-0 start-50 translate-middle-x mb-4">
           <div className="scroll-mouse">
             <div className="scroll-wheel"></div>
