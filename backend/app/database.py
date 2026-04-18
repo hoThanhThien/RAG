@@ -2,8 +2,13 @@ import os
 import pymysql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # 1. Cấu hình biến môi trường
+# Docker: dùng "db", Local: dùng "localhost"
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "mysql+pymysql://tour_user:tour_pass123@db:3306/tourbookingdb"

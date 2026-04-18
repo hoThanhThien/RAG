@@ -12,6 +12,7 @@ export default function SupportChat() {
   const [userFullName, setUserFullName] = useState("Bạn");
   const [isLoading, setIsLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [typing, setTyping] = useState(false);
   const [showThreadList, setShowThreadList] = useState(false);
   const [threads, setThreads] = useState([]);
@@ -228,16 +229,15 @@ export default function SupportChat() {
       }
       ws.close();
     };
-  }, [threadId]);
+  }, [threadId, userId]);
 
   // 📤 Gửi tin nhắn
   const send = async () => {
-    if (!text.trim() || !threadId || isLoading) return;
-    
+    if (!text.trim() || !threadId || isLoading || isSending) return;
+
     const content = text.trim();
     const tempId = `temp_${Date.now()}`;
-    
-    // Optimistic update
+
     const optimisticMessage = {
       id: tempId,
       sender_id: userId,
@@ -247,22 +247,44 @@ export default function SupportChat() {
       created_at: new Date().toISOString(),
       pending: true,
     };
-    
-    setMessages(prev => [...prev, optimisticMessage]);
+
+    setIsSending(true);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setText("");
-    
+
     try {
       const response = await supportApi.postMessage(threadId, content);
-      // Replace optimistic message with real message from API
-      setMessages(prev => 
-        prev.map(m => m.id === tempId ? { ...response.data, pending: false } : m)
-      );
+      setMessages((prev) => {
+        const existingIndex = prev.findIndex(
+          (m) => String(m.id) === String(response.data.id)
+        );
+
+        if (existingIndex !== -1) {
+          const next = [...prev];
+          next[existingIndex] = {
+            ...next[existingIndex],
+            ...response.data,
+            pending: false,
+          };
+          return next;
+        }
+
+        const tempIndex = prev.findIndex((m) => m.id === tempId);
+        if (tempIndex !== -1) {
+          const next = [...prev];
+          next[tempIndex] = { ...response.data, pending: false };
+          return next;
+        }
+
+        return [...prev, { ...response.data, pending: false }];
+      });
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn:", error);
-      // Remove failed message
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-      setText(content); // Restore text
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setText(content);
       alert("Không thể gửi tin nhắn. Vui lòng thử lại!");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -471,11 +493,11 @@ export default function SupportChat() {
                 }
               }}
               placeholder="Nhập tin nhắn... (Enter để gửi)"
-              disabled={isLoading || !isConnected}
+              disabled={isLoading || isSending}
             />
             <button 
               onClick={send} 
-              disabled={!text.trim() || isLoading || !isConnected}
+              disabled={!text.trim() || isLoading || isSending}
               title="Gửi tin nhắn"
             >
               <i className="bi bi-send-fill"></i>

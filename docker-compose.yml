@@ -37,7 +37,7 @@ services:
     build: ./frontend
     container_name: nhom09_frontend
     ports:
-      - "3000:3000"          # ⬅️ QUAN TRỌNG
+      - "3000:3000"       
     environment:
       - VITE_API_URL=http://nhom09_backend:8000
     depends_on:

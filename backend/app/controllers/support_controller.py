@@ -162,9 +162,10 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
         raise HTTPException(403, "Forbidden")
 
     cur.execute("""
-        SELECT m.id, m.sender_id, m.is_admin, m.content, m.created_at, u.FullName
+        SELECT m.id, m.sender_id, m.is_admin, m.content, m.created_at, 
+               COALESCE(u.FullName, 'Hệ thống') as FullName
         FROM support_message m
-        JOIN user u ON m.sender_id = u.UserID
+        LEFT JOIN user u ON m.sender_id = u.UserID
         WHERE m.thread_id=%s
         ORDER BY m.id ASC
         LIMIT 200

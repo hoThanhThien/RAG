@@ -118,16 +118,31 @@ async def get_tours(
     page_size: int = Query(50, ge=1, le=200),
     limit_photos: int = Query(3, ge=0, description="Số ảnh tối đa mỗi tour; 0 = lấy tất cả"),
     sort: Optional[str] = Query(None, description="VD: start_date:asc,price:desc,title:asc"),
+    q: Optional[str] = Query(None, description="Tìm theo tên, địa điểm, mô tả"),
 ):
     offset = (page - 1) * page_size
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            where_sql = ""
+            filter_params: List[Any] = []
+            if q and q.strip():
+                like_q = f"%{q.strip()}%"
+                where_sql = """
+                    WHERE (
+                        t.Title LIKE %s OR
+                        t.Location LIKE %s OR
+                        t.Description LIKE %s
+                    )
+                """
+                filter_params = [like_q, like_q, like_q]
+
             # COUNT
-            count_sql = """
+            count_sql = f"""
                 SELECT COUNT(*) AS cnt
                 FROM tour t
                 JOIN category c ON t.CategoryID = c.CategoryID
+                {where_sql}
             """
 
             # ORDER BY an toàn
@@ -151,16 +166,17 @@ async def get_tours(
                 FROM tour t
                 JOIN category c ON t.CategoryID = c.CategoryID
                 LEFT JOIN comment cm ON t.TourID = cm.TourID AND cm.Rating IS NOT NULL
+                {where_sql}
                 GROUP BY t.TourID, t.Title, t.Location, t.Description, t.Capacity, 
                          t.Price, t.StartDate, t.EndDate, t.Status, t.CategoryID, c.CategoryName
                 {order_by_sql}
                 LIMIT %s OFFSET %s
             """
 
-            cur.execute(count_sql)
+            cur.execute(count_sql, filter_params)
             total = int(cur.fetchone()["cnt"])
 
-            cur.execute(data_sql, (page_size, offset))
+            cur.execute(data_sql, [*filter_params, page_size, offset])
             tours = cur.fetchall()
 
             if not tours:
