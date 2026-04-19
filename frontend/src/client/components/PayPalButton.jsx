@@ -32,7 +32,8 @@ const PayPalButton = ({ bookingId, onSuccess, onError, onCancel }) => {
             return response;
           } catch (error) {
             console.error("[PayPal Button] Error creating order:", error);
-            if (onError) onError(error);
+            const message = PayPalService.handlePaymentError(error);
+            if (onError) onError(message);
             throw error;
           }
         },
@@ -44,17 +45,23 @@ const PayPalButton = ({ bookingId, onSuccess, onError, onCancel }) => {
             const captureResponse = await PayPalService.capturePayPalPayment(data.orderID, bookingId);
             console.log("[PayPal Button] Payment captured:", captureResponse);
             
-            if (onSuccess) onSuccess(captureResponse);
+            if (onSuccess) {
+              await Promise.resolve(onSuccess(captureResponse));
+            }
+
+            return captureResponse;
           } catch (error) {
             console.error("[PayPal Button] Error capturing payment:", error);
-            if (onError) onError(error);
+            const message = PayPalService.handlePaymentError(error);
+            if (onError) onError(message);
+            throw error;
           }
         },
 
         onError: (err) => {
           console.error("[PayPal Button] Payment error:", err);
-          PayPalService.handlePaymentError(err);
-          if (onError) onError(err);
+          const message = PayPalService.handlePaymentError(err);
+          if (onError) onError(message);
         },
 
         onCancel: (data) => {

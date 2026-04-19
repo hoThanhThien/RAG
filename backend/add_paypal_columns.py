@@ -15,24 +15,27 @@ conn = pymysql.connect(
 
 try:
     with conn.cursor() as cur:
-        # Thêm cột PaypalOrderID vào bảng payment
-        print("Adding PaypalOrderID column to payment table...")
-        cur.execute("""
-            ALTER TABLE payment 
-            ADD COLUMN IF NOT EXISTS PaypalOrderID VARCHAR(100) NULL AFTER OrderCode
-        """)
-        
-        # Thêm cột TransactionID để lưu transaction ID sau khi capture
-        print("Adding TransactionID column to payment table...")
-        cur.execute("""
-            ALTER TABLE payment 
-            ADD COLUMN IF NOT EXISTS TransactionID VARCHAR(100) NULL AFTER PaypalOrderID
-        """)
-        
+        print("Adding missing PayPal columns to payment table...")
+
+        required_columns = {
+            "PaidAt": "ALTER TABLE payment ADD COLUMN PaidAt DATETIME NULL AFTER PaymentDate",
+            "PaypalOrderID": "ALTER TABLE payment ADD COLUMN PaypalOrderID VARCHAR(255) NULL AFTER PaidAt",
+            "PaypalTransactionID": "ALTER TABLE payment ADD COLUMN PaypalTransactionID VARCHAR(255) NULL AFTER PaypalOrderID",
+            "UpdatedAt": "ALTER TABLE payment ADD COLUMN UpdatedAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER PaypalTransactionID",
+        }
+
+        for column_name, ddl in required_columns.items():
+            cur.execute(f"SHOW COLUMNS FROM payment LIKE '{column_name}'")
+            if not cur.fetchone():
+                print(f"Adding column: {column_name}")
+                cur.execute(ddl)
+
         conn.commit()
         print("✅ Successfully added PayPal columns to payment table!")
-        print("   - PaypalOrderID: VARCHAR(100) NULL")
-        print("   - TransactionID: VARCHAR(100) NULL")
+        print("   - PaidAt: DATETIME NULL")
+        print("   - PaypalOrderID: VARCHAR(255) NULL")
+        print("   - PaypalTransactionID: VARCHAR(255) NULL")
+        print("   - UpdatedAt: TIMESTAMP AUTO UPDATE")
         
 except Exception as e:
     print(f"❌ Error: {e}")
