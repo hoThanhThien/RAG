@@ -18,17 +18,21 @@ const buildEmptyPhoto = (isPrimary = false) => ({
   image: null,
 });
 
-const buildInitialForm = (data = {}) => ({
-  title: data.title || "",
-  location: data.location || "",
-  description: data.description || "",
-  capacity: data.capacity ?? "",
-  price: data.price ?? "",
-  start_date: formatDate(data.start_date),
-  end_date: formatDate(data.end_date),
-  status: data.status || "Available",
-  category_id: data.category_id ? String(data.category_id) : "",
-});
+const buildInitialForm = (data = {}) => {
+  const safeData = data || {};
+
+  return {
+    title: safeData.title || "",
+    location: safeData.location || "",
+    description: safeData.description || "",
+    capacity: safeData.capacity ?? "",
+    price: safeData.price ?? "",
+    start_date: formatDate(safeData.start_date),
+    end_date: formatDate(safeData.end_date),
+    status: safeData.status || "Available",
+    category_id: safeData.category_id ? String(safeData.category_id) : "",
+  };
+};
 
 export default function TourForm({ onSubmit = () => {}, initialData = {}, onCancel }) {
   const [categories, setCategories] = useState([]);
@@ -45,7 +49,7 @@ export default function TourForm({ onSubmit = () => {}, initialData = {}, onCanc
     const fetchCategories = async () => {
       try {
         const res = await api.get("/categories");
-        setCategories(res.data.items || []);
+        setCategories(Array.isArray(res.data?.items) ? res.data.items : Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("❌ Lỗi tải danh mục:", err);
       }
@@ -395,8 +399,8 @@ export default function TourForm({ onSubmit = () => {}, initialData = {}, onCanc
           <label>Danh mục</label>
           <select name="category_id" value={form.category_id} onChange={handleChange} className="form-control" required>
             <option value="">-- Chọn danh mục --</option>
-            {categories.map((cat) => (
-              <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
+            {categories.filter(Boolean).map((cat) => (
+              <option key={cat.category_id} value={cat.category_id}>{cat.name || `Danh mục ${cat.category_id}`}</option>
             ))}
           </select>
         </div>

@@ -118,6 +118,32 @@ export function connectSupportWSWithRetry(token, options = {}) {
 }
 
 /**
+ * Kết nối WebSocket cho Admin Dashboard realtime updates
+ */
+export function connectAdminDashboardWS(token) {
+  if (!token) {
+    return {
+      onopen: null,
+      onclose: null,
+      onerror: null,
+      onmessage: null,
+      send: () => {},
+      close: () => {},
+      readyState: WebSocket.CLOSED
+    };
+  }
+
+  const wsHost = getWsBaseUrl();
+  const url = `${wsHost}/ws/admin/dashboard?token=${token}`;
+
+  const ws = new WebSocket(url);
+  ws.onopen = () => console.log("✅ WS dashboard connected");
+  ws.onclose = () => console.log("❌ WS dashboard closed");
+  ws.onerror = (e) => console.error("⚠️ WS dashboard error", e);
+  return ws;
+}
+
+/**
  * Kết nối WebSocket cho Tour realtime updates
  */
 export function connectTourWS(tourId) {

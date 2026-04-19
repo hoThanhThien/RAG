@@ -71,21 +71,22 @@ function mapTour(t = {}) {
   const photos = Array.isArray(t.photos) ? t.photos.map(mapPhoto) : [];
   return {
     id: t.tour_id ?? t.id,
-    title: t.title,
-    location: t.location,
-    short_desc: t.description,
-    description: t.description,
+    title: t.title ?? "Chưa có tiêu đề",
+    location: t.location ?? "",
+    short_desc: t.description ?? "",
+    description: t.description ?? "",
     price: t.price,
     start_date: t.start_date,
     end_date: t.end_date,
-    duration_days: calcDurationDays(t.start_date, t.end_date),
+    duration_days: t.duration_days ?? calcDurationDays(t.start_date, t.end_date),
     status: t.status,
     category_id: t.category_id,
     category_name: t.category_name,
     capacity: t.capacity,
-    rating: t.rating ?? null, // UI có thể default nếu null
+    rating: t.rating ?? null,
+    review_count: Number(t.review_count ?? t.total_reviews ?? 0),
     photos,
-    image_url: pickPrimaryPhoto(photos, t.image_url), // đại diện
+    image_url: pickPrimaryPhoto(photos, t.image_url),
   };
 }
 

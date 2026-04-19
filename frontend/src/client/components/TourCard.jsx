@@ -20,10 +20,11 @@ function diffDays(start, end) {
 export default function TourCard({ tour }) {
   const days = tour.duration_days ?? diffDays(tour.start_date, tour.end_date);
   const badge = days ? `${days} days` : "Schedule TBA";
-  // Nếu chưa có rating thì mặc định 5.0, nếu có rồi thì lấy giá trị rating
-  const rating = tour.rating !== null && tour.rating !== undefined 
-    ? Math.max(0, Math.min(5, Math.round(tour.rating))) 
+  const reviewCount = Number(tour.review_count ?? 0);
+  const rawRating = tour.rating !== null && tour.rating !== undefined && reviewCount > 0
+    ? Number(tour.rating)
     : 5;
+  const rating = Math.max(0, Math.min(5, Math.round(rawRating)));
   const img = tour.image_url || "/no-image.png";
   const priceLabel =
     typeof tour.price === "number" ? fmtVND.format(tour.price) : tour.price ?? "Liên hệ";
@@ -78,8 +79,9 @@ export default function TourCard({ tour }) {
             <span className="text-primary fw-bold">
               Giá: <span className="text-primary">{priceLabel}</span>
             </span>
-            <span className="d-flex align-items-center gap-1" aria-label={`Rating ${rating}/5`}>
+            <span className="d-flex align-items-center gap-1" aria-label={`Rating ${rawRating.toFixed(1)}/5`}>
               {renderStars(rating)}
+              <small className="text-muted">{rawRating.toFixed(1)}/5 {reviewCount ? `(${reviewCount})` : ""}</small>
             </span>
           </div>
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict
+from typing import List, Dict, Set
 import json
 import asyncio
 import anyio
@@ -119,6 +119,7 @@ async def get_tour_live_stats(tour_id: int):
 # ================= Support WebSocket ====================
 
 SUPPORT_CONNECTIONS = {}  # room → set of websockets
+DASHBOARD_CONNECTIONS: Set[WebSocket] = set()
 
 # Global reference to main event loop (set when first WS connects)
 _main_loop = None
@@ -138,16 +139,51 @@ def ws_broadcast_safe(room: str, message: dict):
     global _main_loop
     
     if _main_loop and _main_loop.is_running():
-        # Schedule in the main event loop
         asyncio.run_coroutine_threadsafe(_send(), _main_loop)
     else:
-        # Fallback: run in new thread with new event loop
         def run_in_thread():
             try:
                 asyncio.run(_send())
             except Exception as e:
                 print(f"⚠️ WS broadcast thread error: {e}")
         
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+
+def dashboard_broadcast_safe(event: str = "updated"):
+    """Broadcast dashboard refresh event to connected admin dashboards."""
+    import asyncio
+    import threading
+    import time
+
+    payload = {
+        "type": "dashboard:refresh",
+        "event": event,
+        "timestamp": time.time()
+    }
+
+    async def _send():
+        stale = []
+        for ws in list(DASHBOARD_CONNECTIONS):
+            try:
+                await ws.send_json(payload)
+            except Exception as e:
+                print(f"⚠️ Dashboard WS broadcast error: {e}")
+                stale.append(ws)
+        for ws in stale:
+            DASHBOARD_CONNECTIONS.discard(ws)
+
+    global _main_loop
+
+    if _main_loop and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), _main_loop)
+    else:
+        def run_in_thread():
+            try:
+                asyncio.run(_send())
+            except Exception as e:
+                print(f"⚠️ Dashboard WS thread error: {e}")
+
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
 
@@ -160,6 +196,31 @@ async def support_leave(ws: WebSocket):
             conns.remove(ws)
             if not conns:
                 SUPPORT_CONNECTIONS.pop(room, None)
+
+@router.websocket("/ws/admin/dashboard")
+async def ws_admin_dashboard(websocket: WebSocket, user=Depends(get_current_user_ws)):
+    global _main_loop
+    _main_loop = asyncio.get_event_loop()
+
+    role_name = str(user.get("RoleName", "")).strip().lower()
+    is_admin = role_name == "admin" or user.get("RoleID") == 1
+
+    await websocket.accept()
+
+    if not is_admin:
+        await websocket.close(code=1008)
+        return
+
+    DASHBOARD_CONNECTIONS.add(websocket)
+    await websocket.send_json({"type": "dashboard:connected"})
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        DASHBOARD_CONNECTIONS.discard(websocket)
+    except Exception:
+        DASHBOARD_CONNECTIONS.discard(websocket)
 
 @router.websocket("/ws/support")
 async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):

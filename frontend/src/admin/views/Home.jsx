@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { adminService } from "../services/adminService";
+import { connectAdminDashboardWS } from "../../client/services/ws";
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -19,15 +20,27 @@ const AdminHome = () => {
   const [bookingStatus, setBookingStatus] = useState([]);
   const [locationRevenue, setLocationRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const [isAdmin, setIsAdmin] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [locationFilter, setLocationFilter] = useState('all'); // 'all', 'domestic', 'international'
+  const wsRef = useRef(null);
+  const hasLoadedRef = useRef(false);
 
   // Load dashboard data
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async ({ source = 'background' } = {}) => {
+    const showFullLoader = source === 'initial' && !hasLoadedRef.current;
+    const showManualRefresh = source === 'manual';
+
     try {
-      setLoading(true);
+      if (showFullLoader) {
+        setLoading(true);
+      }
+      if (showManualRefresh) {
+        setRefreshing(true);
+      }
       
       // Thử gọi API admin mới trước
       try {
@@ -38,6 +51,8 @@ const AdminHome = () => {
           adminService.getBookingStatus()
         ]);
 
+        setIsAdmin(true);
+        setErrorMessage('');
         setStats(statsData);
         setLocationRevenue(locationData);
         setTopCustomers(customers);
@@ -73,6 +88,7 @@ const AdminHome = () => {
           bookings: 0,
           revenue: 0
         });
+        setLastUpdate(new Date());
         
         // Empty arrays for charts since we don't have data
         setLocationRevenue([]);
@@ -82,31 +98,72 @@ const AdminHome = () => {
     } catch (error) {
       console.error("❌ Lỗi khi load dữ liệu dashboard:", error);
     } finally {
+      hasLoadedRef.current = true;
       setLoading(false);
-    }
-  };
-
-  // Load data on mount
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  // Reload when filter changes
-  useEffect(() => {
-    if (locationFilter) {
-      loadDashboardData();
+      setRefreshing(false);
     }
   }, [locationFilter]);
 
-  // Auto-refresh every 30 seconds
+  // Load data on mount and when filter changes
+  useEffect(() => {
+    loadDashboardData({ source: 'initial' });
+  }, [loadDashboardData]);
+
+  // Realtime updates via WebSocket without reloading the page
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    const ws = connectAdminDashboardWS(token);
+    wsRef.current = ws;
+
+    ws.onopen = () => setWsConnected(true);
+    ws.onclose = () => setWsConnected(false);
+    ws.onerror = () => setWsConnected(false);
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg?.type === 'dashboard:refresh') {
+          loadDashboardData({ source: 'background' });
+        }
+      } catch (err) {
+        console.warn('Dashboard WS parse error:', err);
+      }
+    };
+
+    return () => {
+      setWsConnected(false);
+      try {
+        ws.close();
+      } catch {
+        // ignore close error
+      }
+    };
+  }, [loadDashboardData]);
+
+  // Fallback polling in case WS is temporarily unavailable
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log("🔄 Auto-refreshing dashboard data...");
-      loadDashboardData();
-    }, 30000); // 30 giây
+      loadDashboardData({ source: 'background' });
+    }, 20000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadDashboardData]);
+
+  // Refresh again when the tab becomes active
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadDashboardData({ source: 'background' });
+      }
+    };
+
+    window.addEventListener('focus', handleVisible);
+    document.addEventListener('visibilitychange', handleVisible);
+
+    return () => {
+      window.removeEventListener('focus', handleVisible);
+      document.removeEventListener('visibilitychange', handleVisible);
+    };
+  }, [loadDashboardData]);
 
 
   const formatCurrency = (value) => {
@@ -142,17 +199,22 @@ const AdminHome = () => {
           Bảng điều khiển Admin
         </h2>
         <div className="d-flex align-items-center gap-3">
-          <small className="text-muted">
-            <i className="bi bi-clock me-1"></i>
-            Cập nhật: {lastUpdate.toLocaleTimeString('vi-VN')}
+          <small className="text-muted d-flex align-items-center gap-2">
+            <span>
+              <i className="bi bi-clock me-1"></i>
+              Cập nhật: {lastUpdate.toLocaleTimeString('vi-VN')}
+            </span>
+            <span className={`badge ${wsConnected ? 'text-bg-success' : 'text-bg-warning'}`}>
+              {wsConnected ? 'Live' : 'Đang đồng bộ'}
+            </span>
           </small>
           <button 
             className="btn btn-sm btn-outline-primary"
-            onClick={loadDashboardData}
-            disabled={loading}
+            onClick={() => loadDashboardData({ source: 'manual' })}
+            disabled={loading || refreshing}
           >
-            <i className={`bi bi-arrow-clockwise me-1 ${loading ? 'spin' : ''}`}></i>
-            Làm mới
+            <i className={`bi bi-arrow-clockwise me-1 ${(loading || refreshing) ? 'spin' : ''}`}></i>
+            {refreshing ? 'Đang cập nhật...' : 'Làm mới'}
           </button>
         </div>
       </div>

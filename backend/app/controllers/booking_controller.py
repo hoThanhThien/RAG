@@ -8,6 +8,7 @@ from math import ceil
 from typing import List, Dict, Any, Optional
 from pymysql.err import IntegrityError
 from app.utils.sepay import gen_order_code
+from app.controllers.websocket_controller import dashboard_broadcast_safe
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -146,6 +147,7 @@ async def create_booking(
             """, (booking_id, "manualqr", order_code, float(total_amount)))
 
             conn.commit()
+            dashboard_broadcast_safe("booking_created")
 
         return {
             "message": "Booking created successfully",
@@ -419,6 +421,7 @@ async def update_booking_status(
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Booking not found")
             conn.commit()
+            dashboard_broadcast_safe("booking_status_changed")
         return {"message": "Booking status updated successfully"}
     except Exception as e:
         conn.rollback()
@@ -448,6 +451,7 @@ async def cancel_booking(
 
             cur.execute("UPDATE booking SET Status = 'Cancelled' WHERE BookingID = %s", (booking_id,))
             conn.commit()
+            dashboard_broadcast_safe("booking_cancelled")
         return {"message": "Booking cancelled successfully"}
     except Exception as e:
         conn.rollback()

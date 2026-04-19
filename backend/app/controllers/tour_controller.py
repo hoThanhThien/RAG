@@ -11,6 +11,7 @@ from math import ceil
 import decimal
 import traceback
 import pymysql
+from app.controllers.websocket_controller import dashboard_broadcast_safe
 
 router = APIRouter(prefix="/tours", tags=["Tours"])
 
@@ -493,6 +494,7 @@ async def create_tour(
             ))
             tour_id = cur.lastrowid
             conn.commit()
+            dashboard_broadcast_safe("tour_created")
         return {"message": "Tour created successfully", "tour_id": tour_id}
     except Exception as e:
         conn.rollback()
@@ -540,6 +542,7 @@ async def update_tour(
             params.append(tour_id)
             cur.execute(f"UPDATE tour SET {', '.join(sets)} WHERE TourID = %s", params)
             conn.commit()
+            dashboard_broadcast_safe("tour_updated")
         return {"message": "Tour updated successfully"}
     except Exception as e:
         conn.rollback()
@@ -583,6 +586,7 @@ async def delete_tour(
                 raise HTTPException(status_code=404, detail="Không tìm thấy tour")
             
             conn.commit()
+            dashboard_broadcast_safe("tour_deleted")
         return {"message": "Xoá tour thành công"}
     except Exception as e:
         conn.rollback()
