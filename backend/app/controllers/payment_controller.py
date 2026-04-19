@@ -69,6 +69,7 @@ def create_paypal_order(amount_usd, currency, description, order_code):
     access_token = get_paypal_access_token()
     mode = os.getenv("PAYPAL_MODE", "sandbox")
     base_url = "https://api.sandbox.paypal.com" if mode == "sandbox" else "https://api.paypal.com"
+    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
     
     headers = {
         "Content-Type": "application/json",
@@ -87,8 +88,8 @@ def create_paypal_order(amount_usd, currency, description, order_code):
             }
         }],
         "application_context": {
-            "return_url": "http://localhost:5173/payment-success",
-            "cancel_url": "http://localhost:5173/payment-cancel", 
+            "return_url": f"{frontend_base_url}/payment-success",
+            "cancel_url": f"{frontend_base_url}/payment-cancel", 
             "brand_name": "Tourest",
             "locale": "en-US",
             "landing_page": "NO_PREFERENCE",
@@ -139,6 +140,20 @@ def _same_amount(a, b) -> bool:
     except Exception:
         return False
 
+
+def ensure_payment_paypal_columns(cur):
+    required_columns = {
+        "PaidAt": "ADD COLUMN PaidAt DATETIME NULL AFTER PaymentDate",
+        "PaypalOrderID": "ADD COLUMN PaypalOrderID VARCHAR(255) NULL AFTER PaidAt",
+        "PaypalTransactionID": "ADD COLUMN PaypalTransactionID VARCHAR(255) NULL AFTER PaypalOrderID",
+        "UpdatedAt": "ADD COLUMN UpdatedAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER PaypalTransactionID",
+    }
+
+    for column_name, ddl in required_columns.items():
+        cur.execute(f"SHOW COLUMNS FROM payment LIKE '{column_name}'")
+        if not cur.fetchone():
+            cur.execute(f"ALTER TABLE payment {ddl}")
+
 @router.post("/init", response_model=dict)
 async def init_payment(
     booking_id: int = Body(..., embed=True),
@@ -147,6 +162,8 @@ async def init_payment(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            ensure_payment_paypal_columns(cur)
+            conn.commit()
             cur.execute("SELECT * FROM booking WHERE BookingID=%s", (booking_id,))
             b = cur.fetchone()
             if not b:
@@ -315,6 +332,8 @@ async def create_paypal_payment(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            ensure_payment_paypal_columns(cur)
+            conn.commit()
             # Tìm bản ghi payment tương ứng đã được tạo lúc booking
             cur.execute("""
                 SELECT p.Amount, p.OrderCode, b.UserID
@@ -326,7 +345,7 @@ async def create_paypal_payment(
 
             if not payment_info:
                 raise HTTPException(404, "Payment record not found")
-            if payment_info["UserID"] != current_user["UserID"]:
+            if str(current_user.get("RoleName", "")).lower() != "admin" and payment_info["UserID"] != current_user["UserID"]:
                 raise HTTPException(403, "Forbidden")
 
             # 1. LẤY GIÁ TRỊ VND TỪ DATABASE
@@ -365,6 +384,8 @@ async def create_paypal_payment(
                 "exchange_rate": ExchangeRateService.get_usd_vnd_rate(),
                 "approve_url": next((link["href"] for link in order_response.get("links", []) if link["rel"] == "approve"), None)
             }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[PayPal Error] {type(e).__name__}: {str(e)}")
         raise HTTPException(500, str(e))
@@ -390,6 +411,8 @@ async def capture_paypal_payment(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            ensure_payment_paypal_columns(cur)
+            conn.commit()
             # Kiểm tra quyền truy cập
             cur.execute("""
                 SELECT b.UserID FROM booking b 

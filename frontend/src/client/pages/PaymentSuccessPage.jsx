@@ -9,6 +9,25 @@ const PaymentSuccessPage = () => {
   const { bookingId, paymentData } = location.state || {};
 
   useEffect(() => {
+    const isPopup = !!window.opener && !window.opener.closed;
+
+    if (isPopup) {
+      try {
+        window.opener.postMessage(
+          { type: 'paypal-payment-success', bookingId, paymentData },
+          window.location.origin
+        );
+      } catch (error) {
+        console.error('Unable to notify parent window:', error);
+      }
+
+      const closeTimer = setTimeout(() => {
+        window.close();
+      }, 800);
+
+      return () => clearTimeout(closeTimer);
+    }
+
     // Nếu không có dữ liệu, chuyển về trang chủ sau 5 giây
     if (!bookingId) {
       const timer = setTimeout(() => {
@@ -16,7 +35,7 @@ const PaymentSuccessPage = () => {
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [bookingId, navigate]);
+  }, [bookingId, paymentData, navigate]);
 
   return (
     <div className="payment-success-page">
@@ -31,6 +50,12 @@ const PaymentSuccessPage = () => {
                 </div>
                 
                 <h2 className="text-success mb-3">Thanh toán thành công!</h2>
+
+                {!!window.opener && !window.opener.closed && (
+                  <div className="alert alert-success">
+                    Giao dịch đã hoàn tất. Cửa sổ PayPal sẽ tự đóng trong giây lát.
+                  </div>
+                )}
                 
                 {bookingId ? (
                   <>

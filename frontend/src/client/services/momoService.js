@@ -1,9 +1,4 @@
-import axios from 'axios';
-
-// Thay thế dòng code cũ của bạn bằng dòng này
-const API_URL = import.meta.env.PROD
-  ? 'http:52.64.184.203:8000/payments' // 👈 Giá trị khi chạy trên HOSTING
-  : 'http://52.64.184.203:8000/payments';
+import { api } from './api';
 
 /**
  * Tạo payment request với MoMo
@@ -13,24 +8,14 @@ const API_URL = import.meta.env.PROD
  */
 export const createMoMoPayment = async (bookingID, paymentMethod = 'captureWallet') => {
     try {
-        const token = localStorage.getItem('access_token');
-        const response = await axios.post(
-            `${API_URL}/momo/create`,
-            { 
-                bookingID,
-                paymentMethod 
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+        const response = await api.post('/payments/momo/create', { 
+            bookingID,
+            paymentMethod 
+        });
         return response.data;
     } catch (error) {
         console.error('Error creating MoMo payment:', error);
-        throw error.response?.data || error.message;
+        throw error.response?.data?.detail || error.message;
     }
 };
 
@@ -74,15 +59,7 @@ export const formatCurrency = (amount) => {
  */
 export const getAvailableMethods = async () => {
     try {
-        const token = localStorage.getItem('access_token');
-        const response = await axios.get(
-            `${API_URL}/momo/available-methods`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        );
+        const response = await api.get('/payments/momo/available-methods');
         return response.data;
     } catch (error) {
         console.error('Error fetching available methods:', error);

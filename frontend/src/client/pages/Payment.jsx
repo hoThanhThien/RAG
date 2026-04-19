@@ -125,29 +125,43 @@ export default function Payment() {
     console.log('PayPal payment successful:', paymentData);
     setStatus("Paid");
     setPaymentError("");
-    alert('Thanh toán thành công! Đơn đặt tour của bạn đã được xác nhận.');
-    
-    // Chuyển hướng đến trang thành công sau 2 giây
-    setTimeout(() => {
-      nav('/payment-success', { 
-        state: { 
-          bookingId, 
-          paymentData 
-        } 
-      });
-    }, 2000);
+
+    if (timer.current) {
+      clearInterval(timer.current);
+    }
   };
 
   // Xử lý khi có lỗi PayPal
   const handlePayPalError = (errorMessage) => {
-    setPaymentError(errorMessage);
+    const message = typeof errorMessage === "string"
+      ? errorMessage
+      : errorMessage?.message || "Không thể tạo thanh toán PayPal.";
+
+    setPaymentError(message);
     console.error('PayPal error:', errorMessage);
   };
 
   // Xử lý khi user hủy thanh toán PayPal
   const handlePayPalCancel = () => {
-    alert('Bạn đã hủy thanh toán PayPal. Bạn có thể thử lại bất kỳ lúc nào.');
+    setPaymentError('Bạn đã hủy thanh toán PayPal. Bạn có thể thử lại bất kỳ lúc nào.');
   };
+
+  useEffect(() => {
+    const handlePayPalMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === 'paypal-payment-success') {
+        setStatus('Paid');
+        setPaymentError('');
+        if (timer.current) {
+          clearInterval(timer.current);
+        }
+      }
+    };
+
+    window.addEventListener('message', handlePayPalMessage);
+    return () => window.removeEventListener('message', handlePayPalMessage);
+  }, []);
 
   return (
     <div className="container" style={{ maxWidth: 860, padding: "24px 0" }}>
@@ -252,7 +266,7 @@ export default function Payment() {
             <strong>Debug:</strong> User logged in: {user ? '✅ Yes' : '❌ No'}
             {user && <span> | User: {user.Username || user.email}</span>}
             <br />
-            <strong>API URL:</strong> {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}
+            <strong>API URL:</strong> {api.defaults.baseURL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}
             <br />
             <button 
               className="btn btn-sm btn-outline-info mt-2" 
@@ -260,7 +274,7 @@ export default function Payment() {
                 try {
                   console.log('Testing API connection...');
                   const token = localStorage.getItem('access_token');
-                  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/payments/paypal/create`, {
+                  const response = await fetch(`${api.defaults.baseURL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/payments/paypal/create`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
