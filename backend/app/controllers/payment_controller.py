@@ -7,6 +7,7 @@ import json, re, hmac, hashlib, os, requests, base64, time
 import paypalrestsdk  # 1. Import thư viện PayPal (chỉ dùng cho config)
 from pydantic import BaseModel  # 2. Import BaseModel để nhận JSON
 from app.utils.exchange_rate import ExchangeRateService  # 3. Import dịch vụ tỷ giá
+from app.controllers.websocket_controller import dashboard_broadcast_safe
 
 router = APIRouter(prefix="/payments", tags=["Payments"])  # <-- PHẢI có, ở top-level
 
@@ -231,6 +232,7 @@ async def pull_status(
                     cur.execute("UPDATE booking SET Status='Confirmed' WHERE BookingID=%s",
                                 (booking_id,))
                     conn.commit()
+                    dashboard_broadcast_safe("payment_paid")
                     return {"payment_status": "Paid"}
 
         return {"payment_status": "Pending"}
@@ -464,6 +466,7 @@ async def capture_paypal_payment(
                     """, (req_body.bookingID,))
                     
                     conn.commit()
+                    dashboard_broadcast_safe("paypal_captured")
                     
                     # 4. TRẢ VỀ THÀNH CÔNG
                     return {
@@ -594,6 +597,8 @@ async def bank_webhook(request: Request):
                         matched_payments += 1
                 
                 conn.commit()
+                if matched_payments > 0:
+                    dashboard_broadcast_safe("bank_reconciled")
                 
                 return {
                     "status": "success",
@@ -669,6 +674,8 @@ async def manual_add_bank_transaction(
                     matched.append(payment["BookingID"])
             
             conn.commit()
+            if matched:
+                dashboard_broadcast_safe("manual_bank_reconciled")
             return {
                 "status": "success",
                 "transaction_added": True,

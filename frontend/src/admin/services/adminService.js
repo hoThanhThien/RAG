@@ -1,11 +1,22 @@
 // src/admin/services/adminService.js
 import { api } from '../../client/services/api';
 
+const liveConfig = () => ({
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  },
+  params: {
+    _ts: Date.now(),
+  },
+});
+
 export const adminService = {
   // Lấy thống kê tổng quan
   getDashboardStats: async () => {
     try {
-      const response = await api.get('/admin/dashboard/stats');
+      const response = await api.get('/admin/dashboard/stats', liveConfig());
       return response.data;
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -16,7 +27,13 @@ export const adminService = {
   // Lấy dữ liệu biểu đồ doanh thu
   getRevenueChart: async (period = 'month') => {
     try {
-      const response = await api.get(`/admin/dashboard/revenue-chart?period=${period}`);
+      const response = await api.get('/admin/dashboard/revenue-chart', {
+        ...liveConfig(),
+        params: {
+          period,
+          _ts: Date.now(),
+        },
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching revenue chart:', error);
@@ -27,7 +44,7 @@ export const adminService = {
   // Lấy top 5 khách hàng
   getTopCustomers: async () => {
     try {
-      const response = await api.get('/admin/dashboard/top-customers');
+      const response = await api.get('/admin/dashboard/top-customers', liveConfig());
       return response.data;
     } catch (error) {
       console.error('Error fetching top customers:', error);
@@ -38,7 +55,7 @@ export const adminService = {
   // Lấy thống kê booking theo status
   getBookingStatus: async () => {
     try {
-      const response = await api.get('/admin/dashboard/booking-status');
+      const response = await api.get('/admin/dashboard/booking-status', liveConfig());
       return response.data;
     } catch (error) {
       console.error('Error fetching booking status:', error);
@@ -49,10 +66,13 @@ export const adminService = {
   // Lấy doanh thu theo địa điểm
   getRevenueByLocation: async (locationType = null) => {
     try {
-      const url = locationType 
-        ? `/admin/dashboard/revenue-by-location?location_type=${locationType}`
-        : '/admin/dashboard/revenue-by-location';
-      const response = await api.get(url);
+      const response = await api.get('/admin/dashboard/revenue-by-location', {
+        ...liveConfig(),
+        params: {
+          ...(locationType ? { location_type: locationType } : {}),
+          _ts: Date.now(),
+        },
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching revenue by location:', error);

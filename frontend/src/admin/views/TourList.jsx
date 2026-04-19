@@ -99,7 +99,8 @@ export default function TourList() {
 
       {showForm ? (
         <TourForm
-          initialData={editingTour}
+          key={editingTour?.tour_id || "new-tour"}
+          initialData={editingTour || {}}
           onSubmit={async () => {
             await loadData({ page: meta.page, q: searchTerm });
             closeForm();
@@ -108,7 +109,13 @@ export default function TourList() {
         />
       ) : (
         <>
-          <button className="btn btn-success mb-3" onClick={() => setShowForm(true)}>
+          <button
+            className="btn btn-success mb-3"
+            onClick={() => {
+              setEditingTour(null);
+              setShowForm(true);
+            }}
+          >
             ➕ Thêm tour
           </button>
 

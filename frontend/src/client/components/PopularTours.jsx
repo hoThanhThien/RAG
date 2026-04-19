@@ -35,9 +35,8 @@ export default function PopularTours() {
             const d = diffDays(t.start_date, t.end_date);
             return d ? `${d} Days` : "Schedule TBA";
           })(),
-          // Nếu chưa có rating (null/undefined) hoặc review_count = 0 thì mặc định 5.0
-          rating: (t.rating !== null && t.rating !== undefined && t.review_count > 0) ? t.rating : 5.0,
-          reviews: t.review_count ?? 0,
+          rating: (t.rating !== null && t.rating !== undefined && t.review_count > 0) ? Number(t.rating) : 5.0,
+          reviews: Number(t.review_count ?? 0),
           image: t.image_url || "/no-image.png",
         }));
 
@@ -120,7 +119,9 @@ export default function PopularTours() {
 
                     <div className="card-rating d-flex align-items-center gap-1">
                       <div className="d-flex">{renderStars(tour.rating)}</div>
-                      {tour.reviews ? <span className="text-muted small ms-1">({tour.reviews})</span> : null}
+                      <span className="text-muted small ms-1">
+                        {tour.rating.toFixed(1)}/5 {tour.reviews ? `(${tour.reviews})` : ""}
+                      </span>
                     </div>
                   </div>
 

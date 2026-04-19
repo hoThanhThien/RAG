@@ -2,6 +2,10 @@ import React from "react";
 import { toAbsoluteUrl } from "../../../client/services/api";
 
 export default function TourTable({ tours, onEdit, onDelete }) {
+  const safeTours = Array.isArray(tours)
+    ? tours.filter((tour) => tour && typeof tour === "object")
+    : [];
+
   return (
     <div className="table-responsive">
       <table className="table table-striped table-bordered align-middle">
@@ -22,51 +26,53 @@ export default function TourTable({ tours, onEdit, onDelete }) {
           </tr>
         </thead>
         <tbody>
-          {tours.length === 0 ? (
+          {safeTours.length === 0 ? (
             <tr>
               <td colSpan="12" className="text-center text-muted py-4">
                 Không có tour phù hợp
               </td>
             </tr>
           ) : (
-            tours.map((tour) => {
-              const firstPhoto = tour.photos?.[0]?.image_url
-                ? toAbsoluteUrl(String(tour.photos[0].image_url).trim())
+            safeTours.map((tour, index) => {
+              const safeTour = tour || {};
+              const title = safeTour.title || "Chưa có tiêu đề";
+              const firstPhoto = safeTour.photos?.[0]?.image_url
+                ? toAbsoluteUrl(String(safeTour.photos[0].image_url).trim())
                 : "";
 
               return (
-                <tr key={tour.tour_id}>
-                  <td>{tour.tour_id}</td>
+                <tr key={safeTour.tour_id ?? `tour-${index}`}>
+                  <td>{safeTour.tour_id ?? "—"}</td>
                   <td>
                     {firstPhoto ? (
                       <img
                         src={firstPhoto}
-                        alt={tour.title}
+                        alt={title}
                         style={{ width: "80px", height: "60px", objectFit: "cover", borderRadius: 6 }}
                       />
                     ) : (
                       <span className="text-muted">Không có ảnh</span>
                     )}
                   </td>
-                  <td>{tour.title}</td>
-                  <td>{tour.location}</td>
-                  <td>{tour.description}</td>
-                  <td>{tour.capacity}</td>
-                  <td>${Number(tour.price || 0).toLocaleString()}</td>
-                  <td>{tour.start_date}</td>
-                  <td>{tour.end_date}</td>
-                  <td>{tour.status}</td>
-                  <td>{tour.category_name || tour.category_id}</td>
+                  <td>{title}</td>
+                  <td>{safeTour.location || "—"}</td>
+                  <td>{safeTour.description || "—"}</td>
+                  <td>{safeTour.capacity ?? "—"}</td>
+                  <td>${Number(safeTour.price || 0).toLocaleString()}</td>
+                  <td>{safeTour.start_date || "—"}</td>
+                  <td>{safeTour.end_date || "—"}</td>
+                  <td>{safeTour.status || "—"}</td>
+                  <td>{safeTour.category_name || safeTour.category_id || "—"}</td>
                   <td>
                     <button
                       className="btn btn-sm btn-primary me-2"
-                      onClick={() => onEdit(tour)}
+                      onClick={() => onEdit(safeTour)}
                     >
                       Sửa
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
-                      onClick={() => onDelete(tour.tour_id)}
+                      onClick={() => onDelete(safeTour.tour_id)}
                     >
                       Xoá
                     </button>
