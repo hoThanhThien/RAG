@@ -33,6 +33,17 @@ export default function DiscountList() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (Number(form.discount_amount) < 0) {
+      alert("Giá trị giảm giá không được âm");
+      return;
+    }
+
+    if (form.is_percent && Number(form.discount_amount) > 100) {
+      alert("Phần trăm giảm giá không được vượt quá 100%");
+      return;
+    }
+
     if (editing) {
       await updateDiscount(editing.discount_id, form);
     } else {
@@ -146,16 +157,21 @@ export default function DiscountList() {
           </div>
 
           <div className="mb-2">
-            <label>Số tiền giảm:</label>
+            <label>{form.is_percent ? "Phần trăm giảm (%)" : "Số tiền giảm:"}</label>
             <input
               type="number"
               className="form-control"
+              min="0"
+              max={form.is_percent ? "100" : undefined}
               value={form.discount_amount}
               onChange={(e) =>
-                setForm({ ...form, discount_amount: parseFloat(e.target.value) })
+                setForm({ ...form, discount_amount: parseFloat(e.target.value) || 0 })
               }
               required
             />
+            {form.is_percent && (
+              <small className="text-muted">Giá trị hợp lệ từ 0 đến 100%.</small>
+            )}
           </div>
 
           <div className="form-check mb-2">

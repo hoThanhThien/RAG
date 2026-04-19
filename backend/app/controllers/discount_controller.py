@@ -6,6 +6,15 @@ import pymysql.cursors  # ✅ để dùng DictCursor
 
 router = APIRouter(prefix="/discounts", tags=["Discounts"])
 
+
+def validate_discount_payload(payload: DiscountSchema):
+    if payload.discount_amount < 0:
+        raise HTTPException(status_code=400, detail="Giá trị giảm giá không được âm")
+    if payload.is_percent and payload.discount_amount > 100:
+        raise HTTPException(status_code=400, detail="Phần trăm giảm giá không được vượt quá 100%")
+    if payload.end_date < payload.start_date:
+        raise HTTPException(status_code=400, detail="Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu")
+
 @router.get("", response_model=List[DiscountResponse])
 def get_discounts():
     conn = get_db_connection()
@@ -30,6 +39,7 @@ def get_discounts():
 
 @router.post("")
 def create_discount(payload: DiscountSchema):
+    validate_discount_payload(payload)
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -54,6 +64,7 @@ def create_discount(payload: DiscountSchema):
 
 @router.put("/{discount_id}")
 def update_discount(discount_id: int, payload: DiscountSchema):
+    validate_discount_payload(payload)
     conn = get_db_connection()
     try:
         cursor = conn.cursor()

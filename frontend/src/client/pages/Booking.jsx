@@ -14,7 +14,7 @@ export default function Booking() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     number_of_people: 1,
-    discount_id: "", // để trống = null
+    discount_code: "", // để trống = null
   });
 
   useEffect(() => {
@@ -24,7 +24,13 @@ export default function Booking() {
     })();
   }, [id]);
 
-  const onChange = (e) => setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setForm((s) => ({
+      ...s,
+      [name]: name === "discount_code" ? value.toUpperCase() : value,
+    }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -33,8 +39,7 @@ export default function Booking() {
     const payload = {
       tour_id: Number(id),
       number_of_people: Math.max(1, Number(form.number_of_people || 1)),
-      discount_id:
-        String(form.discount_id || "").trim() === "" ? null : Number(form.discount_id),
+      discount_code: String(form.discount_code || "").trim() === "" ? null : String(form.discount_code).trim(),
     };
 
     try {
@@ -105,16 +110,16 @@ export default function Booking() {
         </div>
 
         <div className="col-md-4">
-          <label className="form-label">Mã giảm giá (ID)</label>
-        <input
-            name="discount_id"
-            type="number"
-            min="1"
+          <label className="form-label">Mã giảm giá</label>
+          <input
+            name="discount_code"
+            type="text"
             className="form-control"
-            value={form.discount_id}
+            value={form.discount_code}
             onChange={onChange}
-            placeholder="Để trống nếu không có"
+            placeholder="Ví dụ: MO1"
           />
+          <small className="text-muted">Nhập mã code giảm giá, không cần nhập ID.</small>
         </div>
 
         <div className="col-12 d-flex gap-2">
