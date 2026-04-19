@@ -1,10 +1,24 @@
+from datetime import timezone
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from app.dependencies.auth_dependencies import get_current_user, require_admin
 from app.schemas.support_schema import MessageIn, MessageOut, ThreadOut
 from app.database import get_db_connection  # ✅ Dùng pymysql connection
 
+
+def to_utc_iso(dt):
+    if not dt:
+        return None
+    if getattr(dt, "tzinfo", None) is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
 router = APIRouter(prefix="/support", tags=["support"])
+
+
+def is_admin_user(user):
+    role_name = str(user.get("RoleName", "")).strip().lower()
+    return role_name == "admin" or user.get("RoleID") == 1
 
 # 🟢 Mở hoặc tạo thread
 @router.post("/threads/open-or-create")
@@ -70,9 +84,9 @@ def get_my_threads(user=Depends(get_current_user), db=Depends(get_db_connection)
         for row in rows:
             threads.append({
                 "thread_id": row["thread_id"],
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "created_at": to_utc_iso(row["created_at"]),
                 "last_content": row["last_content"] or "Chưa có tin nhắn",
-                "last_time": row["last_time"].isoformat() if row["last_time"] else None,
+                "last_time": to_utc_iso(row["last_time"]),
                 "message_count": row["message_count"]
             })
         
@@ -132,7 +146,7 @@ def delete_thread(thread_id: int, user=Depends(get_current_user), db=Depends(get
             raise HTTPException(404, "Thread không tồn tại")
         
         # Only owner or admin can delete
-        if user["RoleID"] != 1 and row["user_id"] != user["UserID"]:
+        if not is_admin_user(user) and row["user_id"] != user["UserID"]:
             raise HTTPException(403, "Bạn không có quyền xóa cuộc trò chuyện này")
         
         # Delete messages first (foreign key constraint)
@@ -157,7 +171,7 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
     if not owner:
         cur.close()
         raise HTTPException(404, "Thread not found")
-    if user["RoleID"] != 1 and owner["user_id"] != user["UserID"]:
+    if not is_admin_user(user) and owner["user_id"] != user["UserID"]:
         cur.close()
         raise HTTPException(403, "Forbidden")
 
@@ -179,7 +193,7 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
             "sender_id": row["sender_id"],
             "is_admin": row["is_admin"],
             "content": row["content"],
-            "created_at": row["created_at"].isoformat(),
+            "created_at": to_utc_iso(row["created_at"]),
             "full_name": row["FullName"]
         })
     cur.close()
@@ -199,10 +213,10 @@ def post_message(thread_id: int, body: MessageIn, user=Depends(get_current_user)
         
         owner_user_id = owner["user_id"]
 
-        if user["RoleID"] != 1 and owner_user_id != user["UserID"]:
+        if not is_admin_user(user) and owner_user_id != user["UserID"]:
             raise HTTPException(403, "Forbidden")
 
-        is_admin = 1 if user["RoleID"] == 1 else 0
+        is_admin = 1 if is_admin_user(user) else 0
 
         # 💾 Ghi tin nhắn vào DB
         cur.execute(
@@ -220,7 +234,7 @@ def post_message(thread_id: int, body: MessageIn, user=Depends(get_current_user)
         # Lấy created_at từ DB
         cur.execute("SELECT created_at FROM support_message WHERE id = %s", (msg_id,))
         created_at_row = cur.fetchone()
-        created_at = created_at_row["created_at"].isoformat() if created_at_row else None
+        created_at = to_utc_iso(created_at_row["created_at"]) if created_at_row else None
 
         # 📡 Gửi tin nhắn WebSocket
         from app.controllers.websocket_controller import ws_broadcast_safe
@@ -261,7 +275,7 @@ def post_message(thread_id: int, body: MessageIn, user=Depends(get_current_user)
                 # Lấy created_at của auto message
                 cur.execute("SELECT created_at FROM support_message WHERE id = %s", (auto_msg_id,))
                 auto_created_row = cur.fetchone()
-                auto_created_at = auto_created_row["created_at"].isoformat() if auto_created_row else None
+                auto_created_at = to_utc_iso(auto_created_row["created_at"]) if auto_created_row else None
 
                 auto_payload = {
                     "type": "support:new_message",
