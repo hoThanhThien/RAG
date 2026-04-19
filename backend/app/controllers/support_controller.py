@@ -1,9 +1,10 @@
 from datetime import timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import List
 from app.dependencies.auth_dependencies import get_current_user, require_admin
 from app.schemas.support_schema import MessageIn, MessageOut, ThreadOut
 from app.database import get_db_connection  # ✅ Dùng pymysql connection
+from app.services.recommendation_service import recommend_for_user
 
 
 def to_utc_iso(dt):
@@ -19,6 +20,108 @@ router = APIRouter(prefix="/support", tags=["support"])
 def is_admin_user(user):
     role_name = str(user.get("RoleName", "")).strip().lower()
     return role_name == "admin" or user.get("RoleID") == 1
+
+
+def should_use_ai_support(content: str) -> bool:
+    text = " ".join(str(content or "").lower().split())
+    if not text:
+        return False
+
+    keywords = [
+        "gợi ý", "goi y", "recommend", "đề xuất", "de xuat", "tour nào", "tour nao",
+        "phù hợp", "phu hop", "du lịch", "du lich", "đi đâu", "di dau", "muốn đi",
+        "muon di", "tư vấn", "tu van", "gia đình", "gia dinh", "giá rẻ", "gia re",
+        "nghỉ dưỡng", "nghi duong", "biển", "bien", "nước ngoài", "nuoc ngoai",
+        "quốc tế", "quoc te", "nóng quá", "nong qua", "trời nóng", "troi nong",
+        "mát mẻ", "mat me", "tránh nóng", "tranh nong", "đổi gió", "doi gio",
+        "luxury", "budget", "family", "beach", "mountain",
+    ]
+    return any(keyword in text for keyword in keywords)
+
+
+def build_ai_support_reply(user_id: int, prompt: str) -> str:
+    try:
+        rec = recommend_for_user(user_id=user_id, prompt=prompt, top_k=3)
+        segment_name = rec.get("segment", {}).get("segment_name", "khách hàng")
+        recommendations = rec.get("recommendations") or []
+        answer = (rec.get("answer") or "").strip()
+
+        lines = ["🤖 Gợi ý cho bạn:"]
+        if answer:
+            lines.append(answer)
+
+        if recommendations:
+            lines.append("Tour phù hợp:")
+            for item in recommendations[:3]:
+                price = float(item.get("price") or 0)
+                price_label = f"{price:,.0f}đ" if price > 0 else "Liên hệ"
+                lines.append(f"• {item.get('title')} - {item.get('location')} - {price_label}")
+
+        lines.append("Nếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.")
+        return "\n".join(lines)
+    except Exception as e:
+        print(f"⚠️ AI support recommendation error: {e}")
+        return "🤖 Mình có thể gợi ý tour theo nhu cầu của bạn. Hãy thử nói rõ hơn như: tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
+
+
+def queue_ai_support_reply(thread_id: int, owner_user_id: int, full_name: str, prompt: str):
+    db = get_db_connection()
+    cur = db.cursor()
+    try:
+        auto_msg = None
+        auto_sender_name = "Trợ lý AI"
+
+        if should_use_ai_support(prompt):
+            auto_msg = build_ai_support_reply(owner_user_id, prompt)
+        else:
+            cur.execute(
+                "SELECT COUNT(*) as admin_count FROM support_message WHERE thread_id = %s AND is_admin = 1",
+                (thread_id,)
+            )
+            result = cur.fetchone()
+            if result and int(result.get("admin_count") or 0) == 0:
+                auto_msg = (
+                    f"Chào {full_name} 👋 Mình là trợ lý AI hỗ trợ du lịch. "
+                    "Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
+                )
+
+        if not auto_msg:
+            return
+
+        cur.execute(
+            "INSERT INTO support_message (thread_id, sender_id, is_admin, content) VALUES (%s, NULL, 1, %s)",
+            (thread_id, auto_msg)
+        )
+        db.commit()
+        auto_msg_id = cur.lastrowid
+
+        cur.execute("SELECT created_at FROM support_message WHERE id = %s", (auto_msg_id,))
+        auto_created_row = cur.fetchone()
+        auto_created_at = to_utc_iso(auto_created_row["created_at"]) if auto_created_row else None
+
+        from app.controllers.websocket_controller import ws_broadcast_safe
+
+        auto_payload = {
+            "type": "support:new_message",
+            "thread_id": thread_id,
+            "message": {
+                "id": auto_msg_id,
+                "sender_id": None,
+                "is_admin": 1,
+                "content": auto_msg,
+                "full_name": auto_sender_name,
+                "thread_id": thread_id,
+                "created_at": auto_created_at
+            }
+        }
+
+        ws_broadcast_safe(f"support:user:{owner_user_id}", auto_payload)
+        ws_broadcast_safe("support:admin", auto_payload)
+    except Exception as e:
+        print(f"⚠️ queue_ai_support_reply error: {e}")
+    finally:
+        cur.close()
+        db.close()
 
 # 🟢 Mở hoặc tạo thread
 @router.post("/threads/open-or-create")
@@ -177,7 +280,10 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
 
     cur.execute("""
         SELECT m.id, m.sender_id, m.is_admin, m.content, m.created_at, 
-               COALESCE(u.FullName, 'Hệ thống') as FullName
+               CASE 
+                   WHEN m.sender_id IS NULL AND m.is_admin = 1 THEN 'Trợ lý AI'
+                   ELSE COALESCE(u.FullName, 'Hệ thống')
+               END as FullName
         FROM support_message m
         LEFT JOIN user u ON m.sender_id = u.UserID
         WHERE m.thread_id=%s
@@ -202,7 +308,13 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
 # 🟢 Gửi tin nhắn mới vào thread
 # 🟢 Gửi tin nhắn mới vào thread
 @router.post("/threads/{thread_id}/messages")
-def post_message(thread_id: int, body: MessageIn, user=Depends(get_current_user), db=Depends(get_db_connection)):
+def post_message(
+    thread_id: int,
+    body: MessageIn,
+    background_tasks: BackgroundTasks,
+    user=Depends(get_current_user),
+    db=Depends(get_db_connection),
+):
     cur = db.cursor()
     try:
         # 📌 Lấy user_id chủ sở hữu thread
@@ -256,43 +368,15 @@ def post_message(thread_id: int, body: MessageIn, user=Depends(get_current_user)
         ws_broadcast_safe(f"support:user:{owner_user_id}", message_payload)
         ws_broadcast_safe("support:admin", message_payload)
 
-        # ✅ ✅ ✅ Tự động gửi phản hồi nếu admin chưa từng trả lời
-        if is_admin == 0:  # Chỉ thực hiện nếu là user gửi
-            cur.execute(
-                "SELECT COUNT(*) as admin_count FROM support_message WHERE thread_id = %s AND is_admin = 1",
-                (thread_id,)
+        # ✅ Sinh phản hồi AI nền để không làm treo thao tác gửi tin nhắn
+        if is_admin == 0:
+            background_tasks.add_task(
+                queue_ai_support_reply,
+                thread_id,
+                owner_user_id,
+                full_name,
+                body.content,
             )
-            result = cur.fetchone()
-            if result["admin_count"] == 0:
-                auto_msg = f"Chào {full_name} 👋🥰, bạn cần giúp gì không? Chúng tôi sẽ phản hồi sớm nhất có thể. Xin cảm ơn!"
-                cur.execute(
-                    "INSERT INTO support_message (thread_id, sender_id, is_admin, content) VALUES (%s, NULL, 1, %s)",
-                    (thread_id, auto_msg)
-                )
-                db.commit()
-                auto_msg_id = cur.lastrowid
-                
-                # Lấy created_at của auto message
-                cur.execute("SELECT created_at FROM support_message WHERE id = %s", (auto_msg_id,))
-                auto_created_row = cur.fetchone()
-                auto_created_at = to_utc_iso(auto_created_row["created_at"]) if auto_created_row else None
-
-                auto_payload = {
-                    "type": "support:new_message",
-                    "thread_id": thread_id,
-                    "message": {
-                        "id": auto_msg_id,
-                        "sender_id": None,
-                        "is_admin": 1,
-                        "content": auto_msg,
-                        "full_name": "Hệ thống",
-                        "thread_id": thread_id,
-                        "created_at": auto_created_at
-                    }
-                }
-
-                # Gửi auto-reply về cho user (KHÔNG gửi cho admin)
-                ws_broadcast_safe(f"support:user:{owner_user_id}", auto_payload)
 
         # Trả về thông tin tin nhắn vừa tạo
         return {

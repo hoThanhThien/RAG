@@ -14,6 +14,7 @@ import Contact from "./pages/Contact";
 import UserProfile from "./pages/UserProfile";
 import BookingHistory from "./pages/BookingHistory";  // <-- THÊM Booking History
 import BookingDetail from "./pages/BookingDetail";  // <-- THÊM Booking Detail
+import Recommendations from "./pages/Recommendations";
 import AuthPage from "./pages/Auth";
 
 export default function ClientRoutes() {
@@ -33,6 +34,7 @@ export default function ClientRoutes() {
         <Route path="bookings" element={<BookingHistory />} /> {/* <-- Booking History route */}
         <Route path="user/bookings" element={<BookingHistory />} /> {/* <-- Alias route */}
         <Route path="booking-details/:id" element={<BookingDetail />} /> {/* <-- Booking Detail route */}
+        <Route path="recommendations" element={<Recommendations />} />
       </Route>
       <Route path="/auth" element={<AuthPage />} />
     </Routes>
