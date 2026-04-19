@@ -6,6 +6,7 @@ export async function getTours({ page = 1, page_size = 8, q = "", limit_photos =
       page,
       page_size,
       limit_photos,
+      active_only: false,
       ...(q ? { q } : {}),
     },
   });

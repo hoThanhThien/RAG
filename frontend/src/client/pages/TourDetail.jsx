@@ -27,6 +27,18 @@ function diffDays(start, end) {
   }
 }
 
+function formatDisplayDate(value) {
+  if (!value) return "Chưa cập nhật";
+  try {
+    const raw = String(value).slice(0, 10);
+    const d = new Date(`${raw}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString("vi-VN");
+  } catch {
+    return String(value).slice(0, 10);
+  }
+}
+
 function Stars({ value = 0 }) {
   const v = Math.max(0, Math.min(5, Math.round(value)));
   return (
@@ -192,6 +204,8 @@ export default function TourDetail() {
 
   const days = tour.duration_days ?? diffDays(tour.start_date, tour.end_date);
   const priceLabel = typeof tour.price === "number" ? fmtVND.format(tour.price) : tour.price;
+  const startDateLabel = formatDisplayDate(tour.start_date);
+  const endDateLabel = formatDisplayDate(tour.end_date);
 
   const photos = tour?.photos || [];
   const heroSrc = photos[active]?.image_url || tour.image_url || "/no-image.png";
@@ -376,6 +390,27 @@ export default function TourDetail() {
             </span>
           </div>
           <p className="text-muted">{tour.description || tour.short_desc}</p>
+
+          <div className="row g-2 my-3">
+            <div className="col-sm-6">
+              <div className="border rounded-3 px-3 py-2 h-100 bg-light">
+                <div className="small text-muted">Ngày bắt đầu</div>
+                <div className="fw-semibold">
+                  <i className="bi bi-calendar-event text-primary me-2"></i>
+                  {startDateLabel}
+                </div>
+              </div>
+            </div>
+            <div className="col-sm-6">
+              <div className="border rounded-3 px-3 py-2 h-100 bg-light">
+                <div className="small text-muted">Ngày kết thúc</div>
+                <div className="fw-semibold">
+                  <i className="bi bi-calendar-check text-success me-2"></i>
+                  {endDateLabel}
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="d-flex align-items-center gap-3 my-3">
             <h4 className="text-primary mb-0">{priceLabel}</h4>
