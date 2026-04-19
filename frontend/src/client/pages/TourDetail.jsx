@@ -1,8 +1,17 @@
 // src/pages/TourDetail.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { tourService } from "../services/tourService";
 import { commentService } from "../services/commentService";
+
+function parseJwt(token) {
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
 
 const fmtVND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 
@@ -69,9 +78,13 @@ export default function TourDetail() {
   const [newContent, setNewContent] = useState("");
   const [newRating, setNewRating] = useState(5);
   const [submitting, setSubmitting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editContent, setEditContent] = useState("");
+  const [editRating, setEditRating] = useState(0);
 
-  // Chỉ vote 1 lần?
   const [canRate, setCanRate] = useState(false);
+  const [remainingReviews, setRemainingReviews] = useState(0);
 
   // load tour
   useEffect(() => {
@@ -110,26 +123,31 @@ export default function TourDetail() {
     };
   }, [id]);
 
+  const refreshReviewQuota = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const payload = parseJwt(token);
+      setCurrentUserId(payload?.user_id ?? payload?.UserID ?? null);
+
+      if (!token) {
+        setCanRate(false);
+        setRemainingReviews(0);
+        return;
+      }
+
+      const quota = await commentService.canRate(id);
+      setCanRate(Boolean(quota?.can_rate));
+      setRemainingReviews(Number(quota?.remaining_reviews ?? 0));
+    } catch {
+      setCanRate(false);
+      setRemainingReviews(0);
+    }
+  }, [id]);
+
   // hỏi BE xem user còn quyền vote không
   useEffect(() => {
-    let ok = true;
-    (async () => {
-      try {
-        const token = localStorage.getItem("access_token");
-        if (!token) {
-          if (ok) setCanRate(false);
-          return;
-        }
-        const allowed = await commentService.canRate(id);
-        if (ok) setCanRate(allowed);
-      } catch {
-        if (ok) setCanRate(false);
-      }
-    })();
-    return () => {
-      ok = false;
-    };
-  }, [id]);
+    refreshReviewQuota();
+  }, [refreshReviewQuota]);
 
   // khi tour đổi, chọn ảnh primary nếu có
   useEffect(() => {
@@ -210,21 +228,65 @@ export default function TourDetail() {
 
       setComments((prev) => [saved, ...prev.filter((c) => c.id !== temp.id)]);
       setNewContent("");
-      if (saved?.rating) {
-        setCanRate(false); // đã vote thành công → khóa vote tiếp
-        setNewRating(5);
-      }
+      setNewRating(5);
+      await refreshReviewQuota();
     } catch (err) {
       // BE có thể trả 400 "already rated"
       const detail = err?.response?.data?.detail || err?.message || "Gửi bình luận thất bại.";
       alert(detail);
-      if (String(detail).toLowerCase().includes("already rated")) {
-        setCanRate(false);
-      }
       // rollback temp
       setComments((prev) => prev.filter((c) => !String(c.id).startsWith("temp-")));
+      await refreshReviewQuota();
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const startEdit = (comment) => {
+    setEditingCommentId(comment.id);
+    setEditContent(comment.content || "");
+    setEditRating(Number(comment.rating) || 0);
+  };
+
+  const cancelEdit = () => {
+    setEditingCommentId(null);
+    setEditContent("");
+    setEditRating(0);
+  };
+
+  const saveEdit = async (commentId) => {
+    if (!editContent.trim()) {
+      alert("Nội dung bình luận không được rỗng.");
+      return;
+    }
+
+    try {
+      const payload = { content: editContent.trim() };
+      if (editRating > 0) payload.rating = editRating;
+
+      await commentService.update(commentId, payload);
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, content: editContent.trim(), rating: editRating > 0 ? editRating : c.rating }
+            : c
+        )
+      );
+      cancelEdit();
+      await refreshReviewQuota();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Không thể cập nhật đánh giá.");
+    }
+  };
+
+  const removeComment = async (commentId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa đánh giá này không?")) return;
+    try {
+      await commentService.remove(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      await refreshReviewQuota();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Không thể xóa đánh giá.");
     }
   };
 
@@ -359,10 +421,13 @@ export default function TourDetail() {
           <div className="mb-2">
             <label className="form-label me-2">Đánh giá:</label>
             {canRate ? (
-              <StarPicker value={newRating} onChange={setNewRating} />
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <StarPicker value={newRating} onChange={setNewRating} />
+                <span className="text-muted small">Còn {remainingReviews} lượt đánh giá từ các lần đặt tour.</span>
+              </div>
             ) : (
               <span className="text-muted small">
-                Bạn đã đánh giá tour này. Bạn vẫn có thể bình luận thêm.
+                Bạn đã dùng hết lượt đánh giá cho tour này, nhưng vẫn có thể sửa hoặc xóa đánh giá cũ của mình.
               </span>
             )}
           </div>
@@ -387,20 +452,62 @@ export default function TourDetail() {
           <div className="text-muted">Chưa có bình luận nào.</div>
         ) : (
           <ul className="list-group">
-            {comments.map((c) => (
-              <li key={c.id} className="list-group-item">
-                <div className="d-flex justify-content-between">
-                  <strong>{c.user_name || "Ẩn danh"}</strong>
-                  <small className="text-muted">{c.created_at}</small>
-                </div>
-                {Number(c.rating) > 0 && (
-                  <div className="mb-1">
-                    <Stars value={c.rating} />
+            {comments.map((c) => {
+              const isOwner = Number(c.user_id) === Number(currentUserId);
+              const isEditing = editingCommentId === c.id;
+
+              return (
+                <li key={c.id} className="list-group-item">
+                  <div className="d-flex justify-content-between align-items-start gap-3">
+                    <strong>{c.user_name || "Ẩn danh"}</strong>
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="text-muted">{c.created_at}</small>
+                      {isOwner && !isEditing && (
+                        <>
+                          <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEdit(c)}>
+                            Sửa
+                          </button>
+                          <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeComment(c.id)}>
+                            Xóa
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                )}
-                <p className="mb-0">{c.content}</p>
-              </li>
-            ))}
+
+                  {isEditing ? (
+                    <div className="mt-2">
+                      <div className="mb-2">
+                        <StarPicker value={editRating} onChange={setEditRating} />
+                      </div>
+                      <textarea
+                        className="form-control mb-2"
+                        rows={3}
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                      />
+                      <div className="d-flex gap-2">
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => saveEdit(c.id)}>
+                          Lưu
+                        </button>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={cancelEdit}>
+                          Hủy
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {Number(c.rating) > 0 && (
+                        <div className="mb-1">
+                          <Stars value={c.rating} />
+                        </div>
+                      )}
+                      <p className="mb-0">{c.content}</p>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
