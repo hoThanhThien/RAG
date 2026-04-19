@@ -120,23 +120,30 @@ async def get_tours(
     limit_photos: int = Query(3, ge=0, description="Số ảnh tối đa mỗi tour; 0 = lấy tất cả"),
     sort: Optional[str] = Query(None, description="VD: start_date:asc,price:desc,title:asc"),
     q: Optional[str] = Query(None, description="Tìm theo tên, địa điểm, mô tả"),
+    active_only: bool = Query(False, description="Chỉ lấy tour chưa qua ngày bắt đầu"),
 ):
     offset = (page - 1) * page_size
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            where_sql = ""
+            conditions: List[str] = []
             filter_params: List[Any] = []
+
+            if active_only:
+                conditions.append("(t.StartDate IS NULL OR DATE(t.StartDate) >= CURDATE())")
+
             if q and q.strip():
                 like_q = f"%{q.strip()}%"
-                where_sql = """
-                    WHERE (
+                conditions.append("""
+                    (
                         t.Title LIKE %s OR
                         t.Location LIKE %s OR
                         t.Description LIKE %s
                     )
-                """
-                filter_params = [like_q, like_q, like_q]
+                """)
+                filter_params.extend([like_q, like_q, like_q])
+
+            where_sql = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
             # COUNT
             count_sql = f"""

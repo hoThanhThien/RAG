@@ -95,9 +95,25 @@ function mapTour(t = {}) {
 export const tourService = {
   /** GET /tours?page=&page_size= → { items:[mapped], meta } */
   async getAll(params = {}) {
-    const res = await api.get("/tours", { params });
+    const requestParams = {
+      active_only: params.active_only ?? true,
+      ...params,
+    };
+
+    const res = await api.get("/tours", { params: requestParams });
     const rawItems = res.data?.items ?? [];
-    const items = rawItems.map(mapTour);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const items = rawItems
+      .map(mapTour)
+      .filter((tour) => {
+        if (requestParams.active_only === false) return true;
+        if (!tour?.start_date) return true;
+
+        const start = new Date(`${tour.start_date}T00:00:00`);
+        return Number.isNaN(start.getTime()) || start >= today;
+      });
 
     const meta = {
       page: res.data?.page ?? 1,
