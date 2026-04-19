@@ -17,6 +17,7 @@ class BookingCreate(BaseModel):
     tour_id: int
     number_of_people: int
     discount_id: Optional[int] = None
+    discount_code: Optional[str] = None
 
 class BookingResponse(BaseModel):
     booking_id: int
@@ -99,11 +100,24 @@ async def create_booking(
             # 3) Tính tiền
             total_amount = float(tour["Price"]) * booking_data.number_of_people
 
-            # 4) Discount (nếu có)
+            # 4) Discount (nếu có) - ưu tiên nhập theo mã code
             discount_id_to_use: Optional[int] = None
-            if booking_data.discount_id is not None:
+            discount = None
+            discount_code = (booking_data.discount_code or "").strip()
+
+            if discount_code:
                 cur.execute("""
-                    SELECT DiscountID, DiscountAmount, IsPercent, StartDate, EndDate
+                    SELECT DiscountID, Code, DiscountAmount, IsPercent, StartDate, EndDate
+                    FROM discount
+                    WHERE UPPER(TRIM(Code)) = UPPER(TRIM(%s))
+                    LIMIT 1
+                """, (discount_code,))
+                discount = cur.fetchone()
+                if not discount:
+                    raise HTTPException(status_code=400, detail="Mã giảm giá không hợp lệ")
+            elif booking_data.discount_id is not None:
+                cur.execute("""
+                    SELECT DiscountID, Code, DiscountAmount, IsPercent, StartDate, EndDate
                     FROM discount
                     WHERE DiscountID = %s
                 """, (booking_data.discount_id,))
@@ -111,9 +125,10 @@ async def create_booking(
                 if not discount:
                     raise HTTPException(status_code=400, detail="Discount not found")
 
+            if discount:
                 today = date.today()
                 if not (discount["StartDate"] <= today <= discount["EndDate"]):
-                    raise HTTPException(status_code=400, detail="Discount is not active")
+                    raise HTTPException(status_code=400, detail="Mã giảm giá đã hết hạn hoặc chưa bắt đầu")
 
                 if discount["IsPercent"]:
                     total_amount = total_amount * (1 - float(discount["DiscountAmount"]) / 100.0)
