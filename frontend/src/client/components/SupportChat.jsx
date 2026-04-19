@@ -26,8 +26,8 @@ export default function SupportChat() {
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        setUserId(parseInt(payload.sub));
-        setUserFullName(payload.full_name || "Bạn");
+        setUserId(parseInt(payload.sub || payload.user_id || payload.UserID));
+        setUserFullName(payload.full_name || payload.FullName || "Bạn");
       } catch (error) {
         console.error("Lỗi giải mã token:", error);
       }
@@ -231,6 +231,15 @@ export default function SupportChat() {
     };
   }, [threadId, userId]);
 
+  const recoverChatSession = async () => {
+    const { data } = await supportApi.openOrCreateThread();
+    setThreadId(data.thread_id);
+    const hist = await supportApi.getMessages(data.thread_id);
+    setMessages(hist.data || []);
+    await loadThreads();
+    return data.thread_id;
+  };
+
   // 📤 Gửi tin nhắn
   const send = async () => {
     if (!text.trim() || !threadId || isLoading || isSending) return;
@@ -252,8 +261,7 @@ export default function SupportChat() {
     setMessages((prev) => [...prev, optimisticMessage]);
     setText("");
 
-    try {
-      const response = await supportApi.postMessage(threadId, content);
+    const applyResponse = (response) => {
       setMessages((prev) => {
         const existingIndex = prev.findIndex(
           (m) => String(m.id) === String(response.data.id)
@@ -278,11 +286,29 @@ export default function SupportChat() {
 
         return [...prev, { ...response.data, pending: false }];
       });
+    };
+
+    try {
+      const response = await supportApi.postMessage(threadId, content);
+      applyResponse(response);
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn:", error);
+      const status = error?.response?.status;
+
+      if ([401, 403, 404].includes(status)) {
+        try {
+          const freshThreadId = await recoverChatSession();
+          const retryResponse = await supportApi.postMessage(freshThreadId, content);
+          applyResponse(retryResponse);
+          return;
+        } catch (retryError) {
+          console.error("Không thể khôi phục phiên chat:", retryError);
+        }
+      }
+
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setText(content);
-      alert("Không thể gửi tin nhắn. Vui lòng thử lại!");
+      alert(status === 401 ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!" : "Không thể gửi tin nhắn. Hệ thống đang tự làm mới phiên chat, hãy thử lại.");
     } finally {
       setIsSending(false);
     }
@@ -352,7 +378,7 @@ export default function SupportChat() {
                 </button>
                 <i className="bi bi-headset"></i>
                 <div>
-                  <div className="fw-bold">Hỗ trợ khách hàng</div>
+                  <div className="fw-bold">Hỗ trợ khách hàng & AI</div>
                   <small className="status-text">
                     {isConnected ? (
                       <>
@@ -441,7 +467,7 @@ export default function SupportChat() {
               <div className="empty-state">
                 <i className="bi bi-chat-square-text"></i>
                 <p>Chưa có tin nhắn</p>
-                <small>Gửi tin nhắn để bắt đầu trò chuyện với chúng tôi</small>
+                <small>Hỏi hỗ trợ hoặc nhắn để AI gợi ý tour ngay trong khung chat</small>
               </div>
             ) : (
               <>
@@ -467,7 +493,7 @@ export default function SupportChat() {
                         {showAvatar && (
                           <div className="msg-sender">{m.full_name || (isUser ? userFullName : "Hỗ trợ")}</div>
                         )}
-                        <div className="msg-content">{m.content}</div>
+                        <div className="msg-content" style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
                         <div className="msg-time">
                           {formatTime(m.created_at)}
                           {m.pending && <i className="bi bi-clock-history ms-1"></i>}
@@ -503,7 +529,7 @@ export default function SupportChat() {
                   send();
                 }
               }}
-              placeholder="Nhập tin nhắn... (Enter để gửi)"
+              placeholder="Ví dụ: tôi muốn đi biển hoặc tôi muốn đi nước ngoài"
               disabled={isLoading || isSending}
             />
             <button 

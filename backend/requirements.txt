@@ -44,3 +44,7 @@ SQLAlchemy==2.0.44
 alembic==1.13.1
 alembic==1.13.1
 psycopg2-binary==2.9.9
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+faiss-cpu==1.8.0.post1
