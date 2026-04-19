@@ -294,19 +294,30 @@ export default function SupportChat() {
   }, [messages]);
 
   // Format time
+  const parseServerDate = (dateString) => {
+    if (!dateString) return null;
+    const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(dateString);
+    const normalized = hasTimezone ? dateString : `${dateString}Z`;
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
   const formatTime = (dateString) => {
     try {
-      const date = new Date(dateString);
+      const date = parseServerDate(dateString);
+      if (!date) return "";
+
       const now = new Date();
-      const diff = now - date;
+      const diff = now.getTime() - date.getTime();
       const minutes = Math.floor(diff / 60000);
-      
+
       if (minutes < 1) return "Vừa xong";
       if (minutes < 60) return `${minutes} phút trước`;
       if (minutes < 1440) return `${Math.floor(minutes / 60)} giờ trước`;
-      
-      return date.toLocaleDateString('vi-VN', { 
-        day: '2-digit', 
+
+      return date.toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
         minute: '2-digit'

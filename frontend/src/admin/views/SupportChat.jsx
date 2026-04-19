@@ -192,10 +192,21 @@ export default function SupportChat() {
   }, [messages]);
 
   // Format time
+  const parseServerDate = (dateString) => {
+    if (!dateString) return null;
+    const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(dateString);
+    const normalized = hasTimezone ? dateString : `${dateString}Z`;
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
   const formatTime = (dateString) => {
     try {
-      const date = new Date(dateString);
+      const date = parseServerDate(dateString);
+      if (!date) return "";
+
       return date.toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
         hour: '2-digit',
         minute: '2-digit',
         day: '2-digit',

@@ -171,8 +171,9 @@ async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
     
     await websocket.accept()
     
-    # 🔧 FIX: Database trả về RoleID (chữ hoa), không phải role_id
-    is_admin = user.get("RoleID") == 1
+    # Ưu tiên RoleName để tránh phụ thuộc cứng vào RoleID trong DB
+    role_name = str(user.get("RoleName", "")).strip().lower()
+    is_admin = role_name == "admin" or user.get("RoleID") == 1
     user_id = user.get("UserID")
 
     if not is_admin:
