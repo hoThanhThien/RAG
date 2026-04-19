@@ -46,22 +46,51 @@ def parse_sort(sort_expr: Optional[str], allowed: Dict[str, str], default_sql: s
 def fmt_dt(v):
     return v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v
 
-# ---------- Create comment (login-only, rating optional; rating chỉ 1 lần/user/tour) ----------
+
+def ensure_comment_booking_column(cur):
+    cur.execute("SHOW COLUMNS FROM `comment` LIKE 'BookingID'")
+    if not cur.fetchone():
+        cur.execute("ALTER TABLE `comment` ADD COLUMN BookingID INT NULL AFTER TourID")
+
+
+def get_review_quota(cur, user_id: int, tour_id: int):
+    cur.execute(
+        """
+        SELECT COUNT(*) AS booking_count
+        FROM booking
+        WHERE UserID = %s AND TourID = %s AND Status IN ('Pending', 'Confirmed')
+        """,
+        (user_id, tour_id),
+    )
+    booking_count = int((cur.fetchone() or {}).get("booking_count") or 0)
+
+    cur.execute(
+        """
+        SELECT COUNT(*) AS rated_count
+        FROM `comment`
+        WHERE UserID = %s AND TourID = %s AND Rating IS NOT NULL
+        """,
+        (user_id, tour_id),
+    )
+    rated_count = int((cur.fetchone() or {}).get("rated_count") or 0)
+    remaining = max(0, booking_count - rated_count)
+    return booking_count, rated_count, remaining
+
+# ---------- Create comment (login-only, mỗi booking được đánh giá 1 lần) ----------
 @router.post("/", response_model=dict)
 async def create_comment(
     payload: Dict[str, Any] = Body(...),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """
-    Tạo comment (chỉ yêu cầu user ĐĂNG NHẬP).
-    - Cho comment nhiều lần.
-    - Rating là OPTIONAL; nếu có rating thì chỉ được VOTE 1 lần / user / tour.
-
-    Payload chấp nhận:
-    { "tour_id": 1, "content": "...", "rating": 1..5 }
-    (chấp nhận cả "TourID")
+    Tạo review/comment cho tour.
+    Logic mới:
+    - User phải từng đặt tour đó.
+    - Mỗi booking hợp lệ được đánh giá 1 lần.
+    - Sau khi tạo, review vẫn có thể sửa hoặc xóa.
     """
     tour_id = payload.get("tour_id", payload.get("TourID"))
+    booking_id = payload.get("booking_id", payload.get("BookingID"))
     content = payload.get("content", payload.get("Content"))
     rating_raw = payload.get("rating", payload.get("Rating", None))
 
@@ -82,30 +111,63 @@ async def create_comment(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Nếu client gửi kèm rating: chặn nếu user đã từng VOTE tour này
-            if rating is not None:
+            ensure_comment_booking_column(cur)
+            conn.commit()
+
+            booking_count, rated_count, remaining = get_review_quota(cur, current_user["UserID"], tour_id)
+
+            if rating is not None and booking_count <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Bạn chỉ có thể đánh giá tour sau khi đã đặt tour."
+                )
+
+            if booking_id is not None:
+                cur.execute(
+                    """
+                    SELECT BookingID, TourID, UserID, Status
+                    FROM booking
+                    WHERE BookingID = %s AND UserID = %s
+                    LIMIT 1
+                    """,
+                    (booking_id, current_user["UserID"]),
+                )
+                booking = cur.fetchone()
+                if not booking:
+                    raise HTTPException(status_code=404, detail="Không tìm thấy đơn đặt tour hợp lệ")
+                if int(booking["TourID"]) != int(tour_id):
+                    raise HTTPException(status_code=400, detail="Đơn đặt tour không thuộc tour này")
+                if str(booking.get("Status", "")) not in ("Confirmed", "Paid"):
+                    raise HTTPException(status_code=400, detail="Chỉ có thể đánh giá tour đã xác nhận/thanh toán")
+
                 cur.execute(
                     """
                     SELECT 1
                     FROM `comment`
-                    WHERE UserID = %s AND TourID = %s AND Rating IS NOT NULL
+                    WHERE UserID = %s AND BookingID = %s
                     LIMIT 1
                     """,
-                    (current_user["UserID"], tour_id),
+                    (current_user["UserID"], booking_id),
                 )
                 if cur.fetchone():
                     raise HTTPException(
                         status_code=400,
-                        detail="You have already rated this tour. You can still post comments without rating."
+                        detail="Đơn đặt tour này đã được đánh giá. Bạn có thể sửa hoặc xóa đánh giá cũ."
                     )
+
+            if rating is not None and remaining <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Mỗi lần đặt tour chỉ được đánh giá 1 lần. Bạn đã dùng hết lượt đánh giá cho tour này."
+                )
 
             # Tạo comment (rating có thể None)
             cur.execute(
                 """
-                INSERT INTO `comment` (UserID, TourID, Content, Rating)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO `comment` (UserID, TourID, BookingID, Content, Rating)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (current_user["UserID"], tour_id, content, rating),
+                (current_user["UserID"], tour_id, booking_id, content, rating),
             )
             new_id = cur.lastrowid
             conn.commit()
@@ -117,6 +179,7 @@ async def create_comment(
                     c.CommentID AS comment_id,
                     c.UserID    AS user_id,
                     c.TourID    AS tour_id,
+                    c.BookingID AS booking_id,
                     c.Content   AS content,
                     c.Rating    AS rating,
                     c.CreatedAt AS created_at,
@@ -144,26 +207,53 @@ async def create_comment(
 @router.get("/can-rate")
 async def can_rate(
     tour_id: int = Query(..., ge=1),
+    booking_id: Optional[int] = Query(None, ge=1),
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """
-    Trả về user còn quyền VOTE sao cho tour này không.
-    { "can_rate": true|false }
+    Trả về quota đánh giá còn lại theo số lần đặt tour.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1
-                FROM `comment`
-                WHERE UserID = %s AND TourID = %s AND Rating IS NOT NULL
-                LIMIT 1
-                """,
-                (current_user["UserID"], tour_id),
-            )
-            already = cur.fetchone() is not None
-            return {"can_rate": (not already)}
+            ensure_comment_booking_column(cur)
+            conn.commit()
+
+            booking_count, rated_count, remaining = get_review_quota(cur, current_user["UserID"], tour_id)
+
+            if booking_id is not None:
+                cur.execute(
+                    """
+                    SELECT BookingID, Status
+                    FROM booking
+                    WHERE BookingID = %s AND TourID = %s AND UserID = %s
+                    LIMIT 1
+                    """,
+                    (booking_id, tour_id, current_user["UserID"]),
+                )
+                booking = cur.fetchone()
+                if not booking:
+                    return {"can_rate": False, "total_bookings": booking_count, "used_reviews": rated_count, "remaining_reviews": remaining}
+
+                cur.execute(
+                    "SELECT 1 FROM `comment` WHERE UserID = %s AND BookingID = %s LIMIT 1",
+                    (current_user["UserID"], booking_id),
+                )
+                has_review = cur.fetchone() is not None
+                can_rate_for_booking = (str(booking.get("Status", "")) in ("Confirmed", "Paid")) and not has_review
+                return {
+                    "can_rate": can_rate_for_booking,
+                    "total_bookings": booking_count,
+                    "used_reviews": rated_count,
+                    "remaining_reviews": remaining,
+                }
+
+            return {
+                "can_rate": remaining > 0,
+                "total_bookings": booking_count,
+                "used_reviews": rated_count,
+                "remaining_reviews": remaining,
+            }
     finally:
         conn.close()
 
@@ -208,6 +298,7 @@ async def get_comments_by_tour(
                     c.CommentID AS comment_id,
                     c.UserID    AS user_id,
                     c.TourID    AS tour_id,
+                    c.BookingID AS booking_id,
                     c.Content   AS content,
                     c.Rating    AS rating,
                     c.CreatedAt AS created_at,
@@ -238,9 +329,7 @@ async def update_comment(
 ):
     """
     Cập nhật comment (chỉ owner hoặc admin).
-    Body: { "content": "...", "rating": 1..5 } (rating optional)
-    Quy tắc: nếu user đã vote tour này rồi thì KHÔNG cho cập nhật rating nữa.
-             Nếu chưa từng vote, có thể thêm rating lần đầu khi update.
+    Review đã tạo có thể chỉnh sửa nội dung hoặc số sao.
     """
     content = payload.get("content")
     rating_raw = payload.get("rating", None)
@@ -265,27 +354,17 @@ async def update_comment(
             if not cmt:
                 raise HTTPException(status_code=404, detail="Comment not found")
 
-            if cmt["UserID"] != current_user["UserID"] and current_user["RoleName"] != "admin":
+            if cmt["UserID"] != current_user["UserID"] and str(current_user.get("RoleName", "")).lower() != "admin":
                 raise HTTPException(status_code=403, detail="You can only edit your own comments")
 
-            # Nếu client muốn cập nhật rating → kiểm tra rule "vote 1 lần"
-            if rating is not None:
-                tour_id = cmt["TourID"]
-                # Nếu bản ghi hiện tại đã có rating → cấm sửa đổi
-                if cmt.get("Rating") is not None:
-                    raise HTTPException(status_code=400, detail="You have already rated this tour.")
-                # Nếu user đã rating ở comment khác cùng tour → cấm
-                cur.execute(
-                    """
-                    SELECT 1
-                    FROM `comment`
-                    WHERE UserID = %s AND TourID = %s AND Rating IS NOT NULL AND CommentID <> %s
-                    LIMIT 1
-                    """,
-                    (current_user["UserID"], tour_id, comment_id),
-                )
-                if cur.fetchone():
-                    raise HTTPException(status_code=400, detail="You have already rated this tour.")
+            # Nếu thêm rating cho comment chưa có rating thì vẫn phải còn quota booking
+            if rating is not None and cmt.get("Rating") is None:
+                _, _, remaining = get_review_quota(cur, cmt["UserID"], cmt["TourID"])
+                if remaining <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Mỗi lần đặt tour chỉ được đánh giá 1 lần. Bạn đã dùng hết lượt đánh giá cho tour này."
+                    )
 
             sets, params = [], []
             if content is not None:
@@ -326,7 +405,7 @@ async def delete_comment(
             if not cmt:
                 raise HTTPException(status_code=404, detail="Comment not found")
 
-            if cmt["UserID"] != current_user["UserID"] and current_user["RoleName"].lower() != "admin":
+            if cmt["UserID"] != current_user["UserID"] and str(current_user.get("RoleName", "")).lower() != "admin":
                 raise HTTPException(status_code=403, detail="You can only delete your own comments")
 
             cur.execute("DELETE FROM `comment` WHERE CommentID = %s", (comment_id,))
@@ -438,10 +517,13 @@ async def get_my_comments(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            ensure_comment_booking_column(cur)
+            conn.commit()
             cur.execute(
                 """
                 SELECT
                     c.CommentID AS comment_id,
+                    c.BookingID AS booking_id,
                     c.TourID    AS tour_id,
                     c.Content   AS content,
                     c.Rating    AS rating,

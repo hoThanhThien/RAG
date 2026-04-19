@@ -1,16 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
+import { commentService } from "../services/commentService";
 import "../../styles/BookingHistory.css";
+
+function Stars({ value = 0 }) {
+  const safe = Math.max(0, Math.min(5, Number(value) || 0));
+  return (
+    <span className="text-warning">
+      {Array.from({ length: 5 }, (_, i) => (
+        <i key={i} className={`bi ${i < safe ? "bi-star-fill" : "bi-star"} me-1`} />
+      ))}
+    </span>
+  );
+}
 
 export default function BookingHistory() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [myComments, setMyComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all"); // all, pending, paid, cancelled
+  const [activeReview, setActiveReview] = useState(null);
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -25,8 +40,12 @@ export default function BookingHistory() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get("/bookings/my-bookings");
+      const [response, comments] = await Promise.all([
+        api.get("/bookings/my-bookings"),
+        commentService.listMyComments().catch(() => []),
+      ]);
       setBookings(response.data || []);
+      setMyComments(comments || []);
     } catch (err) {
       console.error("Error fetching bookings:", err);
       setError("Không thể tải lịch sử đặt tour. Vui lòng thử lại sau.");
@@ -44,6 +63,84 @@ export default function BookingHistory() {
     };
     const info = statusMap[status] || { label: status, class: "bg-secondary" };
     return <span className={`badge ${info.class}`}>{info.label}</span>;
+  };
+
+  const reviewMap = useMemo(() => {
+    const map = new Map();
+    const usedBookings = new Set();
+
+    (myComments || []).forEach((comment) => {
+      if (comment.booking_id != null) {
+        const key = Number(comment.booking_id);
+        map.set(key, comment);
+        usedBookings.add(key);
+      }
+    });
+
+    (myComments || []).forEach((comment) => {
+      if (comment.booking_id != null) return;
+      const candidate = bookings.find(
+        (b) => Number(b.TourID) === Number(comment.tour_id) && !usedBookings.has(Number(b.BookingID))
+      );
+      if (candidate) {
+        const key = Number(candidate.BookingID);
+        map.set(key, comment);
+        usedBookings.add(key);
+      }
+    });
+
+    return map;
+  }, [myComments, bookings]);
+
+  const openReviewEditor = (booking, existingComment = null) => {
+    setActiveReview({
+      bookingId: booking.BookingID,
+      tourId: booking.TourID,
+      commentId: existingComment?.id || null,
+      content: existingComment?.content || "",
+      rating: Number(existingComment?.rating) || 5,
+    });
+  };
+
+  const closeReviewEditor = () => setActiveReview(null);
+
+  const saveReview = async () => {
+    if (!activeReview?.content?.trim()) {
+      alert("Vui lòng nhập nội dung đánh giá.");
+      return;
+    }
+
+    try {
+      setReviewSaving(true);
+      if (activeReview.commentId) {
+        await commentService.update(activeReview.commentId, {
+          content: activeReview.content.trim(),
+          rating: activeReview.rating,
+        });
+      } else {
+        await commentService.create(activeReview.tourId, {
+          booking_id: activeReview.bookingId,
+          content: activeReview.content.trim(),
+          rating: activeReview.rating,
+        });
+      }
+      closeReviewEditor();
+      await fetchBookings();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Không thể lưu đánh giá.");
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const deleteReview = async (commentId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa đánh giá này không?")) return;
+    try {
+      await commentService.remove(commentId);
+      await fetchBookings();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Không thể xóa đánh giá.");
+    }
   };
 
   const filteredBookings = bookings.filter((booking) => {
@@ -159,7 +256,12 @@ export default function BookingHistory() {
         {/* Booking List */}
         {!loading && !error && filteredBookings.length > 0 && (
           <div className="row g-4">
-            {filteredBookings.map((booking) => (
+            {filteredBookings.map((booking) => {
+              const existingReview = reviewMap.get(Number(booking.BookingID));
+              const canReview = booking.Status === "Paid" || booking.Status === "Confirmed";
+              const isEditingThisBooking = activeReview?.bookingId === booking.BookingID;
+
+              return (
               <div key={booking.BookingID} className="col-12">
                 <div className="card booking-card shadow-sm h-100">
                   <div className="card-body">
@@ -250,13 +352,85 @@ export default function BookingHistory() {
                               <i className="bi bi-x-circle me-1"></i>Đã hủy
                             </button>
                           )}
+
+                          {canReview && !existingReview && (
+                            <button
+                              type="button"
+                              className="btn btn-outline-warning btn-sm"
+                              onClick={() => openReviewEditor(booking)}
+                            >
+                              <i className="bi bi-star me-1"></i>Đánh giá tour
+                            </button>
+                          )}
+
+                          {canReview && existingReview && (
+                            <>
+                              <div className="border rounded p-2 bg-light small">
+                                <div className="fw-semibold mb-1">Đánh giá của bạn</div>
+                                <div className="mb-1"><Stars value={existingReview.rating} /></div>
+                                <div className="text-muted text-truncate">{existingReview.content}</div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => openReviewEditor(booking, existingReview)}
+                              >
+                                <i className="bi bi-pencil-square me-1"></i>Sửa đánh giá
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => deleteReview(existingReview.id)}
+                              >
+                                <i className="bi bi-trash me-1"></i>Xóa đánh giá
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
+
+                    {isEditingThisBooking && (
+                      <div className="mt-3 pt-3 border-top review-editor-box">
+                        <h6 className="fw-bold mb-2">
+                          {activeReview?.commentId ? "Chỉnh sửa đánh giá" : "Đánh giá chuyến đi"}
+                        </h6>
+                        <div className="mb-2 d-flex align-items-center gap-2">
+                          <span className="small text-muted">Số sao:</span>
+                          <select
+                            className="form-select form-select-sm"
+                            style={{ maxWidth: "120px" }}
+                            value={activeReview.rating}
+                            onChange={(e) => setActiveReview((prev) => ({ ...prev, rating: Number(e.target.value) }))}
+                          >
+                            <option value={5}>5 sao</option>
+                            <option value={4}>4 sao</option>
+                            <option value={3}>3 sao</option>
+                            <option value={2}>2 sao</option>
+                            <option value={1}>1 sao</option>
+                          </select>
+                        </div>
+                        <textarea
+                          className="form-control mb-2"
+                          rows={3}
+                          placeholder="Chia sẻ trải nghiệm của bạn về chuyến đi này..."
+                          value={activeReview.content}
+                          onChange={(e) => setActiveReview((prev) => ({ ...prev, content: e.target.value }))}
+                        />
+                        <div className="d-flex gap-2">
+                          <button type="button" className="btn btn-primary btn-sm" onClick={saveReview} disabled={reviewSaving}>
+                            {reviewSaving ? "Đang lưu..." : "Lưu đánh giá"}
+                          </button>
+                          <button type="button" className="btn btn-secondary btn-sm" onClick={closeReviewEditor} disabled={reviewSaving}>
+                            Hủy
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         )}
 

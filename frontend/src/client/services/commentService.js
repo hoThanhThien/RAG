@@ -5,6 +5,7 @@ const mapComment = (r) => ({
   id: r.comment_id ?? r.CommentID ?? r.id,
   user_id: r.user_id ?? r.UserID,
   tour_id: r.tour_id ?? r.TourID,
+  booking_id: r.booking_id ?? r.BookingID ?? null,
   content: r.content ?? r.Content,
   rating: Number(r.rating ?? r.Rating ?? 0),
   created_at: r.created_at ?? r.CreatedAt,
@@ -41,12 +42,18 @@ export const commentService = {
 
   async canRate(tourId) {
     const res = await api.get(`/comments/can-rate`, { params: { tour_id: Number(tourId) } });
-    return Boolean(res.data?.can_rate);
+    return {
+      can_rate: Boolean(res.data?.can_rate),
+      total_bookings: Number(res.data?.total_bookings ?? 0),
+      used_reviews: Number(res.data?.used_reviews ?? 0),
+      remaining_reviews: Number(res.data?.remaining_reviews ?? 0),
+    };
   },
 
-  async create(tourId, { content, rating }) {
+  async create(tourId, { content, rating, booking_id }) {
     const body = { tour_id: Number(tourId), content };
-    if (rating != null) body.rating = rating; // chỉ gửi khi được phép
+    if (booking_id != null) body.booking_id = Number(booking_id);
+    if (rating != null) body.rating = rating;
     const res = await api.post(`/comments`, body);
     const data = res.data?.data ?? res.data;
     return mapComment(data);
@@ -66,6 +73,7 @@ export const commentService = {
     const items = res.data?.items ?? [];
     return items.map((r) => ({
       id: r.comment_id ?? r.CommentID,
+      booking_id: r.booking_id ?? r.BookingID ?? null,
       tour_id: r.tour_id ?? r.TourID,
       tour_title: r.tour_title ?? r.TourTitle ?? "Không rõ",
       content: r.content ?? r.Content,
