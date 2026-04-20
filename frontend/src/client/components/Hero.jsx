@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
+const HEADER_H = 80;
+
 export default function Hero() {
   const slides = [
     {
@@ -45,7 +47,14 @@ export default function Hero() {
   const current = slides[active];
 
   return (
-    <section id="home" className="hero-section d-flex align-items-center">
+    <section
+      id="home"
+      className="hero-section d-flex align-items-center"
+      style={{
+        marginTop: `-${HEADER_H}px`,
+        paddingTop: `${HEADER_H}px`,
+      }}
+    >
       <div className="floating-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>
@@ -60,7 +69,6 @@ export default function Hero() {
           <div className="col-lg-6 text-white">
             <div className="hero-content">
               <div className="hero-badge mb-3">
-                <i className="bi bi-stars"></i>
                 <span>Tour tuyển chọn • Trải nghiệm tinh gọn</span>
               </div>
 
@@ -111,7 +119,7 @@ export default function Hero() {
                   <img
                     key={i}
                     src={slide.image}
-                    alt=""
+                    alt={slide.title}
                     className={`slide ${i === active ? "active" : ""}`}
                   />
                 ))}

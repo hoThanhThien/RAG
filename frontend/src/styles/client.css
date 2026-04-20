@@ -288,3 +288,25 @@
   padding-bottom: 80px;
 }
 
+/* FIX: tránh sát mép trái */
+.hero-section .container {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+/* thêm khoảng thở riêng cho nội dung */
+.hero-content {
+  padding-left: 10px;
+}
+
+/* mobile */
+@media (max-width: 768px) {
+  .hero-section .container {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .hero-content {
+    padding-left: 0;
+  }
+}
