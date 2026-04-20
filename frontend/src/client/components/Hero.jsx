@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const HEADER_H = 80;
-
 export default function Hero() {
   const slides = [
     {
@@ -29,7 +27,6 @@ export default function Hero() {
 
   const next = () => setActive((p) => (p + 1) % slides.length);
   const prev = () => setActive((p) => (p - 1 + slides.length) % slides.length);
-  const goTo = (i) => setActive(i);
 
   const startAuto = () => {
     stopAuto();
@@ -48,19 +45,7 @@ export default function Hero() {
   const current = slides[active];
 
   return (
-    <section
-      id="home"
-      className="hero-section d-flex align-items-center"
-      style={{
-        background: "linear-gradient(135deg, #5b63f6 0%, #7b4cc2 50%, #5d4fd8 100%)",
-        minHeight: "100vh",
-        marginTop: `-${HEADER_H}px`,
-        paddingTop: `${HEADER_H}px`,
-        paddingBottom: "32px",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
+    <section id="home" className="hero-section d-flex align-items-center">
       <div className="floating-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>
@@ -71,6 +56,7 @@ export default function Hero() {
 
       <div className="container">
         <div className="row align-items-center gy-5">
+          {/* LEFT */}
           <div className="col-lg-6 text-white">
             <div className="hero-content">
               <div className="hero-badge mb-3">
@@ -78,21 +64,21 @@ export default function Hero() {
                 <span>Tour tuyển chọn • Trải nghiệm tinh gọn</span>
               </div>
 
-              <h1 className="hero-title mb-3">Du lịch đẹp hơn, dễ chọn hơn, đáng nhớ hơn</h1>
+              <h1 className="hero-title mb-3">
+                Du lịch đẹp hơn, dễ chọn hơn, đáng nhớ hơn
+              </h1>
 
               <p className="hero-text mb-4">
                 Khám phá những hành trình được thiết kế chỉn chu với lịch trình hợp lý,
                 điểm đến nổi bật và mức giá rõ ràng cho chuyến đi tiếp theo của bạn.
               </p>
 
-              <div className="hero-buttons d-flex flex-column flex-sm-row gap-3 mb-4">
-                <a href="#tours" className="btn-hero btn-primary-glow text-decoration-none">
-                  <span>Khám phá tour</span>
-                  <i className="bi bi-arrow-right"></i>
+              <div className="hero-buttons d-flex gap-3 mb-4">
+                <a href="#tours" className="btn-hero btn-primary-glow">
+                  Khám phá tour
                 </a>
-                <a href="#about" className="btn-hero btn-secondary-glow text-decoration-none">
-                  <span>Xem thêm</span>
-                  <i className="bi bi-play-circle"></i>
+                <a href="#about" className="btn-hero btn-secondary-glow">
+                  Xem thêm
                 </a>
               </div>
 
@@ -113,6 +99,7 @@ export default function Hero() {
             </div>
           </div>
 
+          {/* RIGHT */}
           <div className="col-lg-6 d-none d-lg-block">
             <div
               className="hero-banner carousel-card"
@@ -122,11 +109,10 @@ export default function Hero() {
               <div className="slides-wrap">
                 {slides.map((slide, i) => (
                   <img
-                    key={slide.image}
+                    key={i}
                     src={slide.image}
-                    alt={slide.title}
+                    alt=""
                     className={`slide ${i === active ? "active" : ""}`}
-                    loading="lazy"
                   />
                 ))}
               </div>
@@ -137,40 +123,10 @@ export default function Hero() {
                 <p>{current.subtitle}</p>
               </div>
 
-              <div className="hero-float-card">
-                <i className="bi bi-geo-alt-fill"></i>
-                <div>
-                  <strong>Điểm đến nổi bật</strong>
-                  <span>Cập nhật liên tục mỗi tuần</span>
-                </div>
-              </div>
-
-              <button className="nav prev" aria-label="Previous" onClick={prev}>
-                ‹
-              </button>
-              <button className="nav next" aria-label="Next" onClick={next}>
-                ›
-              </button>
-
-              <div className="dots">
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    className={`dot ${i === active ? "active" : ""}`}
-                    onClick={() => goTo(i)}
-                    aria-label={`Go to slide ${i + 1}`}
-                  />
-                ))}
-              </div>
+              <button className="nav prev" onClick={prev}>‹</button>
+              <button className="nav next" onClick={next}>›</button>
             </div>
           </div>
-        </div>
-
-        <div className="scroll-indicator position-absolute bottom-0 start-50 translate-middle-x mb-4">
-          <div className="scroll-mouse">
-            <div className="scroll-wheel"></div>
-          </div>
-          <span className="scroll-text text-white small">Scroll Down</span>
         </div>
       </div>
     </section>
