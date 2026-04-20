@@ -93,11 +93,10 @@ export default function PopularTours() {
                     <img
                       src={tour.image}
                       className="card-img-top"
-                      style={{ height: "280px", objectFit: "cover", transition: "transform 0.3s ease" }}
+                      style={{ height: "280px", objectFit: "cover" }}
                       loading="lazy"
+                      decoding="async"
                       alt={tour.title}
-                      onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
-                      onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
                       onError={(e) => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = "/no-image.png";

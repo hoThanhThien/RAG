@@ -95,36 +95,32 @@ function mapTour(t = {}) {
 export const tourService = {
   /** GET /tours?page=&page_size= → { items:[mapped], meta } */
   async getAll(params = {}) {
-    const requestParams = {
-      active_only: params.active_only ?? true,
-      ...params,
-    };
+  const requestParams = {
+    active_only: params.active_only ?? false, // 🔥 FIX: mặc định KHÔNG filter
+    ...params,
+  };
 
-    const res = await api.get("/tours", { params: requestParams });
-    const rawItems = res.data?.items ?? [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  const res = await api.get("/tours", { params: requestParams });
 
-    const items = rawItems
-      .map(mapTour)
-      .filter((tour) => {
-        if (requestParams.active_only === false) return true;
-        if (!tour?.start_date) return true;
+  const rawItems = res.data?.items ?? [];
 
-        const start = new Date(`${tour.start_date}T00:00:00`);
-        return Number.isNaN(start.getTime()) || start >= today;
-      });
+  console.log("RAW ITEMS:", rawItems.length);
 
-    const meta = {
-      page: res.data?.page ?? 1,
-      page_size: res.data?.page_size ?? rawItems.length,
-      total: res.data?.total ?? rawItems.length,
-      total_pages: res.data?.total_pages ?? 1,
-      has_next: res.data?.has_next ?? false,
-      has_prev: res.data?.has_prev ?? false,
-    };
-    return { items, meta };
-  },
+  const items = rawItems.map(mapTour);
+
+  console.log("MAPPED ITEMS:", items.length);
+
+  const meta = {
+    page: res.data?.page ?? 1,
+    page_size: res.data?.page_size ?? rawItems.length,
+    total: res.data?.total ?? rawItems.length,
+    total_pages: res.data?.total_pages ?? 1,
+    has_next: res.data?.has_next ?? false,
+    has_prev: res.data?.has_prev ?? false,
+  };
+
+  return { items, meta };
+},
 
   /** Thử tải ảnh riêng nếu endpoint detail không trả photos */
   async _ensurePhotos(id, tourObj) {
