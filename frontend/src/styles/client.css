@@ -255,9 +255,7 @@
 }
 
 @media (max-width: 991px) {
-  .hero-section {
-    padding-bottom: 56px !important;
-  }
+  
 
   .hero-metrics {
     gap: 10px;
@@ -269,12 +267,12 @@
 }
 /* Go To Top Button */
 .go-top {
-  position: fixed !important; /* Dùng !important để đảm bảo ghi đè bootstrap nếu cần */
+  position: fixed !important; 
   bottom: 20px;
   right: 20px;
   width: 50px;
   height: 50px;
-  z-index: 1050; /* Cao hơn hầu hết các element khác */
+  z-index: 1050; 
   opacity: 1;
   visibility: visible;
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -284,5 +282,9 @@
   transform: translateY(-5px);
 }
 
-
+.hero-section {
+  min-height: calc(100vh - 90px);
+  padding-top: 40px;   
+  padding-bottom: 80px;
+}
 
