@@ -27,6 +27,10 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@nhom09_mysql:3306/tourbookingdb
+      PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
     depends_on:
       nhom09_mysql:
         condition: service_healthy
