@@ -68,19 +68,16 @@ function Header() {
           className="d-flex justify-content-between align-items-center"
           style={{ height: 80 }}
         >
-          {/* ✅ Logo FIXED */}
+          {/* ✅ Logo nâng cấp */}
           <Link
             to="/"
-            className="text-decoration-none d-inline-block"
+            className="text-decoration-none logo-hover d-inline-block"
             onClick={() => {
               setNavActive(false);
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            <h1
-              className="fw-bold text-primary mb-0"
-              style={{ pointerEvents: "none" }}
-            >
+            <h1 className="fw-bold text-primary mb-0 logo-text">
               Tourest
             </h1>
           </Link>
