@@ -9,10 +9,17 @@ MOUNTAIN_TERMS = ["nui", "mountain", "sapa", "sa pa", "da lat", "moc chau", "tam
 FAMILY_TERMS = ["gia dinh", "family", "tre em", "kids"]
 BUDGET_TERMS = ["gia re", "gia tot", "tiet kiem", "budget", "cheap", "affordable", "sale", "khuyen mai"]
 PREMIUM_TERMS = ["cao cap", "premium", "luxury", "sang trong", "resort 5 sao"]
-INTERNATIONAL_TERMS = ["nuoc ngoai", "du lich ngoai nuoc", "quoc te", "international", "abroad", "thai lan", "singapore", "han quoc", "nhat ban", "phap", "france", "uc", "australia", "uae", "dubai", "chau au"]
-DOMESTIC_TERMS = ["trong nuoc", "du lich trong nuoc", "domestic", "viet nam", "quang ninh", "lao cai", "ninh binh", "vinh long", "da nang"]
+INTERNATIONAL_TERMS = ["nuoc ngoai", "du lich ngoai nuoc", "quoc te", "international", "abroad", "thai lan", "singapore", "han quoc", "nhat ban", "phap", "france", "australia", "chau uc", "uae", "dubai", "chau au"]
+DOMESTIC_TERMS = ["trong nuoc", "du lich trong nuoc", "noi dia", "domestic", "viet nam", "quang ninh", "lao cai", "ninh binh", "vinh long", "da nang"]
+DOMESTIC_EXPLICIT_TERMS = ["trong nuoc", "du lich trong nuoc", "noi dia", "domestic", "viet nam"]
 HOT_WEATHER_TERMS = ["nong", "nong qua", "troi nong", "oi buc", "mat me", "tranh nong", "doi gio"]
 RELAX_TERMS = ["nghi duong", "resort", "relax", "thu gian", "yen tinh"]
+SIMILAR_TERMS = [
+    "tuong tu", "giong", "similar", "like this", "nhu vay", "nhu the",
+    "cung loai", "cung danh muc", "cung dia diem", "tuong duong",
+    "tour nao khac", "tour khac", "co tour nao", "goi y them",
+    "tour nao con", "tour nao kia",
+]
 
 
 def normalize_text(text: Any) -> str:
@@ -32,6 +39,8 @@ def extract_query_intents(query: str) -> Dict[str, bool]:
         "international": any(term in text for term in INTERNATIONAL_TERMS),
         "hot_weather": any(term in text for term in HOT_WEATHER_TERMS),
         "relax": any(term in text for term in RELAX_TERMS),
+        "similar": any(term in text for term in SIMILAR_TERMS),
+        "domestic": any(term in text for term in DOMESTIC_EXPLICIT_TERMS),
     }
 
 

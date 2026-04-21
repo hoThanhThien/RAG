@@ -27,12 +27,87 @@ _RAG_CACHE: Dict[str, Any] = {
 }
 _CACHE_TTL_SECONDS = 600
 
-_BEACH_TERMS = ["bien", "beach", "island", "coast", "ha long", "nha trang", "phu quoc", "vung tau", "da nang", "quy nhon", "mui ne", "cat ba", "sam son", "con dao", "pattaya"]
-_MOUNTAIN_TERMS = ["sa pa", "sapa", "lao cai", "phan xi pang", "da lat", "moc chau", "tam dao", "nui", "mountain", "blue mountains"]
+# Query-side intent keywords (normalized Vietnamese)
+_BEACH_TERMS = ["bien", "beach", "island", "coast", "ha long", "nha trang", "phu quoc", "vung tau", "da nang", "quy nhon", "mui ne", "cat ba", "sam son", "con dao"]
+_MOUNTAIN_TERMS = ["sa pa", "sapa", "lao cai", "phan xi pang", "da lat", "moc chau", "tam dao", "nui", "mountain"]
 _FAMILY_TERMS = ["gia dinh", "family", "kids", "tre em"]
 _RELAX_TERMS = ["nghi duong", "resort", "thu gian", "relax", "yen tinh"]
 _HOT_WEATHER_TERMS = ["nong qua", "troi nong", "qua nong", "nang nong", "tranh nong", "mat me", "doi gio", "he nay", "summer", "cool"]
-_INTERNATIONAL_TERMS = ["nuoc ngoai", "quoc te", "international", "thai lan", "singapore", "han quoc", "nhat ban", "chau au", "uc"]
+_INTERNATIONAL_TERMS = ["nuoc ngoai", "quoc te", "international", "thai lan", "singapore", "han quoc", "nhat ban", "chau au", "uc", "dubai", "uae"]
+_PREMIUM_TERMS = ["cao cap", "luxury", "premium", "vip", "5 sao", "sang trong"]
+_BUDGET_TERMS = ["gia re", "gia tot", "tiet kiem", "sale", "khuyen mai", "budget", "cheap", "affordable", "re nhat"]
+
+# Document-side tag detection: deterministic location → tag mapping
+# Keys use space-padded word matching, so keep them unambiguous (no single-letter words).
+_LOCATION_TAG_MAP: Dict[str, List[str]] = {
+    # Beach – domestic
+    "ha long": ["beach"], "quang ninh": ["beach"],
+    "nha trang": ["beach"], "khanh hoa": ["beach"],
+    "phu quoc": ["beach"], "kien giang": ["beach"],
+    "da nang": ["beach"], "vung tau": ["beach"],
+    "ba ria": ["beach"], "quy nhon": ["beach"],
+    "binh dinh": ["beach"], "mui ne": ["beach"],
+    "binh thuan": ["beach"], "con dao": ["beach"],
+    "cat ba": ["beach"], "hai phong": ["beach"],
+    "sam son": ["beach"], "thanh hoa": ["beach"],
+    "ly son": ["beach"], "quang ngai": ["beach"],
+    # Mountain – domestic
+    "sa pa": ["mountain"], "sapa": ["mountain"],
+    "lao cai": ["mountain"], "da lat": ["mountain"],
+    "lam dong": ["mountain"], "moc chau": ["mountain"],
+    "son la": ["mountain"], "tam dao": ["mountain"],
+    "vinh phuc": ["mountain"], "phan xi pang": ["mountain"],
+    "ha giang": ["mountain"], "cao bang": ["mountain"],
+    "ninh binh": ["mountain"],
+    # International – use only unambiguous multi-word or long tokens
+    "thai lan": ["international"], "bangkok": ["international"],
+    "pattaya": ["international"], "singapore": ["international"],
+    "han quoc": ["international"], "seoul": ["international"],
+    "nhat ban": ["international"], "tokyo": ["international"],
+    "osaka": ["international"], "chau au": ["international"],
+    "paris": ["international"], "france": ["international"],
+    "rome": ["international"], "sydney": ["international"],
+    "australia": ["international"], "dubai": ["international"],
+    "uae": ["international"], "trung quoc": ["international"],
+    "bac kinh": ["international"], "new york": ["international"],
+    "nuoc ngoai": ["international"], "ngoai nuoc": ["international"],
+    "malaysia": ["international"], "kuala lumpur": ["international"],
+    "indo": ["international"], "bali": ["international"],
+}
+
+
+def detect_tags(item: Dict[str, Any]) -> List[str]:
+    """Assign semantic tags to a document. Uses word-boundary matching to
+    prevent short keys like 'uc'/'my' from matching inside other words."""
+    raw = " ".join([
+        str(item.get("title") or ""),
+        str(item.get("location") or ""),
+        str(item.get("category_name") or ""),
+        str(item.get("description") or "")[:300],
+    ])
+    text = " " + _normalize_text(raw) + " "  # pad for word-boundary checks
+    tags: set = set()
+
+    for key, key_tags in _LOCATION_TAG_MAP.items():
+        # Match whole words / phrases only (surrounded by spaces or text boundaries)
+        if (" " + key + " ") in text or text.startswith(key + " ") or text.endswith(" " + key):
+            tags.update(key_tags)
+
+    # Category explicitly says "ngoai nuoc" / "quoc te"
+    if any((" " + t + " ") in text for t in ["ngoai nuoc", "quoc te", "international", "abroad"]):
+        tags.add("international")
+
+    # Domestic tag only when no international flag was detected
+    if "international" not in tags:
+        tags.add("domestic")
+
+    # Soft tags
+    if any((" " + t + " ") in text for t in ["gia dinh", "family", "tre em", "kids"]):
+        tags.add("family")
+    if any((" " + t + " ") in text for t in ["nghi duong", "resort", "thu gian", "relax"]):
+        tags.add("relax")
+
+    return sorted(tags)
 
 
 def _normalize_text(value: Any) -> str:
@@ -44,20 +119,20 @@ def _normalize_text(value: Any) -> str:
 def _normalize_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     normalized: List[Dict[str, Any]] = []
     for row in rows:
-        normalized.append(
-            {
-                "tour_id": int(row["tour_id"]),
-                "title": row.get("title") or "Tour",
-                "location": row.get("location") or "",
-                "description": row.get("description") or "",
-                "category_name": row.get("category_name") or "General",
-                "price": float(row.get("price") or 0.0),
-                "start_date": row.get("start_date").isoformat() if row.get("start_date") else None,
-                "end_date": row.get("end_date").isoformat() if row.get("end_date") else None,
-                "rating": float(row.get("rating") or 0.0),
-                "review_snippets": row.get("review_snippets") or "",
-            }
-        )
+        doc: Dict[str, Any] = {
+            "tour_id": int(row["tour_id"]),
+            "title": row.get("title") or "Tour",
+            "location": row.get("location") or "",
+            "description": row.get("description") or "",
+            "category_name": row.get("category_name") or "General",
+            "price": float(row.get("price") or 0.0),
+            "start_date": row.get("start_date").isoformat() if row.get("start_date") else None,
+            "end_date": row.get("end_date").isoformat() if row.get("end_date") else None,
+            "rating": float(row.get("rating") or 0.0),
+            "review_snippets": row.get("review_snippets") or "",
+        }
+        doc["tags"] = detect_tags(doc)
+        normalized.append(doc)
     return normalized
 
 
@@ -149,15 +224,15 @@ def refresh_knowledge_base(force: bool = False) -> Dict[str, Any]:
 
 def _extract_preferences(prompt: str) -> Dict[str, bool]:
     text = _normalize_text(prompt)
-    hot_weather = any(term in text for term in _HOT_WEATHER_TERMS)
     return {
         "beach": any(term in text for term in _BEACH_TERMS),
         "mountain": any(term in text for term in _MOUNTAIN_TERMS),
         "family": any(term in text for term in _FAMILY_TERMS),
         "relax": any(term in text for term in _RELAX_TERMS),
-        "hot_weather": hot_weather,
+        "hot_weather": any(term in text for term in _HOT_WEATHER_TERMS),
         "international": any(term in text for term in _INTERNATIONAL_TERMS),
-        "budget": any(term in text for term in ["gia re", "gia tot", "tiet kiem", "sale", "khuyen mai", "budget", "cheap", "affordable"]),
+        "budget": any(term in text for term in _BUDGET_TERMS),
+        "premium": any(term in text for term in _PREMIUM_TERMS),
     }
 
 
@@ -176,35 +251,28 @@ def _document_text(item: Dict[str, Any]) -> str:
 
 
 def _matches_preferences(item: Dict[str, Any], preferences: Dict[str, bool]) -> bool:
-    text = _document_text(item)
+    """Hard-filter using pre-computed tags, not raw text keyword matching."""
+    tags = set(item.get("tags") or [])
 
+    # International intent: must have international tag
     if preferences.get("international"):
-        return any(term in text for term in _INTERNATIONAL_TERMS)
+        return "international" in tags
 
-    beach_match = any(term in text for term in _BEACH_TERMS)
-    mountain_match = any(term in text for term in _MOUNTAIN_TERMS)
-    relax_match = any(term in text for term in _RELAX_TERMS)
+    # Any domestic-specific intent → exclude international tours
+    domestic_intent = preferences.get("beach") or preferences.get("mountain") or preferences.get("hot_weather")
+    if domestic_intent and "international" in tags:
+        return False
 
-    checks: List[bool] = []
-    if preferences.get("beach"):
-        if not beach_match:
-            return False
-        checks.append(beach_match)
-    if preferences.get("mountain"):
-        if not mountain_match:
-            return False
-        checks.append(mountain_match)
-    if preferences.get("family"):
-        checks.append(any(term in text for term in _FAMILY_TERMS))
-    if preferences.get("relax"):
-        checks.append(relax_match)
-    if preferences.get("hot_weather"):
-        cool_escape = beach_match or mountain_match or relax_match
-        if not cool_escape:
-            return False
-        checks.append(cool_escape)
+    # Hard filters: must have matching tag
+    if preferences.get("beach") and "beach" not in tags:
+        return False
+    if preferences.get("mountain") and "mountain" not in tags:
+        return False
+    if preferences.get("hot_weather") and not ({"beach", "mountain", "relax"} & tags):
+        return False
 
-    return all(checks) if checks else True
+    # Soft filters: family and relax don't exclude if tag missing (just lower score)
+    return True
 
 
 def _rank_items(items: List[Dict[str, Any]], preferences: Dict[str, bool], top_k: int) -> List[Dict[str, Any]]:
@@ -242,9 +310,13 @@ def _rank_items(items: List[Dict[str, Any]], preferences: Dict[str, bool], top_k
         ranked.append(enriched)
 
     if preferences.get("budget"):
-        ranked.sort(key=lambda item: (float(item.get("price") or 999999999), -float(item.get("score") or 0.0), -float(item.get("rating") or 0.0)))
+        # Price ASC: cheapest first
+        ranked.sort(key=lambda x: (float(x.get("price") or float("inf")), -float(x.get("score") or 0.0)))
+    elif preferences.get("premium"):
+        # Price DESC: most expensive (premium) first
+        ranked.sort(key=lambda x: (-(float(x.get("price") or 0.0)), -float(x.get("score") or 0.0)))
     else:
-        ranked.sort(key=lambda item: (float(item.get("score") or 0.0), float(item.get("rating") or 0.0)), reverse=True)
+        ranked.sort(key=lambda x: (-float(x.get("score") or 0.0), -float(x.get("rating") or 0.0)))
 
     return ranked[:top_k]
 
@@ -306,7 +378,14 @@ def _retrieve(query: str, prompt: str, top_k: int = 5) -> List[Dict[str, Any]]:
     preferences = _extract_preferences(prompt)
     filtered = [item for item in results if _matches_preferences(item, preferences)]
 
-    if (preferences.get("international") or preferences.get("beach")) and not filtered:
+    # Hard-intent: return empty so fallback gives honest "no match" message
+    hard_intent = (
+        preferences.get("international")
+        or preferences.get("beach")
+        or preferences.get("mountain")
+        or preferences.get("hot_weather")
+    )
+    if hard_intent and not filtered:
         return []
 
     candidate_items = filtered if filtered else results

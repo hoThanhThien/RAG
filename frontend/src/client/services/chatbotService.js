@@ -1,11 +1,12 @@
 import { api } from "./api";
 
 export const chatbotService = {
-  async chat({ query, userId = null, topK = 4 }) {
+  async chat({ query, userId = null, topK = 4, focusTourId = null }) {
     const response = await api.post("/chat", {
       query,
       user_id: userId,
       top_k: topK,
+      focus_tour_id: focusTourId,
     });
     return response.data;
   },

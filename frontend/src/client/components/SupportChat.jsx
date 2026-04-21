@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { supportApi } from "../services/supportService";
 import { connectSupportWS } from "../services/ws";
+import { useAuth } from "../context/AuthContext";
 import "../../styles/SupportChat.css";
 
 export default function SupportChat() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -19,30 +21,24 @@ export default function SupportChat() {
   const wsRef = useRef(null);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const userIdRef = useRef(null); // always-current userId for WS callbacks
 
-  // 🔐 Giải mã token để lấy userId và tên
+  // 🔐 Lấy userId và tên từ AuthContext
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUserId(parseInt(payload.sub || payload.user_id || payload.UserID));
-        setUserFullName(payload.full_name || payload.FullName || "Bạn");
-      } catch (error) {
-        console.error("Lỗi giải mã token:", error);
-      }
+    if (user) {
+      setUserId(user.UserID || user.user_id || null);
+      setUserFullName(user.FullName || user.full_name || "Bạn");
+    } else {
+      setUserId(null);
+      setUserFullName("Bạn");
     }
-  }, []);
+  }, [user]);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  // 🚀 Lấy thread và lịch sử
+  // 🚀 Lấy thread và lịch sử — chạy khi userId thay đổi
   useEffect(() => {
     const boot = async () => {
-      // Check if user is logged in
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        console.warn("⚠️ User not logged in, chat disabled");
-        return;
-      }
+      if (!userId) return; // Chưa đăng nhập, bỏ qua
       
       try {
         setIsLoading(true);
@@ -61,7 +57,7 @@ export default function SupportChat() {
       }
     };
     boot();
-  }, []);
+  }, [userId]);
 
   // 📋 Load danh sách threads
   const loadThreads = async () => {
@@ -167,8 +163,14 @@ export default function SupportChat() {
         const msg = JSON.parse(ev.data);
         
         if (msg.type === "support:new_message" && msg.thread_id === threadId) {
-          // Bỏ qua tin nhắn của chính mình (đã xử lý qua optimistic update + API)
-          if (msg.message.sender_id === userId && !msg.message.is_admin) {
+          // Bỏ qua tin nhắn của chính mình — dùng ref để tránh stale closure
+          const currentUserId = userIdRef.current;
+          if (
+            msg.message.sender_id != null &&
+            currentUserId != null &&
+            Number(msg.message.sender_id) === Number(currentUserId) &&
+            !msg.message.is_admin
+          ) {
             console.log("⏭️ Skipping own message from WebSocket");
             return;
           }
@@ -263,28 +265,20 @@ export default function SupportChat() {
 
     const applyResponse = (response) => {
       setMessages((prev) => {
-        const existingIndex = prev.findIndex(
-          (m) => String(m.id) === String(response.data.id)
+        // Always remove optimistic placeholder first
+        const withoutTemp = prev.filter((m) => m.id !== tempId);
+        const realId = String(response.data.id);
+        const existingIndex = withoutTemp.findIndex(
+          (m) => String(m.id) === realId
         );
-
         if (existingIndex !== -1) {
-          const next = [...prev];
-          next[existingIndex] = {
-            ...next[existingIndex],
-            ...response.data,
-            pending: false,
-          };
+          // WS already added the real message — just mark not-pending
+          const next = [...withoutTemp];
+          next[existingIndex] = { ...next[existingIndex], ...response.data, pending: false };
           return next;
         }
-
-        const tempIndex = prev.findIndex((m) => m.id === tempId);
-        if (tempIndex !== -1) {
-          const next = [...prev];
-          next[tempIndex] = { ...response.data, pending: false };
-          return next;
-        }
-
-        return [...prev, { ...response.data, pending: false }];
+        // WS hasn't arrived yet — append
+        return [...withoutTemp, { ...response.data, pending: false }];
       });
     };
 

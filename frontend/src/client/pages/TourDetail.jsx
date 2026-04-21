@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { tourService } from "../services/tourService";
 import { commentService } from "../services/commentService";
+import { chatbotService } from "../services/chatbotService";
 
 function parseJwt(token) {
   if (!token) return null;
@@ -97,6 +98,17 @@ export default function TourDetail() {
 
   const [canRate, setCanRate] = useState(false);
   const [remainingReviews, setRemainingReviews] = useState(0);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: "intro",
+      role: "assistant",
+      content: "Mình có thể tư vấn nhanh về tour này, chi phí, lịch trình hoặc gợi ý tour tương tự.",
+      sources: [],
+    },
+  ]);
 
   // load tour
   useEffect(() => {
@@ -189,6 +201,91 @@ export default function TourDetail() {
     const sum = ratings.reduce((a, b) => a + b, 0);
     return { avg: sum / ratings.length, count: ratings.length };
   }, [comments]);
+
+  const chatbotSuggestions = useMemo(() => {
+    if (!tour) return [];
+    return [
+      `Tour này phù hợp với ai?`,
+      `Chi phí tour ${tour.title} có hợp lý không?`,
+      `Có tour nào tương tự ${tour.title} không?`,
+    ];
+  }, [tour]);
+
+  const buildTourAwareQuery = useCallback(
+    (question) => {
+      const trimmed = String(question || "").trim();
+      if (!trimmed || !tour) return trimmed;
+      return [
+        `Chỉ trả lời về tour đang xem: ${tour.title}.`,
+        `Địa điểm: ${tour.location || "Chưa rõ"}.`,
+        `Giá hiện tại: ${typeof tour.price === "number" ? tour.price : tour.price || "Chưa rõ"}.`,
+        `Nếu người dùng không hỏi tour tương tự thì không gợi ý tour khác.`,
+        `Câu hỏi hiện tại: ${trimmed}`,
+      ].join(" ");
+    },
+    [tour]
+  );
+
+  // Use a ref to always read the latest chatInput without adding it to deps,
+  // preventing stale closure that caused "send once" behaviour.
+  const chatInputRef = useRef(chatInput);
+  useEffect(() => { chatInputRef.current = chatInput; }, [chatInput]);
+
+  const chatLoadingRef = useRef(chatLoading);
+  useEffect(() => { chatLoadingRef.current = chatLoading; }, [chatLoading]);
+
+  const submitChat = useCallback(
+    async (rawQuestion) => {
+      const question = String(rawQuestion ?? chatInputRef.current).trim();
+      if (!question || !tour || chatLoadingRef.current) return;
+
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: question,
+        sources: [],
+      };
+
+      setChatError("");
+      setChatLoading(true);
+      setChatMessages((prev) => [...prev, userMessage]);
+      setChatInput("");
+
+      try {
+        const result = await chatbotService.chat({
+          query: buildTourAwareQuery(question),
+          userId: currentUserId,
+          topK: 3,
+          focusTourId: Number(tour.id || id),
+        });
+
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            content: result?.answer || "Mình chưa có câu trả lời phù hợp lúc này.",
+            sources: result?.sources || [],
+          },
+        ]);
+      } catch (error) {
+        console.error("Chatbot error:", error);
+        setChatError("Không thể kết nối chatbot lúc này. Bạn hãy thử lại sau.");
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-error-${Date.now()}`,
+            role: "assistant",
+            content: "Mình đang bận xử lý, bạn thử hỏi lại sau ít phút nhé.",
+            sources: [],
+          },
+        ]);
+      } finally {
+        setChatLoading(false);
+      }
+    },
+    [buildTourAwareQuery, currentUserId, id, tour]
+  );
 
   if (loading) {
     return (
@@ -450,6 +547,109 @@ export default function TourDetail() {
           <li className="list-group-item">Ngày 3–4: Khám phá thiên nhiên / trekking</li>
           <li className="list-group-item">Ngày 5–6: Tham quan, trải nghiệm văn hoá</li>
         </ul>
+      </div>
+
+      <div className="mt-5">
+        <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div className="card-header bg-primary text-white py-3 border-0 d-flex align-items-center justify-content-between">
+            <div>
+              <div className="fw-semibold d-flex align-items-center gap-2">
+                <i className="bi bi-robot"></i>
+                Hỏi đáp nhanh về tour này
+              </div>
+              <div className="small text-white-50">Tư vấn chi phí, độ phù hợp và tour tương tự ngay trên trang chi tiết.</div>
+            </div>
+            <span className="badge bg-light text-primary">/chat</span>
+          </div>
+
+          <div className="card-body bg-white">
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              {chatbotSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  className="btn btn-sm btn-outline-primary rounded-pill"
+                  onClick={() => submitChat(suggestion)}
+                  disabled={chatLoading}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            <div
+              className="border rounded-4 bg-light p-3 mb-3"
+              style={{ maxHeight: 360, overflowY: "auto" }}
+            >
+              <div className="d-flex flex-column gap-3">
+                {chatMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`d-flex ${message.role === "user" ? "justify-content-end" : "justify-content-start"}`}
+                  >
+                    <div
+                      className={`rounded-4 px-3 py-2 ${message.role === "user" ? "bg-primary text-white" : "bg-white border"}`}
+                      style={{ maxWidth: "85%", whiteSpace: "pre-wrap" }}
+                    >
+                      <div className="small fw-semibold mb-1">
+                        {message.role === "user" ? "Bạn" : "Tour Assistant"}
+                      </div>
+                      <div>{message.content}</div>
+                      {message.role === "assistant" && Array.isArray(message.sources) && message.sources.length > 0 && (
+                        <div className="mt-2 pt-2 border-top small text-muted">
+                          <div className="fw-semibold mb-1">Nguồn gợi ý:</div>
+                          <ul className="mb-0 ps-3">
+                            {message.sources.slice(0, 3).map((source) => (
+                              <li key={`${message.id}-${source.tour_id}-${source.chunk_type}`}>
+                                {source.title} - {source.location}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {chatLoading && (
+                  <div className="d-flex justify-content-start">
+                    <div className="rounded-4 px-3 py-2 bg-white border d-inline-flex align-items-center gap-2">
+                      <div className="spinner-border spinner-border-sm text-primary" role="status" />
+                      <span>Đang suy nghĩ…</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {chatError && <div className="alert alert-warning py-2">{chatError}</div>}
+
+            <form
+              className="d-flex flex-column flex-md-row gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                submitChat();
+              }}
+            >
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Ví dụ: tour này có phù hợp cho gia đình không?"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                disabled={chatLoading}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary rounded-pill px-4"
+                disabled={chatLoading || !chatInput.trim()}
+              >
+                <i className="bi bi-send-fill me-2"></i>
+                Hỏi bot
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
 
       {/* ===== Comments ===== */}

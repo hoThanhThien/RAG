@@ -7,6 +7,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=2000)
     user_id: Optional[int] = Field(default=None, ge=1)
     top_k: int = Field(default=4, ge=1, le=8)
+    focus_tour_id: Optional[int] = Field(default=None, ge=1)
 
 
 class ChatSource(BaseModel):

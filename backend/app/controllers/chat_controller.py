@@ -11,7 +11,12 @@ router = APIRouter(tags=["RAG Chatbot"])
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest):
-    return answer_chat(query=payload.query, user_id=payload.user_id, top_k=payload.top_k)
+    return answer_chat(
+        query=payload.query,
+        user_id=payload.user_id,
+        top_k=payload.top_k,
+        focus_tour_id=payload.focus_tour_id,
+    )
 
 
 @router.post("/chat/reindex")
