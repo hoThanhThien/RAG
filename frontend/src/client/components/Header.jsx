@@ -10,10 +10,9 @@ function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // set header height (optimized)
+  // set header height
   useEffect(() => {
     const header = document.querySelector(".header");
-
     if (!header) return;
 
     const updateVar = () => {
@@ -24,7 +23,6 @@ function Header() {
     };
 
     updateVar();
-
     const ro = new ResizeObserver(updateVar);
     ro.observe(header);
 
@@ -70,9 +68,18 @@ function Header() {
           className="d-flex justify-content-between align-items-center"
           style={{ height: 80 }}
         >
-          {/* Logo */}
-          <Link to="/" className="text-decoration-none">
-            <h1 className="fw-bold text-primary mb-0">Tourest</h1>
+          {/* ✅ Logo nâng cấp */}
+          <Link
+            to="/"
+            className="text-decoration-none logo-hover d-inline-block"
+            onClick={() => {
+              setNavActive(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            <h1 className="fw-bold text-primary mb-0 logo-text">
+              Tourest
+            </h1>
           </Link>
 
           {/* Mobile toggle */}
