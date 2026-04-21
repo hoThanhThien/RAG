@@ -27,3 +27,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Generated RAG store
+rag_store/
+

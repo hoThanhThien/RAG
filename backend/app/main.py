@@ -13,7 +13,7 @@ from app.controllers import (
     category_controller, discount_controller, photo_controller, 
     role_controller, support_controller,
     auth_controller, comment_controller, websocket_controller, momo_controller,
-    admin_controller, upload_controller, recommendation_controller
+    admin_controller, upload_controller, recommendation_controller, chat_controller
 )
 
 app = FastAPI(title="Tour Booking API", version="1.0.0")
@@ -66,6 +66,7 @@ app.include_router(websocket_controller.router)
 app.include_router(upload_controller.router)
 app.include_router(momo_controller.router)
 app.include_router(recommendation_controller.router)
+app.include_router(chat_controller.router)
 
 @app.get("/")
 async def root():
