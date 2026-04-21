@@ -29,6 +29,7 @@ python-jose==3.5.0
 python-multipart==0.0.20
 python-socketio==5.14.2
 requests==2.32.5
+redis==5.2.1
 rsa==4.9.1
 simple-websocket==1.1.0
 six==1.17.0

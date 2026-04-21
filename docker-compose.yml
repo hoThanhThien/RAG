@@ -31,9 +31,22 @@ services:
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      RAG_REDIS_ENABLED: ${RAG_REDIS_ENABLED:-true}
+      RAG_REDIS_URL: ${RAG_REDIS_URL:-redis://nhom09_redis:6379/0}
     depends_on:
       nhom09_mysql:
         condition: service_healthy
+      nhom09_redis:
+        condition: service_started
+    networks:
+      - nhom09_network
+
+  nhom09_redis:
+    image: redis:7-alpine
+    container_name: nhom09_redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
     networks:
       - nhom09_network
 

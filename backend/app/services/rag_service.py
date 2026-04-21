@@ -5,7 +5,6 @@ import logging
 import os
 import pickle
 import time
-from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -15,6 +14,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from app.database import get_db_connection
 from app.services.customer_segmentation_service import get_user_segment
 from app.services.rag.bm25 import BM25Index
+from app.services.rag.cache import InMemoryTTLCache, RedisCache, decode_vector, encode_vector
 from app.services.rag.chunking import build_semantic_chunks
 from app.services.rag.config import get_rag_settings
 from app.services.rag.intents import (
@@ -28,6 +28,7 @@ from app.services.rag.intents import (
     normalize_text,
     source_match_text,
 )
+from app.services.rag.metrics import rag_metrics
 from app.services.rag.prompting import build_context, build_system_prompt, build_user_prompt
 
 try:
@@ -63,7 +64,77 @@ _RAG_CACHE: Dict[str, Any] = {
     "bm25": None,
     "normalized_docs": [],
 }
-_QUERY_EMBED_CACHE: "OrderedDict[str, Tuple[float, np.ndarray]]" = OrderedDict()
+_LOCAL_QUERY_EMBED_CACHE = InMemoryTTLCache(max_size=settings.query_cache_size)
+_LOCAL_RESPONSE_CACHE = InMemoryTTLCache(max_size=settings.query_cache_size)
+_REDIS_CACHE: RedisCache | None = None
+_REDIS_DISABLED = False
+_RESPONSE_CACHE_EPOCH = 0
+
+
+def _get_redis_cache() -> RedisCache | None:
+    global _REDIS_CACHE, _REDIS_DISABLED
+    if not settings.redis_enabled:
+        return None
+    if _REDIS_DISABLED:
+        return None
+    if _REDIS_CACHE is not None:
+        return _REDIS_CACHE
+
+    try:
+        cache = RedisCache(
+            url=settings.redis_url,
+            key_prefix=settings.redis_key_prefix,
+            timeout_seconds=settings.redis_timeout_seconds,
+        )
+        if cache.ping():
+            _REDIS_CACHE = cache
+            logger.info("RAG Redis cache enabled at %s", settings.redis_url)
+            return _REDIS_CACHE
+        _REDIS_DISABLED = True
+        rag_metrics.increment("redis_fallback_total")
+        logger.warning("RAG Redis cache unavailable at %s, falling back to in-memory cache", settings.redis_url)
+    except Exception:
+        _REDIS_DISABLED = True
+        rag_metrics.increment("redis_fallback_total")
+        logger.warning("Failed to initialize Redis cache, falling back to in-memory cache", exc_info=False)
+    return None
+
+
+def _set_response_cache_epoch(value: int) -> None:
+    global _RESPONSE_CACHE_EPOCH
+    _RESPONSE_CACHE_EPOCH = value
+
+
+def _get_response_cache_epoch() -> int:
+    redis_cache = _get_redis_cache()
+    if redis_cache is not None:
+        payload = redis_cache.get_json("response_cache_epoch")
+        if payload and isinstance(payload.get("value"), int):
+            _set_response_cache_epoch(int(payload["value"]))
+            return _RESPONSE_CACHE_EPOCH
+    return _RESPONSE_CACHE_EPOCH
+
+
+def invalidate_rag_response_cache(reason: str = "manual") -> Dict[str, Any]:
+    next_epoch = _get_response_cache_epoch() + 1
+    _set_response_cache_epoch(next_epoch)
+    _LOCAL_RESPONSE_CACHE.clear()
+    redis_cache = _get_redis_cache()
+    if redis_cache is not None:
+        redis_cache.set_json("response_cache_epoch", {"value": next_epoch, "reason": reason}, settings.response_cache_ttl_seconds * 10)
+    rag_metrics.mark_invalidation(reason)
+    logger.info("RAG response cache invalidated reason=%s epoch=%s", reason, next_epoch)
+    return {"message": "RAG response cache invalidated", "reason": reason, "epoch": next_epoch}
+
+
+def get_rag_metrics() -> Dict[str, Any]:
+    snapshot = rag_metrics.snapshot()
+    snapshot["response_cache_epoch"] = _get_response_cache_epoch()
+    snapshot["redis_enabled"] = bool(settings.redis_enabled)
+    snapshot["redis_active"] = _get_redis_cache() is not None
+    snapshot["embedding_provider"] = str((_RAG_CACHE.get("state") or {}).get("embedding_provider") or "unknown")
+    snapshot["retriever"] = str((_RAG_CACHE.get("state") or {}).get("retriever") or "unknown")
+    return snapshot
 
 
 def _ensure_store_dir() -> None:
@@ -336,7 +407,10 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         VECTORIZER_FILE.unlink()
 
     _update_cache(chunks, state, vectorizer, vectors, index)
-    _QUERY_EMBED_CACHE.clear()
+    _LOCAL_QUERY_EMBED_CACHE.clear()
+    _LOCAL_RESPONSE_CACHE.clear()
+    invalidate_rag_response_cache(reason="rebuild")
+    rag_metrics.mark_rebuild()
     logger.info("RAG index built in %.2fs with %s chunks across %s tours", time.perf_counter() - started_at, len(chunks), len(rows))
 
     return {
@@ -373,23 +447,41 @@ def load_vector_store(force_reload: bool = False) -> Dict[str, Any]:
     return _RAG_CACHE
 
 
-def _prune_query_cache() -> None:
-    now = time.time()
-    expired_keys = [key for key, (expires_at, _) in _QUERY_EMBED_CACHE.items() if expires_at <= now]
-    for key in expired_keys:
-        _QUERY_EMBED_CACHE.pop(key, None)
-    while len(_QUERY_EMBED_CACHE) > settings.query_cache_size:
-        _QUERY_EMBED_CACHE.popitem(last=False)
+def _segment_cache_signature(segment: Optional[Dict[str, Any]]) -> str:
+    if not segment:
+        return "anonymous"
+    return ":".join(
+        [
+            str(segment.get("segment_name") or "unknown"),
+            str(segment.get("favorite_category") or "general"),
+        ]
+    )
+
+
+def _response_cache_key(query: str, user_id: Optional[int], top_k: int, cache_state: Dict[str, Any], segment: Optional[Dict[str, Any]]) -> str:
+    state = cache_state.get("state") or {}
+    built_at = state.get("built_at") or "0"
+    embedding_provider = state.get("embedding_provider") or "local-tfidf"
+    epoch = _get_response_cache_epoch()
+    return f"response:{embedding_provider}:{built_at}:{epoch}:{top_k}:{user_id or 0}:{_segment_cache_signature(segment)}:{normalize_text(query)}"
 
 
 def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
     provider = str((cache.get("state") or {}).get("embedding_provider") or "local-tfidf")
     cache_key = f"{provider}:{normalize_text(query)}"
-    _prune_query_cache()
-    cached = _QUERY_EMBED_CACHE.get(cache_key)
-    if cached and cached[0] > time.time():
-        _QUERY_EMBED_CACHE.move_to_end(cache_key)
-        return cached[1]
+    redis_cache = _get_redis_cache()
+    if redis_cache is not None:
+        payload = redis_cache.get_bytes(f"embed:{cache_key}")
+        if payload:
+            vector = decode_vector(payload)
+            if vector is not None:
+                rag_metrics.increment("embedding_cache_hits_redis")
+                return vector
+
+    cached = _LOCAL_QUERY_EMBED_CACHE.get(cache_key)
+    if cached is not None:
+        rag_metrics.increment("embedding_cache_hits_memory")
+        return cached
 
     if provider == "openai":
         vectors = _call_openai_embeddings([query])
@@ -400,7 +492,9 @@ def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
         vectors = vectorizer.transform([query]).toarray().astype("float32")
 
     normalized = _normalize_vectors(vectors.astype("float32"))
-    _QUERY_EMBED_CACHE[cache_key] = (time.time() + settings.query_cache_ttl_seconds, normalized)
+    _LOCAL_QUERY_EMBED_CACHE.set(cache_key, normalized, settings.query_cache_ttl_seconds)
+    if redis_cache is not None:
+        redis_cache.set_bytes(f"embed:{cache_key}", encode_vector(normalized), settings.query_cache_ttl_seconds)
     return normalized
 
 
@@ -609,6 +703,7 @@ def retrieve_documents(query: str, top_k: int = 4) -> List[Dict[str, Any]]:
         len(final_results),
         (time.perf_counter() - started_at) * 1000,
     )
+    rag_metrics.observe("retrieve", (time.perf_counter() - started_at) * 1000)
     return final_results
 
 
@@ -675,6 +770,7 @@ def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
         data = response.json()
         return data["choices"][0]["message"]["content"].strip()
     except Exception:
+        rag_metrics.increment("openai_answer_fallback_total")
         logger.exception("OpenAI answer generation failed for query=%r", query)
         return _fallback_answer(query, segment, sources)
 
@@ -682,13 +778,31 @@ def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
 def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_context_chars: int = 3500) -> Dict[str, Any]:
     cache = load_vector_store()
     started_at = time.perf_counter()
+    rag_metrics.mark_request(query)
     segment = get_user_segment(user_id) if user_id else None
+    response_cache_key = _response_cache_key(query, user_id, top_k, cache, segment)
+    redis_cache = _get_redis_cache()
+
+    if redis_cache is not None:
+        cached_response = redis_cache.get_json(response_cache_key)
+        if cached_response is not None:
+            rag_metrics.increment("response_cache_hits_redis")
+            logger.info("RAG response cache hit (redis) query=%r", query)
+            return cached_response
+
+    local_response = _LOCAL_RESPONSE_CACHE.get(response_cache_key)
+    if local_response is not None:
+        rag_metrics.increment("response_cache_hits_memory")
+        logger.info("RAG response cache hit (memory) query=%r", query)
+        return local_response
+
     sources = retrieve_documents(query, top_k=top_k)
     answer = _generate_answer(query, segment, sources, max_context_chars=max_context_chars)
     latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
     logger.info("RAG answer query=%r latency_ms=%.1f sources=%s", query, latency_ms, len(sources))
+    rag_metrics.observe("answer", latency_ms)
 
-    return {
+    payload = {
         "answer": answer,
         "query": query,
         "top_k": top_k,
@@ -697,3 +811,7 @@ def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_c
         "segment": segment,
         "sources": sources,
     }
+    _LOCAL_RESPONSE_CACHE.set(response_cache_key, payload, settings.response_cache_ttl_seconds)
+    if redis_cache is not None:
+        redis_cache.set_json(response_cache_key, payload, settings.response_cache_ttl_seconds)
+    return payload
