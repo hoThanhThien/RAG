@@ -28,3 +28,29 @@ class ChatResponse(BaseModel):
     embedding_provider: str
     segment: Optional[Dict[str, Any]] = None
     sources: List[ChatSource] = Field(default_factory=list)
+
+
+class ChatMetricsResponse(BaseModel):
+    requests_total: int
+    rebuild_total: int
+    response_cache_hits_memory: int
+    response_cache_hits_redis: int
+    embedding_cache_hits_memory: int
+    embedding_cache_hits_redis: int
+    redis_fallback_total: int
+    openai_answer_fallback_total: int
+    cache_invalidations_total: int
+    response_cache_epoch: int
+    retrieve_latency_ms_avg: float
+    answer_latency_ms_avg: float
+    last_retrieve_latency_ms: float
+    last_answer_latency_ms: float
+    redis_enabled: bool
+    redis_active: bool
+    retriever: str
+    embedding_provider: str
+    uptime_seconds: int
+    last_invalidation_reason: Optional[str] = None
+    last_rebuild_at: Optional[int] = None
+    last_request_at: Optional[int] = None
+    last_request_query: Optional[str] = None

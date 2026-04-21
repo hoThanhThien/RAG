@@ -30,9 +30,14 @@ class RAGSettings:
     hybrid_lexical_weight: float
     query_cache_ttl_seconds: int
     query_cache_size: int
+    response_cache_ttl_seconds: int
     embedding_batch_size: int
     answer_temperature: float
     answer_max_tokens: int
+    redis_enabled: bool
+    redis_url: str
+    redis_key_prefix: str
+    redis_timeout_seconds: int
 
 
 def _env_int(name: str, default: int) -> int:
@@ -47,6 +52,11 @@ def _env_float(name: str, default: float) -> float:
         return float(os.getenv(name, default))
     except Exception:
         return default
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = str(os.getenv(name, str(default))).strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 @lru_cache(maxsize=1)
@@ -76,7 +86,12 @@ def get_rag_settings() -> RAGSettings:
         hybrid_lexical_weight=_env_float("RAG_HYBRID_LEXICAL_WEIGHT", 0.32),
         query_cache_ttl_seconds=_env_int("RAG_QUERY_CACHE_TTL_SECONDS", 300),
         query_cache_size=_env_int("RAG_QUERY_CACHE_SIZE", 256),
+        response_cache_ttl_seconds=_env_int("RAG_RESPONSE_CACHE_TTL_SECONDS", 180),
         embedding_batch_size=_env_int("RAG_EMBEDDING_BATCH_SIZE", 96),
         answer_temperature=_env_float("RAG_ANSWER_TEMPERATURE", 0.15),
         answer_max_tokens=_env_int("RAG_ANSWER_MAX_TOKENS", 320),
+        redis_enabled=_env_bool("RAG_REDIS_ENABLED", False),
+        redis_url=os.getenv("RAG_REDIS_URL", "redis://localhost:6379/0"),
+        redis_key_prefix=os.getenv("RAG_REDIS_KEY_PREFIX", "rag"),
+        redis_timeout_seconds=_env_int("RAG_REDIS_TIMEOUT_SECONDS", 2),
     )

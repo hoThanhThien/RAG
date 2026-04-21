@@ -84,16 +84,24 @@ Các biến môi trường RAG mới để tune production mà không sửa code
 - `RAG_MIN_SEARCH_K`, `RAG_MAX_SEARCH_K`: giới hạn candidate pool
 - `RAG_HYBRID_DENSE_WEIGHT`, `RAG_HYBRID_LEXICAL_WEIGHT`: trọng số hybrid retrieval
 - `RAG_QUERY_CACHE_TTL_SECONDS`, `RAG_QUERY_CACHE_SIZE`: cache query embedding trong app
+- `RAG_RESPONSE_CACHE_TTL_SECONDS`: TTL cho response cache
 - `RAG_EMBEDDING_BATCH_SIZE`: batch size khi build embedding với OpenAI
 - `RAG_CHUNK_SIZE_WORDS`, `RAG_REVIEW_CHUNK_SIZE_WORDS`, `RAG_CHUNK_OVERLAP_SENTENCES`: cấu hình chunking
 - `RAG_ANSWER_TEMPERATURE`, `RAG_ANSWER_MAX_TOKENS`: cấu hình answer generation
+- `RAG_REDIS_ENABLED`, `RAG_REDIS_URL`, `RAG_REDIS_KEY_PREFIX`, `RAG_REDIS_TIMEOUT_SECONDS`: bật Redis cache chia sẻ giữa nhiều replica
 
 Khuyến nghị production ngắn gọn:
 
-- Dùng Redis thay cho in-memory query cache nếu chạy nhiều replica.
+- Dùng Redis cho query embedding cache và response cache nếu chạy nhiều replica.
 - Gọi `python build_rag_index.py` theo batch/scheduler sau khi dữ liệu tour thay đổi lớn.
 - Thu log từ route `/chat` và `/chat/reindex` để theo dõi latency, số candidate và tỉ lệ fallback.
 - Giữ `OPENAI_API_KEY` là optional để service vẫn chạy được với local TF-IDF khi cần degrade gracefully.
+
+Ví dụ chạy với Docker Compose có Redis:
+
+```bash
+docker compose up --build nhom09_mysql nhom09_redis nhom09_backend nhom09_frontend
+```
 
 ### Frontend Setup
 ```bash
