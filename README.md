@@ -47,7 +47,10 @@ Hệ thống quản lý đặt tour du lịch với FastAPI backend và React fr
 - **Payment Integration**: Cấu trúc sẵn sàng tích hợp payment gateway
 - **Discount System**: Áp dụng mã giảm giá tự động
 
-## 🚀 Quick Start
+## 🚀 Quick Start\
+set all in one Command with docker:
+docker compose build
+docker compose up
 
 ### Backend Setup
 ```bash
@@ -66,47 +69,38 @@ uvicorn app.main:app --reload
 # Hoặc: start_server.bat
 ```
 
+### RAG Chatbot Ops
+```bash
+cd backend
+.venv\Scripts\activate
+python build_rag_index.py
+uvicorn app.main:app --reload
+```
+
+Các biến môi trường RAG mới để tune production mà không sửa code:
+
+- `RAG_SEARCH_MULTIPLIER`: số lượng candidate dense theo `top_k`
+- `RAG_LEXICAL_SEARCH_MULTIPLIER`: số lượng candidate lexical/BM25 theo `top_k`
+- `RAG_MIN_SEARCH_K`, `RAG_MAX_SEARCH_K`: giới hạn candidate pool
+- `RAG_HYBRID_DENSE_WEIGHT`, `RAG_HYBRID_LEXICAL_WEIGHT`: trọng số hybrid retrieval
+- `RAG_QUERY_CACHE_TTL_SECONDS`, `RAG_QUERY_CACHE_SIZE`: cache query embedding trong app
+- `RAG_EMBEDDING_BATCH_SIZE`: batch size khi build embedding với OpenAI
+- `RAG_CHUNK_SIZE_WORDS`, `RAG_REVIEW_CHUNK_SIZE_WORDS`, `RAG_CHUNK_OVERLAP_SENTENCES`: cấu hình chunking
+- `RAG_ANSWER_TEMPERATURE`, `RAG_ANSWER_MAX_TOKENS`: cấu hình answer generation
+
+Khuyến nghị production ngắn gọn:
+
+- Dùng Redis thay cho in-memory query cache nếu chạy nhiều replica.
+- Gọi `python build_rag_index.py` theo batch/scheduler sau khi dữ liệu tour thay đổi lớn.
+- Thu log từ route `/chat` và `/chat/reindex` để theo dõi latency, số candidate và tỉ lệ fallback.
+- Giữ `OPENAI_API_KEY` là optional để service vẫn chạy được với local TF-IDF khi cần degrade gracefully.
+
 ### Frontend Setup
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-### Default Accounts
-- **Admin**: `admin@example.com` / `admin123`
-
-## 📊 API Endpoints
-
-### 🔑 Authentication
-- `POST /auth/register` - Đăng ký
-- `POST /auth/login` - Đăng nhập  
-- `GET /auth/me` - Thông tin user hiện tại
-- `PUT /auth/change-password` - Đổi mật khẩu
-
-### 👥 User Management  
-- `GET /users/` - Danh sách user (Admin)
-- `DELETE /users/{id}` - Xóa user (Admin)
-- `PUT /users/{id}/role` - Thay đổi role (Admin)
-
-### 🎫 Tour Management
-- `GET /tours/` - Danh sách tour (Public)
-- `GET /tours/my-tours` - Tour của guide (Guide)
-- `POST /tours/` - Tạo tour (Admin)
-- `GET /tours/{id}/bookings` - Booking của tour (Guide/Admin)
-
-### 📅 Booking System
-- `POST /bookings/` - Đặt tour (User)
-- `GET /bookings/` - Lịch sử booking
-- `PUT /bookings/{id}/status` - Cập nhật trạng thái (Admin)
-
-### 💬 Review System
-- `POST /comments/` - Tạo đánh giá (User đã đặt tour)
-- `GET /comments/tour/{tour_id}` - Xem đánh giá tour
-
-### 🔌 WebSocket
-- `WS /ws/tour/{tour_id}` - Real-time chat
-- `GET /tours/{id}/live-stats` - Thống kê trực tuyến
 
 ## 🏗 Kiến trúc
 
@@ -164,5 +158,5 @@ frontend/
 ## 📚 Tài liệu
 
 - **API Documentation**: `/backend/API_Documentation.md`
-- **Swagger UI**: `http://localhost:8000/docs` (khi chạy server)
+- **Swagger: `http://localhost:8000/docs` (khi chạy server)
 - **Database Schema**: `/backend/tourbookingdb.sql`
