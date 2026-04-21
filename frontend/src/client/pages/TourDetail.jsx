@@ -1,548 +1,177 @@
-// src/pages/TourDetail.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { tourService } from "../services/tourService";
 import { commentService } from "../services/commentService";
 
-function parseJwt(token) {
-  if (!token) return null;
+const fmtVND = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+});
+
+const parseJwt = (token) => {
   try {
-    return JSON.parse(atob(token.split(".")[1]));
+    return token ? JSON.parse(atob(token.split(".")[1])) : null;
   } catch {
     return null;
   }
-}
+};
 
-const fmtVND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
-
-function diffDays(start, end) {
-  try {
-    const s = new Date(start);
-    const e = new Date(end);
-    const ms = e - s;
-    if (isNaN(ms)) return null;
-    return Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)) + 1);
-  } catch {
-    return null;
-  }
-}
-
-function formatDisplayDate(value) {
+const formatDate = (value) => {
   if (!value) return "Chưa cập nhật";
-  try {
-    const raw = String(value).slice(0, 10);
-    const d = new Date(`${raw}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString("vi-VN");
-  } catch {
-    return String(value).slice(0, 10);
-  }
-}
+  const d = new Date(value);
+  return isNaN(d) ? value : d.toLocaleDateString("vi-VN");
+};
 
-function Stars({ value = 0 }) {
-  const v = Math.max(0, Math.min(5, Math.round(value)));
+const Stars = React.memo(({ value = 0 }) => {
+  const v = Math.round(value);
   return (
     <span className="d-inline-flex align-items-center gap-1">
       {Array.from({ length: 5 }, (_, i) => (
-        <i key={i} className={`bi ${i + 1 <= v ? "bi-star-fill" : "bi-star"} text-warning`} />
+        <i key={i} className={`bi ${i < v ? "bi-star-fill" : "bi-star"} text-warning`} />
       ))}
-      <span className="small text-muted">
-        {value?.toFixed ? value.toFixed(1) : value}/5
-      </span>
+      <small className="text-muted">{value.toFixed(1)}</small>
     </span>
   );
-}
-
-function StarPicker({ value, onChange }) {
-  return (
-    <div className="d-inline-flex gap-1">
-      {Array.from({ length: 5 }, (_, i) => {
-        const n = i + 1;
-        const active = n <= value;
-        return (
-          <button
-            key={n}
-            type="button"
-            className="btn btn-sm p-0 border-0 bg-transparent"
-            onClick={() => onChange(n)}
-            aria-label={`Rating ${n}`}
-            title={`${n} sao`}
-          >
-            <i className={`bi ${active ? "bi-star-fill" : "bi-star"} text-warning fs-5`} />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+});
 
 export default function TourDetail() {
   const { id } = useParams();
   const nav = useNavigate();
 
   const [tour, setTour] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState(0); // index ảnh đang xem
-
-  // Comments state
   const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [cLoading, setCLoading] = useState(true);
-  const [newContent, setNewContent] = useState("");
-  const [newRating, setNewRating] = useState(5);
-  const [submitting, setSubmitting] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editContent, setEditContent] = useState("");
-  const [editRating, setEditRating] = useState(0);
+  const [active, setActive] = useState(0);
 
-  const [canRate, setCanRate] = useState(false);
-  const [remainingReviews, setRemainingReviews] = useState(0);
-
-  // load tour
   useEffect(() => {
     let mounted = true;
+
     (async () => {
-      setLoading(true);
       try {
-        const data = await tourService.getById(id);
-        if (mounted) setTour(data);
+        setLoading(true);
+        setCLoading(true);
+
+        const [tourData, commentData] = await Promise.all([
+          tourService.getById(id),
+          commentService.listByTour(id, { page: 1, page_size: 50 }),
+        ]);
+
+        if (!mounted) return;
+
+        setTour(tourData);
+
+        const sorted = commentData.items.sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        setComments(sorted);
+      } catch (err) {
+        console.error(err);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setCLoading(false);
+        }
       }
     })();
+
     return () => (mounted = false);
   }, [id]);
 
-  // load comments
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setCLoading(true);
-      try {
-        const { items } = await commentService.listByTour(id, { page: 1, page_size: 100 });
-        if (alive) {
-          const sorted = items.sort((a, b) =>
-            String(b.created_at).localeCompare(String(a.created_at))
-          );
-          setComments(sorted);
-        }
-      } finally {
-        if (alive) setCLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [id]);
-
-  const refreshReviewQuota = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("access_token");
-      const payload = parseJwt(token);
-      setCurrentUserId(payload?.user_id ?? payload?.UserID ?? null);
-
-      if (!token) {
-        setCanRate(false);
-        setRemainingReviews(0);
-        return;
-      }
-
-      const quota = await commentService.canRate(id);
-      setCanRate(Boolean(quota?.can_rate));
-      setRemainingReviews(Number(quota?.remaining_reviews ?? 0));
-    } catch {
-      setCanRate(false);
-      setRemainingReviews(0);
-    }
-  }, [id]);
-
-  // hỏi BE xem user còn quyền vote không
-  useEffect(() => {
-    refreshReviewQuota();
-  }, [refreshReviewQuota]);
-
-  // khi tour đổi, chọn ảnh primary nếu có
-  useEffect(() => {
-    if (tour?.photos?.length) {
-      const idx = tour.photos.findIndex((p) => Number(p.is_primary) === 1);
-      setActive(idx >= 0 ? idx : 0);
-    } else {
-      setActive(0);
-    }
-  }, [tour]);
-
-  // Tính trung bình rating, nếu chưa có thì mặc định 5.0
   const ratingStats = useMemo(() => {
-    const ratings = comments
-      .map((c) => Number(c.rating) || 0)
-      .filter((n) => n > 0);
-    if (!ratings.length) return { avg: 5.0, count: 0 }; // Mặc định 5 sao nếu chưa có đánh giá
-    const sum = ratings.reduce((a, b) => a + b, 0);
-    return { avg: sum / ratings.length, count: ratings.length };
+    if (!comments.length) return { avg: 5, count: 0 };
+    const sum = comments.reduce((a, c) => a + (c.rating || 0), 0);
+    return {
+      avg: sum / comments.length,
+      count: comments.length,
+    };
   }, [comments]);
 
   if (loading) {
     return (
-      <div className="container" style={{ padding: "24px 0" }}>
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" />
-        </div>
-      </div>
-    );
-    }
-
-  if (!tour) {
-    return (
-      <div className="container" style={{ padding: "24px 0" }}>
-        <div className="alert alert-warning">Không tìm thấy tour!</div>
-        <Link className="btn btn-outline-primary" to="/tours">
-          ← Quay lại danh sách
-        </Link>
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" />
       </div>
     );
   }
 
-  const days = tour.duration_days ?? diffDays(tour.start_date, tour.end_date);
-  const priceLabel = typeof tour.price === "number" ? fmtVND.format(tour.price) : tour.price;
-  const startDateLabel = formatDisplayDate(tour.start_date);
-  const endDateLabel = formatDisplayDate(tour.end_date);
+  if (!tour) return <div className="alert alert-warning">Không có tour</div>;
 
-  const photos = tour?.photos || [];
-  const heroSrc = photos[active]?.image_url || tour.image_url || "/no-image.png";
-  const prev = () => photos.length && setActive((i) => (i - 1 + photos.length) % photos.length);
-  const next = () => photos.length && setActive((i) => (i + 1) % photos.length);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      alert("Vui lòng đăng nhập để bình luận.");
-      return nav("/login?next=" + encodeURIComponent(`/tours/${tour.id}`));
-    }
-    if (!newContent.trim()) return alert("Nội dung bình luận không được rỗng.");
-
-    setSubmitting(true);
-    try {
-      // optimistic UI
-      const temp = {
-        id: "temp-" + Date.now(),
-        user_id: null,
-        tour_id: tour.id,
-        content: newContent.trim(),
-        rating: canRate ? newRating : null,
-        created_at: new Date().toISOString().slice(0, 19).replace("T", " "),
-        user_name: "Bạn",
-      };
-      setComments((prev) => [temp, ...prev]);
-
-      const payload = { content: newContent.trim() };
-      if (canRate) payload.rating = newRating;
-
-      const saved = await commentService.create(tour.id, payload);
-
-      setComments((prev) => [saved, ...prev.filter((c) => c.id !== temp.id)]);
-      setNewContent("");
-      setNewRating(5);
-      await refreshReviewQuota();
-    } catch (err) {
-      // BE có thể trả 400 "already rated"
-      const detail = err?.response?.data?.detail || err?.message || "Gửi bình luận thất bại.";
-      alert(detail);
-      // rollback temp
-      setComments((prev) => prev.filter((c) => !String(c.id).startsWith("temp-")));
-      await refreshReviewQuota();
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const startEdit = (comment) => {
-    setEditingCommentId(comment.id);
-    setEditContent(comment.content || "");
-    setEditRating(Number(comment.rating) || 0);
-  };
-
-  const cancelEdit = () => {
-    setEditingCommentId(null);
-    setEditContent("");
-    setEditRating(0);
-  };
-
-  const saveEdit = async (commentId) => {
-    if (!editContent.trim()) {
-      alert("Nội dung bình luận không được rỗng.");
-      return;
-    }
-
-    try {
-      const payload = { content: editContent.trim() };
-      if (editRating > 0) payload.rating = editRating;
-
-      await commentService.update(commentId, payload);
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId
-            ? { ...c, content: editContent.trim(), rating: editRating > 0 ? editRating : c.rating }
-            : c
-        )
-      );
-      cancelEdit();
-      await refreshReviewQuota();
-    } catch (err) {
-      alert(err?.response?.data?.detail || "Không thể cập nhật đánh giá.");
-    }
-  };
-
-  const removeComment = async (commentId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa đánh giá này không?")) return;
-    try {
-      await commentService.remove(commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-      await refreshReviewQuota();
-    } catch (err) {
-      alert(err?.response?.data?.detail || "Không thể xóa đánh giá.");
-    }
-  };
+  const photos = tour.photos || [];
+  const hero = photos[active]?.image_url || tour.image_url;
 
   return (
-    <div className="container" style={{ padding: "24px 0" }}>
+    <div className="container py-4">
       <div className="row g-4">
+        {/* ===== IMAGE (LAZY LOAD) ===== */}
         <div className="col-md-7">
-          {/* Ảnh lớn */}
-          <div className="position-relative mb-3">
-            <img
-              src={heroSrc}
-              alt={tour.title}
-              className="w-100 rounded-3 shadow-sm"
-              style={{ maxHeight: 420, objectFit: "cover" }}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = "/no-image.png";
-              }}
-            />
-            {photos.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-light position-absolute top-50 start-0 translate-middle-y shadow"
-                  onClick={prev}
-                  aria-label="Previous photo"
-                >
-                  <i className="bi bi-chevron-left" />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-light position-absolute top-50 end-0 translate-middle-y shadow"
-                  onClick={next}
-                  aria-label="Next photo"
-                >
-                  <i className="bi bi-chevron-right" />
-                </button>
-              </>
-            )}
-          </div>
+          <img
+            src={hero}
+            alt={tour.title}
+            loading="lazy"
+            className="w-100 rounded"
+            style={{ maxHeight: 400, objectFit: "cover" }}
+          />
 
-          {/* Thumbnails */}
-          {photos.length > 0 && (
-            <div className="d-flex gap-2 overflow-auto pb-1">
-              {photos.map((p, i) => (
-                <button
-                  key={p.photo_id ?? i}
-                  type="button"
-                  className="p-0 border-0 bg-transparent"
-                  onClick={() => setActive(i)}
-                  title={p.caption || `Ảnh ${i + 1}`}
-                >
-                  <img
-                    src={p.image_url}
-                    alt={p.caption || `Ảnh ${i + 1}`}
-                    style={{
-                      width: 96,
-                      height: 72,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      border: i === active ? "2px solid #0d6efd" : "1px solid #e9ecef",
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = "/no-image.png";
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="d-flex gap-2 mt-2 overflow-auto">
+            {photos.map((p, i) => (
+              <img
+                key={i}
+                src={p.image_url}
+                loading="lazy"
+                alt=""
+                onClick={() => setActive(i)}
+                style={{
+                  width: 80,
+                  height: 60,
+                  cursor: "pointer",
+                  border: i === active ? "2px solid blue" : "1px solid #ddd",
+                }}
+              />
+            ))}
+          </div>
         </div>
 
+        {/* ===== INFO ===== */}
         <div className="col-md-5">
           <h3>{tour.title}</h3>
-          <div className="text-muted mb-2">
-            <i className="bi bi-geo-alt-fill text-danger"></i> {tour.location}
-          </div>
-          <div className="mb-2 d-flex align-items-center gap-3">
-            <span className="badge bg-primary">{days ? `${days} days` : "TBA"}</span>
-            <span className="text-warning d-flex align-items-center gap-2">
-              <i className="bi bi-star-fill"></i>
-              <Stars value={ratingStats.avg} />
-              {ratingStats.count > 0 && (
-                <small className="text-muted">({ratingStats.count})</small>
-              )}
-            </span>
-          </div>
-          <p className="text-muted">{tour.description || tour.short_desc}</p>
+          <p className="text-muted">{tour.location}</p>
 
-          <div className="row g-2 my-3">
-            <div className="col-sm-6">
-              <div className="border rounded-3 px-3 py-2 h-100 bg-light">
-                <div className="small text-muted">Ngày bắt đầu</div>
-                <div className="fw-semibold">
-                  <i className="bi bi-calendar-event text-primary me-2"></i>
-                  {startDateLabel}
-                </div>
-              </div>
-            </div>
-            <div className="col-sm-6">
-              <div className="border rounded-3 px-3 py-2 h-100 bg-light">
-                <div className="small text-muted">Ngày kết thúc</div>
-                <div className="fw-semibold">
-                  <i className="bi bi-calendar-check text-success me-2"></i>
-                  {endDateLabel}
-                </div>
-              </div>
-            </div>
-          </div>
+          <Stars value={ratingStats.avg} />
 
-          <div className="d-flex align-items-center gap-3 my-3">
-            <h4 className="text-primary mb-0">{priceLabel}</h4>
-            <small className="text-muted">/ người</small>
-          </div>
+          <h4 className="text-primary mt-3">{fmtVND.format(tour.price)}</h4>
 
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-primary rounded-pill"
-              onClick={() => nav(`/booking/${tour.id}`)}
-            >
-              Đặt tour
-            </button>
-            <Link to="/tours" className="btn btn-outline-secondary rounded-pill">
-              ← Quay lại
-            </Link>
-          </div>
-        </div>
-      </div>
+          <p>{tour.description}</p>
 
-      {/* Itinerary (demo) */}
-      <div className="mt-5">
-        <h5>Lịch trình nổi bật</h5>
-        <ul className="list-group list-group-flush">
-          <li className="list-group-item">Ngày 1–2: City tour & ẩm thực địa phương</li>
-          <li className="list-group-item">Ngày 3–4: Khám phá thiên nhiên / trekking</li>
-          <li className="list-group-item">Ngày 5–6: Tham quan, trải nghiệm văn hoá</li>
-        </ul>
-      </div>
-
-      {/* ===== Comments ===== */}
-      <div className="mt-5">
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h5 className="mb-0">Bình luận ({comments.length})</h5>
-          <div className="small text-muted d-flex align-items-center gap-2">
-            <Stars value={ratingStats.avg} />
-            <span>({ratingStats.count} đánh giá)</span>
-          </div>
-        </div>
-
-        {/* Form bình luận */}
-        <form className="mb-4" onSubmit={handleSubmit}>
-          <div className="mb-2">
-            <label className="form-label me-2">Đánh giá:</label>
-            {canRate ? (
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <StarPicker value={newRating} onChange={setNewRating} />
-                <span className="text-muted small">Còn {remainingReviews} lượt đánh giá từ các lần đặt tour.</span>
-              </div>
-            ) : (
-              <span className="text-muted small">
-                Bạn đã dùng hết lượt đánh giá cho tour này, nhưng vẫn có thể sửa hoặc xóa đánh giá cũ của mình.
-              </span>
-            )}
-          </div>
-          <div className="mb-2">
-            <textarea
-              className="form-control"
-              rows={3}
-              placeholder="Chia sẻ cảm nhận của bạn…"
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
-          </div>
-          <button className="btn btn-primary rounded-pill" type="submit" disabled={submitting}>
-            {submitting ? "Đang gửi..." : "Gửi bình luận"}
+          <button
+            className="btn btn-primary"
+            onClick={() => nav(`/booking/${tour.id}`)}
+          >
+            Đặt tour
           </button>
-        </form>
+        </div>
+      </div>
 
-        {/* Danh sách bình luận */}
+      {/* ===== COMMENTS ===== */}
+      <div className="mt-5">
+        <h5>Bình luận ({comments.length})</h5>
+
         {cLoading ? (
-          <div className="text-muted">Đang tải bình luận…</div>
+          <p>Đang tải...</p>
         ) : comments.length === 0 ? (
-          <div className="text-muted">Chưa có bình luận nào.</div>
+          <p>Chưa có bình luận</p>
         ) : (
           <ul className="list-group">
-            {comments.map((c) => {
-              const isOwner = Number(c.user_id) === Number(currentUserId);
-              const isEditing = editingCommentId === c.id;
-
-              return (
-                <li key={c.id} className="list-group-item">
-                  <div className="d-flex justify-content-between align-items-start gap-3">
-                    <strong>{c.user_name || "Ẩn danh"}</strong>
-                    <div className="d-flex align-items-center gap-2">
-                      <small className="text-muted">{c.created_at}</small>
-                      {isOwner && !isEditing && (
-                        <>
-                          <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEdit(c)}>
-                            Sửa
-                          </button>
-                          <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeComment(c.id)}>
-                            Xóa
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {isEditing ? (
-                    <div className="mt-2">
-                      <div className="mb-2">
-                        <StarPicker value={editRating} onChange={setEditRating} />
-                      </div>
-                      <textarea
-                        className="form-control mb-2"
-                        rows={3}
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                      />
-                      <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-sm btn-primary" onClick={() => saveEdit(c.id)}>
-                          Lưu
-                        </button>
-                        <button type="button" className="btn btn-sm btn-secondary" onClick={cancelEdit}>
-                          Hủy
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {Number(c.rating) > 0 && (
-                        <div className="mb-1">
-                          <Stars value={c.rating} />
-                        </div>
-                      )}
-                      <p className="mb-0">{c.content}</p>
-                    </>
-                  )}
-                </li>
-              );
-            })}
+            {comments.map((c) => (
+              <li key={c.id} className="list-group-item">
+                <strong>{c.user_name}</strong>
+                <div>
+                  <Stars value={c.rating || 0} />
+                </div>
+                <p>{c.content}</p>
+                <small>{formatDate(c.created_at)}</small>
+              </li>
+            ))}
           </ul>
         )}
       </div>
