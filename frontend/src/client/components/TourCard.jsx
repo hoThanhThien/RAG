@@ -1,4 +1,3 @@
-// src/client/components/TourCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -25,7 +24,7 @@ export default function TourCard({ tour }) {
     ? Number(tour.rating)
     : 5;
   const rating = Math.max(0, Math.min(5, Math.round(rawRating)));
-  const img = tour.image_url || tour.photos?.[0]?.image_url ||"/no-image.png";
+  const img = tour.image_url || "/no-image.png";
   const priceLabel =
     typeof tour.price === "number" ? fmtVND.format(tour.price) : tour.price ?? "Liên hệ";
 
@@ -57,6 +56,8 @@ export default function TourCard({ tour }) {
             style={{ height: "280px", objectFit: "cover", transition: "transform 0.3s ease" }}
             alt={tour.title}
             loading="lazy"
+            onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+            onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             onError={(e) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = "/no-image.png";

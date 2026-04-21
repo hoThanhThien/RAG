@@ -1,38 +1,46 @@
-import React, { useEffect, lazy, Suspense } from "react";
+import React, { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 import Hero from "../components/Hero";
+import Destinations from "../components/Destinations";
+import PopularTours from "../components/PopularTours";
+import About from "../components/About";
+import Blog from "../components/Blog";
 
-const Destinations = lazy(() => import("../components/Destinations"));
-const PopularTours = lazy(() => import("../components/PopularTours"));
-const About = lazy(() => import("../components/About"));
-const Blog = lazy(() => import("../components/Blog"));
+const Home = () => {
 
-export default function Home() {
+
+
+
+
   const location = useLocation();
 
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get("scroll");
-
-    if (id) {
-      setTimeout(() => {
-        document.getElementById(id)?.scrollIntoView({
-          behavior: "smooth",
-        });
-      }, 100);
+    const params = new URLSearchParams(location.search);
+    const sectionId = params.get("scroll");
+    if (sectionId) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        // Chờ DOM render xong rồi scroll
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
     }
   }, [location]);
 
   return (
     <>
       <Hero />
+      <Destinations />
+      <PopularTours />
+      <About />
+      <Blog />
 
-      <Suspense fallback={<div className="py-5 text-center">Loading...</div>}>
-        <Destinations />
-        <PopularTours />
-        <About />
-        <Blog />
-      </Suspense>
+
+
     </>
   );
-}
+};
+
+export default Home;

@@ -1,18 +1,18 @@
-import React, { lazy, Suspense } from "react";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
-const ClientApp = lazy(() => import("./client/ClientApp"));
-const AdminApp = lazy(() => import("./admin/AdminApp"));
+import ClientApp from "./client/ClientApp";
+import AdminApp from "./admin/AdminApp";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
   return (
     <Router>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Routes>
-          <Route path="/admin/*" element={<AdminApp />} />
-          <Route path="/*" element={<ClientApp />} />
-        </Routes>
-      </Suspense>
+      <Routes>
+        <Route path="/admin/*" element={<AdminApp />} />
+        <Route path="/*" element={<ClientApp />} />
+      </Routes>
+
+
     </Router>
   );
 }
