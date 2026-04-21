@@ -310,3 +310,16 @@
     padding-left: 0;
   }
 }
+
+/* bỏ viền xanh */
+a:focus,
+button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* đảm bảo click logo không bị đè */
+.header a {
+  position: relative;
+  z-index: 10;
+}
