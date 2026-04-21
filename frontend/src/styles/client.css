@@ -255,7 +255,9 @@
 }
 
 @media (max-width: 991px) {
-  
+  .hero-section {
+    padding-bottom: 56px !important;
+  }
 
   .hero-metrics {
     gap: 10px;
@@ -267,12 +269,12 @@
 }
 /* Go To Top Button */
 .go-top {
-  position: fixed !important; 
+  position: fixed !important; /* Dùng !important để đảm bảo ghi đè bootstrap nếu cần */
   bottom: 20px;
   right: 20px;
   width: 50px;
   height: 50px;
-  z-index: 1050; 
+  z-index: 1050; /* Cao hơn hầu hết các element khác */
   opacity: 1;
   visibility: visible;
   transition: transform 0.3s ease, opacity 0.3s ease;
@@ -282,60 +284,4 @@
   transform: translateY(-5px);
 }
 
-.hero-section {
-  min-height: calc(100vh - 90px);
-  padding-top: 40px;   
-  padding-bottom: 80px;
-}
 
-/* FIX: tránh sát mép trái */
-.hero-section .container {
-  padding-left: 40px;
-  padding-right: 40px;
-}
-
-/* thêm khoảng thở riêng cho nội dung */
-.hero-content {
-  padding-left: 10px;
-}
-
-/* mobile */
-@media (max-width: 768px) {
-  .hero-section .container {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  .hero-content {
-    padding-left: 0;
-  }
-}
-
-a:focus,
-button:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* ===== LOGO EFFECT ===== */
-.logo-hover {
-  display: inline-block;
-  transition: transform 0.2s ease;
-}
-
-.logo-hover:hover {
-  transform: scale(1.08);
-}
-
-.logo-hover:active {
-  transform: scale(0.92);
-}
-
-/* hiệu ứng chữ */
-.logo-text {
-  transition: all 0.2s ease;
-}
-
-.logo-hover:hover .logo-text {
-  text-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-}

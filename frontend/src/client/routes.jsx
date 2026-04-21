@@ -1,51 +1,52 @@
-import React, { lazy, Suspense } from "react";
+// src/client/routes.jsx
+import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ClientLayout from "./components/layout/ClientLayout";
+import Home from "./pages/Home";
+import Tours from "./pages/Tours";
+import TourDetail from "./pages/TourDetail";
+import Booking from "./pages/Booking";
+import Payment from "./pages/Payment";
+import PaymentSuccess from "./pages/PaymentSuccess";  // <-- THÊM
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";  // <-- THÊM PayPal success page
+import MoMoCallback from "./pages/MoMoCallback";  // <-- THÊM MoMo callback page
+import Contact from "./pages/Contact";
+import UserProfile from "./pages/UserProfile";
+import BookingHistory from "./pages/BookingHistory";  // <-- THÊM Booking History
+import BookingDetail from "./pages/BookingDetail";  // <-- THÊM Booking Detail
+import Recommendations from "./pages/Recommendations";
+import AuthPage from "./pages/Auth";
 
-const Home = lazy(() => import("./pages/Home"));
-const Tours = lazy(() => import("./pages/Tours"));
-const TourDetail = lazy(() => import("./pages/TourDetail"));
-const Booking = lazy(() => import("./pages/Booking"));
-const Payment = lazy(() => import("./pages/Payment"));
-const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
-const PaymentSuccessPage = lazy(() => import("./pages/PaymentSuccessPage"));
-const MoMoCallback = lazy(() => import("./pages/MoMoCallback"));
-const Contact = lazy(() => import("./pages/Contact"));
-const UserProfile = lazy(() => import("./pages/UserProfile"));
-const BookingHistory = lazy(() => import("./pages/BookingHistory"));
-const BookingDetail = lazy(() => import("./pages/BookingDetail"));
-const Recommendations = lazy(() => import("./pages/Recommendations"));
-const AuthPage = lazy(() => import("./pages/Auth"));
 
 export default function ClientRoutes() {
   return (
-    <Suspense
-      fallback={
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" />
-        </div>
-      }
-    >
-      <Routes>
-        <Route path="/" element={<ClientLayout />}>
-          <Route index element={<Home />} />
-          <Route path="tours" element={<Tours />} />
-          <Route path="tours/:id" element={<TourDetail />} />
-          <Route path="booking/:id" element={<Booking />} />
-          <Route path="payment/:bookingId" element={<Payment />} />
-          <Route path="payment/:bookingId/success" element={<PaymentSuccess />} />
-          <Route path="payment-success" element={<PaymentSuccessPage />} />
-          <Route path="payment/momo/callback" element={<MoMoCallback />} />
-          <Route path="contact" element={<Contact />} />
-          <Route path="user" element={<UserProfile />} />
-          <Route path="bookings" element={<BookingHistory />} />
-          <Route path="user/bookings" element={<BookingHistory />} />
-          <Route path="booking-details/:id" element={<BookingDetail />} />
-          <Route path="recommendations" element={<Recommendations />} />
-        </Route>
+    <Routes>
+      <Route path="/" element={<ClientLayout />}>
+        <Route index element={<Home />} />
+        <Route path="tours" element={<Tours />} />
+        <Route path="tours/:id" element={<TourDetail />} />
+        <Route path="booking/:id" element={<Booking />} />
+        <Route path="payment/:bookingId" element={<Payment />} />
+        <Route path="payment/:bookingId/success" element={<PaymentSuccess />} /> {/* <-- THÊM */}
+        <Route path="payment-success" element={<PaymentSuccessPage />} /> {/* <-- PayPal success route */}
+        <Route path="payment/momo/callback" element={<MoMoCallback />} /> {/* <-- MoMo callback route */}
+        <Route path="contact" element={<Contact />} />
+        <Route path="user" element={<UserProfile />} />
+        <Route path="bookings" element={<BookingHistory />} /> {/* <-- Booking History route */}
+        <Route path="user/bookings" element={<BookingHistory />} /> {/* <-- Alias route */}
+        <Route path="booking-details/:id" element={<BookingDetail />} /> {/* <-- Booking Detail route */}
+        <Route path="recommendations" element={<Recommendations />} />
+      </Route>
+      <Route path="/auth" element={<AuthPage />} />
+    </Routes>
 
-        <Route path="/auth" element={<AuthPage />} />
-      </Routes>
-    </Suspense>
+
+
+
+
+
+
+
+
   );
 }
