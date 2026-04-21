@@ -1,10 +1,11 @@
 from datetime import timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import List
+import unicodedata
 from app.dependencies.auth_dependencies import get_current_user, require_admin
 from app.schemas.support_schema import MessageIn, MessageOut, ThreadOut
 from app.database import get_db_connection  # ✅ Dùng pymysql connection
-from app.services.recommendation_service import recommend_for_user
+from app.services.rag_service import answer_chat
 
 
 def to_utc_iso(dt):
@@ -22,9 +23,16 @@ def is_admin_user(user):
     return role_name == "admin" or user.get("RoleID") == 1
 
 
+def normalize_support_text(value: str) -> str:
+    text = " ".join(str(value or "").lower().split())
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
 def should_use_ai_support(content: str) -> bool:
-    text = " ".join(str(content or "").lower().split())
+    text = normalize_support_text(content)
     if not text:
+        return False
+    if len(text) < 3:
         return False
 
     keywords = [
@@ -36,21 +44,22 @@ def should_use_ai_support(content: str) -> bool:
         "mát mẻ", "mat me", "tránh nóng", "tranh nong", "đổi gió", "doi gio",
         "luxury", "budget", "family", "beach", "mountain",
     ]
-    return any(keyword in text for keyword in keywords)
+    return any(normalize_support_text(keyword) in text for keyword in keywords)
 
 
 def build_ai_support_reply(user_id: int, prompt: str) -> str:
     try:
-        rec = recommend_for_user(user_id=user_id, prompt=prompt, top_k=3)
-        segment_name = rec.get("segment", {}).get("segment_name", "khách hàng")
-        recommendations = rec.get("recommendations") or []
+        rec = answer_chat(query=prompt, user_id=user_id, top_k=3)
+        recommendations = rec.get("sources") or []
         answer = (rec.get("answer") or "").strip()
 
         lines = ["🤖 Gợi ý cho bạn:"]
         if answer:
             lines.append(answer)
 
-        if recommendations:
+        has_bullets_in_answer = "\n- " in answer or "\n• " in answer
+
+        if recommendations and not has_bullets_in_answer:
             lines.append("Tour phù hợp:")
             for item in recommendations[:3]:
                 price = float(item.get("price") or 0)
