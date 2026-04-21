@@ -4,7 +4,9 @@ import json
 import logging
 import os
 import pickle
+import re
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -20,10 +22,12 @@ from app.services.rag.config import get_rag_settings
 from app.services.rag.intents import (
     BEACH_TERMS,
     DOMESTIC_TERMS,
+    DOMESTIC_EXPLICIT_TERMS,
     FAMILY_TERMS,
     INTERNATIONAL_TERMS,
     MOUNTAIN_TERMS,
     RELAX_TERMS,
+    SIMILAR_TERMS,
     extract_query_intents,
     normalize_text,
     source_match_text,
@@ -242,6 +246,100 @@ def _fetch_tour_rows() -> List[Dict[str, Any]]:
         conn.close()
 
 
+def _generate_enrichment_text(title: str, location: str, category_name: str, price: float, avg_rating: float, booking_count: int) -> str:
+    """Generate a rich synthetic keyword chunk from tour metadata to improve RAG retrieval."""
+    loc = normalize_text(location or "")
+    cat = normalize_text(category_name or "")
+    parts: List[str] = [f"Tour {title} tai {location}, danh muc {category_name}."]
+
+    # ---- Geography & destination type ----
+    domestic_keywords = ["ha long", "sa pa", "fansipan", "ninh binh", "trang an", "tam coc", "viet nam",
+                         "ha noi", "sai gon", "hcm", "da nang", "hoi an", "phu quoc", "nha trang",
+                         "da lat", "mui ne", "quy nhon", "gia lai", "kon tum", "vinh long"]
+    sea_keywords = ["ha long", "pattaya", "phu quoc", "nha trang", "da nang", "mui ne", "quy nhon",
+                    "hong kong", "singapore", "sydney", "dubai", "abu dhabi"]
+    mountain_keywords = ["sa pa", "fansipan", "da lat", "sapa", "nui", "everland", "blue mountains"]
+    intl_asean_keywords = ["bangkok", "pattaya", "thai lan", "singapore", "kuala lumpur", "malaysia",
+                           "bali", "indonesia", "philippines", "myanmar", "campuchia", "cambodia"]
+    intl_east_asia = ["tokyo", "nhat ban", "japan", "seoul", "han quoc", "korea", "hong kong",
+                      "ma cao", "macau", "dai bac", "cao hung", "taiwan", "dai loan"]
+    intl_europe = ["paris", "versailles", "phap", "france", "anh", "y", "duc", "tay ban nha", "bac au",
+                   "ha lan", "thuy si", "bi", "ao", "chau au", "europa"]
+    intl_oceania = ["sydney", "uc", "australia", "new zealand", "blue mountains"]
+    intl_middle_east = ["dubai", "abu dhabi", "uae", "saudi", "trung dong"]
+
+    geo_tags: List[str] = []
+    if any(kw in loc for kw in domestic_keywords) or "du lich trong nuoc" in cat:
+        geo_tags += ["du lich trong nuoc", "viet nam", "noi dia"]
+    else:
+        geo_tags += ["du lich nuoc ngoai", "quoc te", "international"]
+    if any(kw in loc for kw in intl_asean_keywords):
+        geo_tags += ["dong nam a", "asean", "chau a"]
+    if any(kw in loc for kw in intl_east_asia):
+        geo_tags += ["dong a", "chau a"]
+    if any(kw in loc for kw in intl_europe):
+        geo_tags += ["chau au", "europe", "nuoc ngoai"]
+    if any(kw in loc for kw in intl_oceania):
+        geo_tags += ["chau dai duong", "uc", "australia"]
+    if any(kw in loc for kw in intl_middle_east):
+        geo_tags += ["trung dong", "chau phi", "nuoc ngoai"]
+    if any(kw in loc for kw in sea_keywords):
+        geo_tags += ["tour bien", "bien ca", "bai bien", "resort bien", "tam bien"]
+    if any(kw in loc for kw in mountain_keywords):
+        geo_tags += ["tour nui", "leo nui", "khi hau mat", "kham pha thien nhien"]
+    if geo_tags:
+        parts.append("Khu vuc / loai hinh: " + ", ".join(dict.fromkeys(geo_tags)) + ".")
+
+    # ---- Price tier ----
+    if price and price > 0:
+        if price < 3_000_000:
+            tier = "gia re, phu hop nguoi ít tien, budget, gia thap nhat, tiet kiem"
+        elif price < 8_000_000:
+            tier = "gia trung binh, phu hop gia dinh, nhom ban, pho thong"
+        elif price < 15_000_000:
+            tier = "gia cao, cao cap, premium, sang trong"
+        else:
+            tier = "luxury, rat cao cap, hang sang, premium cao nhat"
+        parts.append(f"Muc gia khoang {price:,.0f} VND — {tier}.")
+
+    # ---- Popularity ----
+    if avg_rating >= 4.5:
+        parts.append("Tour duoc danh gia rat cao, khach rat hai long, hot, pho bien.")
+    elif avg_rating >= 3.5:
+        parts.append("Tour duoc danh gia tot, nhieu khach chon.")
+    if booking_count >= 20:
+        parts.append(f"Da co {booking_count} luot dat tour — rat hot, pho bien.")
+    elif booking_count >= 5:
+        parts.append(f"Da co {booking_count} luot dat tour.")
+
+    # ---- Specific destination hints ----
+    location_hints: Dict[str, str] = {
+        "ha long": "Vinh Ha Long — ky quan thien nhien the gioi, thuyen tham quan, hang dong, bien xanh.",
+        "sa pa": "Sa Pa — suong mu, ruong bac thang, ban lang dan toc, leo nui Fansipan cao nhat Dong Duong.",
+        "ninh binh": "Ninh Binh — Trang An, Tam Coc, Bich Dong, thien nhien song nuoc, di san UNESCO.",
+        "bangkok": "Bangkok — thu do Thai Lan, chua chien, cho noi, am thuc duong pho, mua sam.",
+        "pattaya": "Pattaya — bai bien Pattaya, tu vien, song show, tro choi duoi nuoc, Thai Lan.",
+        "singapore": "Singapore — thanh pho hien dai, Gardens by the Bay, Marina Bay, am thuc chau a.",
+        "kuala lumpur": "Kuala Lumpur — Thap Doi Petronas, trung tam mua sam, van hoa Malaysia.",
+        "tokyo": "Tokyo — nui Phu Si, nghe thuat, am thuc Nhat Ban, anime, cong nghe.",
+        "seoul": "Seoul — dao Nami, Everland, Gangnam, K-pop, Han Quoc hien dai.",
+        "hong kong": "Hong Kong — sieu do thi, nui Lion Rock, cho dem, am thuc.",
+        "ma cao": "Ma Cao — song bac, kien truc Bo Dao Nha, casino, dia diem giai tri.",
+        "dai bac": "Dai Bac — thu do Dai Loan, cho dem Shilin, cong vien quoc gia.",
+        "cao hung": "Cao Hung — cang bien lon Dai Loan, van hoa bien, cho dem.",
+        "paris": "Paris — Thap Eiffel, Louvre, cung dien Versailles, tinh yeu, romance, chau Au.",
+        "sydney": "Sydney — Opera House, Blue Mountains, bai bien Bondi, chau Dai Duong.",
+        "dubai": "Dubai — Burj Khalifa, sa mac, sang trong, mua sam, xa hoa.",
+        "abu dhabi": "Abu Dhabi — cung dien, mo qua truoc, sang trong, UAE.",
+    }
+    for kw, hint in location_hints.items():
+        if kw in loc:
+            parts.append(hint)
+            break
+
+    return " ".join(parts)
+
+
 def _build_chunks(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     chunks: List[Dict[str, Any]] = []
 
@@ -273,8 +371,34 @@ def _build_chunks(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "location": location,
                 "category_name": category_name,
                 "price": price,
+                "start_date": start_date,
+                "end_date": end_date,
+                "capacity": capacity,
+                "status": status,
+                "booking_count": booking_count,
                 "chunk_type": "overview",
                 "text": overview,
+            }
+        )
+
+        # --- Synthetic enrichment chunk: adds geography, price-tier, and destination keywords ---
+        enrichment_text = _generate_enrichment_text(
+            title, location, category_name, price, avg_rating, booking_count
+        )
+        chunks.append(
+            {
+                "tour_id": tour_id,
+                "title": title,
+                "location": location,
+                "category_name": category_name,
+                "price": price,
+                "start_date": start_date,
+                "end_date": end_date,
+                "capacity": capacity,
+                "status": status,
+                "booking_count": booking_count,
+                "chunk_type": "enrichment",
+                "text": enrichment_text,
             }
         )
 
@@ -458,12 +582,22 @@ def _segment_cache_signature(segment: Optional[Dict[str, Any]]) -> str:
     )
 
 
-def _response_cache_key(query: str, user_id: Optional[int], top_k: int, cache_state: Dict[str, Any], segment: Optional[Dict[str, Any]]) -> str:
+def _response_cache_key(
+    query: str,
+    user_id: Optional[int],
+    top_k: int,
+    cache_state: Dict[str, Any],
+    segment: Optional[Dict[str, Any]],
+    focus_tour_id: Optional[int] = None,
+) -> str:
     state = cache_state.get("state") or {}
     built_at = state.get("built_at") or "0"
     embedding_provider = state.get("embedding_provider") or "local-tfidf"
     epoch = _get_response_cache_epoch()
-    return f"response:{embedding_provider}:{built_at}:{epoch}:{top_k}:{user_id or 0}:{_segment_cache_signature(segment)}:{normalize_text(query)}"
+    return (
+        f"response:{embedding_provider}:{built_at}:{epoch}:{top_k}:{user_id or 0}:"
+        f"{focus_tour_id or 0}:{_segment_cache_signature(segment)}:{normalize_text(query)}"
+    )
 
 
 def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
@@ -656,8 +790,182 @@ def _pick_best_chunk_per_tour(items: List[Dict[str, Any]]) -> List[Dict[str, Any
     return ranked
 
 
+def _find_focus_source(cache: Dict[str, Any], focus_tour_id: Optional[int], items: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+    if not focus_tour_id:
+        return None
+
+    overview_item = None
+    first_item = None
+    for item in items or []:
+        if _safe_int(item.get("tour_id")) != focus_tour_id:
+            continue
+        first_item = first_item or item
+        if item.get("chunk_type") == "overview":
+            overview_item = item
+            break
+    if overview_item is not None:
+        return overview_item
+
+    chunks = cache.get("chunks") or []
+    overview_candidate = None
+    first_candidate = None
+    for chunk in chunks:
+        if _safe_int(chunk.get("tour_id")) != focus_tour_id:
+            continue
+        first_candidate = first_candidate or dict(chunk)
+        if chunk.get("chunk_type") == "overview":
+            overview_candidate = dict(chunk)
+            break
+    return overview_candidate or first_candidate or first_item
+
+
+def _extract_text_field(text: str, label: str) -> str:
+    pattern = rf"{re.escape(label)}:\s*([^\.]+)"
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    return _normalize_whitespace(match.group(1)) if match else ""
+
+
+def _parse_iso_date(value: str) -> Optional[datetime]:
+    cleaned = _normalize_whitespace(value)
+    if not cleaned or cleaned.upper() == "N/A":
+        return None
+    try:
+        return datetime.strptime(cleaned[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _format_date_label(value: str) -> str:
+    parsed = _parse_iso_date(value)
+    return parsed.strftime("%d/%m/%Y") if parsed else "chưa có lịch cụ thể"
+
+
+def _focus_tour_facts(focus_source: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    source = focus_source or {}
+    text = str(source.get("text") or "")
+    capacity = _safe_int(source.get("capacity"))
+    if capacity <= 0:
+        capacity = _safe_int(_extract_text_field(text, "Suc chua"))
+
+    booking_count = _safe_int(source.get("booking_count"))
+    if booking_count <= 0:
+        booking_count = _safe_int(_extract_text_field(text, "So booking da xac nhan"))
+
+    start_date = str(source.get("start_date") or _extract_text_field(text, "Khoi hanh") or "")
+    end_date = str(source.get("end_date") or _extract_text_field(text, "Ket thuc") or "")
+    status = str(source.get("status") or _extract_text_field(text, "Trang thai") or "")
+    remaining_seats = max(capacity - booking_count, 0) if capacity > 0 else 0
+
+    return {
+        "capacity": capacity,
+        "booking_count": booking_count,
+        "start_date": start_date,
+        "end_date": end_date,
+        "status": _normalize_whitespace(status or "Available"),
+        "remaining_seats": remaining_seats,
+    }
+
+
+def _duration_label(start_date: str, end_date: str) -> str:
+    start = _parse_iso_date(start_date)
+    end = _parse_iso_date(end_date)
+    if start is None or end is None or end < start:
+        return ""
+    day_count = (end - start).days + 1
+    if day_count <= 1:
+        return "1 ngày"
+    return f"{day_count} ngày {max(day_count - 1, 1)} đêm"
+
+
+def _detect_transport_hint(text: str) -> str:
+    normalized = normalize_text(text)
+    mapping = [
+        ("may bay", "máy bay"),
+        ("xe khach", "xe khách"),
+        ("xe bus", "xe buýt"),
+        ("tau", "tàu"),
+        ("oto", "ô tô"),
+    ]
+    for needle, label in mapping:
+        if needle in normalized:
+            return label
+    return ""
+
+
+def _focus_question_answer(query: str, focus_source: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not focus_source:
+        return None
+
+    normalized_query = normalize_text(query)
+    title = str(focus_source.get("title") or "Tour này")
+    location = str(focus_source.get("location") or "chưa rõ địa điểm")
+    category = str(focus_source.get("category_name") or "chưa rõ danh mục")
+    price = _safe_float(focus_source.get("price"))
+    price_label = f"{price:,.0f} VND" if price > 0 else "chưa có giá trong hệ thống"
+    facts = _focus_tour_facts(focus_source)
+    duration_label = _duration_label(facts["start_date"], facts["end_date"])
+    start_label = _format_date_label(facts["start_date"])
+    end_label = _format_date_label(facts["end_date"])
+    transport_label = _detect_transport_hint(str(focus_source.get("text") or ""))
+
+    price_terms = ["gia", "chi phi", "ton bao nhieu", "muc gia", "gia tour"]
+    location_terms = ["o dau", "dia diem", "noi nao", "di dau"]
+    suitable_terms = ["phu hop voi ai", "phu hop voi", "ai nen di", "co hop", "nen di khong"]
+    duration_terms = ["thoi luong", "bao lau", "may ngay", "keo dai bao lau", "di bao nhieu ngay"]
+    schedule_terms = ["lich trinh", "lich di", "khoi hanh", "ngay di", "bat dau", "ket thuc", "lich tour"]
+    transport_terms = ["phuong tien", "di bang gi", "xe hay may bay", "may bay hay xe", "van chuyen"]
+    remaining_terms = ["con bao nhieu cho", "con cho", "so cho", "cho trong", "het cho", "con slot"]
+
+    if any(term in normalized_query for term in price_terms):
+        return f"{title} hiện có giá khoảng {price_label}."
+
+    if any(term in normalized_query for term in location_terms):
+        return f"{title} hiện đang được giới thiệu cho điểm đến {location}."
+
+    if any(term in normalized_query for term in duration_terms):
+        if duration_label:
+            return f"{title} dự kiến kéo dài {duration_label}, từ {start_label} đến {end_label}."
+        return f"Hiện mình chưa thấy đủ dữ liệu để chốt thời lượng cụ thể của {title}."
+
+    if any(term in normalized_query for term in schedule_terms):
+        if start_label != "chưa có lịch cụ thể" or end_label != "chưa có lịch cụ thể":
+            return (
+                f"Lịch hiện có của {title}: khởi hành {start_label}, kết thúc {end_label}, điểm đến chính là {location}. "
+                "Chi tiết từng ngày của lịch trình chưa được lưu tách riêng trong dữ liệu hiện tại."
+            )
+        return f"Hiện mình chưa thấy lịch khởi hành cụ thể của {title} trong dữ liệu hệ thống."
+
+    if any(term in normalized_query for term in transport_terms):
+        if transport_label:
+            return f"Theo dữ liệu mình đọc được, {title} đang nhắc đến phương tiện {transport_label}."
+        return f"Hiện dữ liệu của {title} chưa có trường phương tiện riêng, nên mình chưa dám khẳng định là đi máy bay, xe hay tàu."
+
+    if any(term in normalized_query for term in remaining_terms):
+        if facts["capacity"] > 0:
+            return (
+                f"{title} có sức chứa tối đa {facts['capacity']} khách. "
+                f"Hiện đã có khoảng {facts['booking_count']} booking xác nhận nên còn khoảng {facts['remaining_seats']} chỗ."
+            )
+        return f"Hiện mình chưa thấy thông tin sức chứa cụ thể của {title}."
+
+    if any(term in normalized_query for term in suitable_terms):
+        duration_text = f", thời lượng khoảng {duration_label}" if duration_label else ""
+        return (
+            f"Nếu bạn đang hỏi riêng {title}, tour này phù hợp với người muốn đi {location}, "
+            f"thuộc nhóm {category}, mức giá khoảng {price_label}{duration_text}. "
+            "Nếu bạn muốn, mình có thể tư vấn kỹ hơn theo gia đình, cặp đôi hoặc ngân sách cụ thể."
+        )
+
+    return None
+
+
+# Intents that act as HARD filters: results that don't match are always excluded.
+_HARD_FILTER_INTENTS = ("beach", "mountain", "international", "hot_weather")
+
+
 def _filter_results_by_intent(items: List[Dict[str, Any]], query: str, top_k: int) -> List[Dict[str, Any]]:
     intents = extract_query_intents(query)
+    has_hard_intent = any(intents.get(k) for k in _HARD_FILTER_INTENTS)
 
     def has_any(text: str, terms: List[str]) -> bool:
         return any(term in text for term in terms)
@@ -667,58 +975,143 @@ def _filter_results_by_intent(items: List[Dict[str, Any]], query: str, top_k: in
         text = source_match_text(item)
         match = True
         if intents.get("international"):
+            # international is exclusive: must match
             match = match and has_any(text, INTERNATIONAL_TERMS)
+        elif intents.get("domestic") and has_any(text, INTERNATIONAL_TERMS):
+            # user explicitly said "trong nước / nội địa" → exclude international tours
+            match = False
         if intents.get("beach"):
             match = match and has_any(text, BEACH_TERMS)
         if intents.get("mountain"):
             match = match and has_any(text, MOUNTAIN_TERMS)
         if intents.get("hot_weather"):
             match = match and (has_any(text, BEACH_TERMS) or has_any(text, MOUNTAIN_TERMS) or has_any(text, RELAX_TERMS))
-            if not intents.get("international"):
-                match = match and not has_any(text, INTERNATIONAL_TERMS)
         if match:
             strict_matches.append(item)
 
-    return (strict_matches or items)[:top_k]
+    # If a hard intent was detected but nothing matched, return empty so fallback
+    # gives an honest "no matching tour" message instead of wrong results.
+    if has_hard_intent and not strict_matches:
+        return []
+
+    candidates = strict_matches if strict_matches else items
+
+    # Price-based sort overrides relevance score for budget / premium intents.
+    if intents.get("budget"):
+        candidates = sorted(candidates, key=lambda x: _safe_float(x.get("price")) or float("inf"))
+    elif intents.get("premium"):
+        candidates = sorted(candidates, key=lambda x: _safe_float(x.get("price")) or 0.0, reverse=True)
+
+    return candidates[:top_k]
 
 
-def retrieve_documents(query: str, top_k: int = 4) -> List[Dict[str, Any]]:
+def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] = None) -> List[Dict[str, Any]]:
     cache = load_vector_store()
     started_at = time.perf_counter()
+    intents = extract_query_intents(query)
+    is_similar_query = intents.get("similar") and focus_tour_id
+
+    # Resolve focused tour metadata for context-aware filtering
+    focus_category: Optional[str] = None
+    focus_location: Optional[str] = None
+    if focus_tour_id:
+        focus_src = _find_focus_source(cache, focus_tour_id)
+        if focus_src:
+            focus_category = normalize_text(str(focus_src.get("category_name") or ""))
+            focus_location = normalize_text(str(focus_src.get("location") or ""))
+
     candidates = _collect_hybrid_candidates(query, cache, top_k=top_k)
     rescored: List[Dict[str, Any]] = []
     for item in candidates:
         enriched = dict(item)
-        enriched["score"] = _intent_score_adjustment(query, enriched)
+        tour_id = _safe_int(enriched.get("tour_id"))
+
+        # When user asks "similar": EXCLUDE the focused tour, boost same-category/location
+        if is_similar_query:
+            if tour_id == focus_tour_id:
+                continue  # remove the current tour from similar results
+            item_text = normalize_text(str(enriched.get("category_name") or ""))
+            item_location = normalize_text(str(enriched.get("location") or ""))
+            enriched["score"] = _intent_score_adjustment(query, enriched)
+            if focus_category and focus_category in item_text:
+                enriched["score"] = round(float(enriched.get("score") or 0.0) + 0.80, 4)
+            if focus_location and focus_location in item_location:
+                enriched["score"] = round(float(enriched.get("score") or 0.0) + 0.50, 4)
+        else:
+            enriched["score"] = _intent_score_adjustment(query, enriched)
+            # Boost focused tour for non-similar queries
+            if focus_tour_id and tour_id == focus_tour_id:
+                enriched["score"] = round(float(enriched.get("score") or 0.0) + 1.5, 4)
         rescored.append(enriched)
 
     rescored.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
     deduped = _pick_best_chunk_per_tour(rescored)
+
+    # For non-similar queries: ensure focused tour is always present
+    if not is_similar_query:
+        focus_source = _find_focus_source(cache, focus_tour_id, deduped)
+        if focus_source is not None and all(_safe_int(item.get("tour_id")) != focus_tour_id for item in deduped):
+            focus_enriched = dict(focus_source)
+            focus_enriched["score"] = round(float(focus_enriched.get("score") or 0.0) + 1.5, 4)
+            deduped = [focus_enriched, *deduped]
+            deduped.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
+
     final_results = _filter_results_by_intent(deduped, query=query, top_k=top_k)
     logger.info(
-        "RAG retrieve query=%r top_k=%s candidates=%s results=%s latency_ms=%.1f",
-        query,
-        top_k,
-        len(candidates),
-        len(final_results),
+        "RAG retrieve query=%r top_k=%s candidates=%s results=%s similar=%s focus=%s latency_ms=%.1f",
+        query, top_k, len(candidates), len(final_results),
+        bool(is_similar_query), focus_tour_id,
         (time.perf_counter() - started_at) * 1000,
     )
     rag_metrics.observe("retrieve", (time.perf_counter() - started_at) * 1000)
     return final_results
 
 
-def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: List[Dict[str, Any]]) -> str:
+def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: List[Dict[str, Any]], focus_source: Optional[Dict[str, Any]] = None) -> str:
+    focus_answer = _focus_question_answer(query, focus_source)
+    if focus_answer:
+        return focus_answer
+
+    intents = extract_query_intents(query)
+    has_hard_intent = any(intents.get(k) for k in _HARD_FILTER_INTENTS)
+
     if not sources:
+        if has_hard_intent:
+            intent_label_map = {
+                "beach": "tour biển",
+                "mountain": "tour núi",
+                "international": "tour nước ngoài",
+                "hot_weather": "tour tránh nóng",
+            }
+            matched_labels = [label for key, label in intent_label_map.items() if intents.get(key)]
+            label_text = " / ".join(matched_labels) if matched_labels else "yêu cầu này"
+            return f"Hiện chưa có tour phù hợp với {label_text} trong dữ liệu. Bạn có thể thử hỏi theo tiêu chí khác hoặc xem danh sách tour hiện có."
+        if intents.get("similar"):
+            focus_title = str(focus_source.get("title") or "tour này") if focus_source else "tour này"
+            focus_cat = str(focus_source.get("category_name") or "") if focus_source else ""
+            cat_hint = f" danh mục '{focus_cat}'" if focus_cat else ""
+            return (
+                f"Hiện mình chưa tìm thấy tour nào khác tương tự với {focus_title}"
+                f"{cat_hint} trong dữ liệu. Bạn thử hỏi theo địa điểm hoặc ngân sách nhé."
+            )
         return "Hiện tôi chưa tìm thấy tour phù hợp trong dữ liệu. Bạn hãy hỏi rõ hơn về ngân sách, địa điểm hoặc thời gian đi."
 
     segment_name = str((segment or {}).get("segment_name") or "Khách mới")
-    intents = extract_query_intents(query)
-    if intents.get("international"):
+    if intents.get("budget"):
+        intro = f"Tour giá rẻ nhất hiện có cho bạn ({segment_name}):"
+    elif intents.get("premium"):
+        intro = f"Tour cao cấp giá cao nhất hiện có cho bạn ({segment_name}):"
+    elif intents.get("international"):
         intro = f"Gợi ý tour nước ngoài cho bạn ({segment_name}):"
     elif intents.get("hot_weather"):
         intro = f"Nếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau ({segment_name}):"
     elif intents.get("beach"):
         intro = f"Gợi ý tour biển cho bạn ({segment_name}):"
+    elif intents.get("mountain"):
+        intro = f"Gợi ý tour núi cho bạn ({segment_name}):"
+    elif intents.get("similar"):
+        focus_title = str(focus_source.get("title") or "tour này") if focus_source else "tour này"
+        intro = f"Các tour tương tự với {focus_title} mà bạn có thể thích ({segment_name}):"
     else:
         intro = f"Gợi ý phù hợp cho bạn ({segment_name}):"
 
@@ -740,17 +1133,17 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
     return "\n".join(lines)
 
 
-def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: List[Dict[str, Any]], max_context_chars: int) -> str:
+def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: List[Dict[str, Any]], max_context_chars: int, focus_source: Optional[Dict[str, Any]] = None, focus_tour_id: Optional[int] = None) -> str:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        return _fallback_answer(query, segment, sources)
+        return _fallback_answer(query, segment, sources, focus_source=focus_source)
 
     context = build_context(sources, max_context_chars=max_context_chars)
     payload = {
         "model": DEFAULT_CHAT_MODEL,
         "messages": [
             {"role": "system", "content": build_system_prompt(segment)},
-            {"role": "user", "content": build_user_prompt(query, segment, context)},
+            {"role": "user", "content": build_user_prompt(query, segment, context, focus_tour_id=focus_tour_id, focus_source=focus_source)},
         ],
         "temperature": settings.answer_temperature,
         "max_tokens": settings.answer_max_tokens,
@@ -772,15 +1165,15 @@ def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
     except Exception:
         rag_metrics.increment("openai_answer_fallback_total")
         logger.exception("OpenAI answer generation failed for query=%r", query)
-        return _fallback_answer(query, segment, sources)
+        return _fallback_answer(query, segment, sources, focus_source=focus_source)
 
 
-def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_context_chars: int = 3500) -> Dict[str, Any]:
+def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_context_chars: int = 3500, focus_tour_id: Optional[int] = None) -> Dict[str, Any]:
     cache = load_vector_store()
     started_at = time.perf_counter()
     rag_metrics.mark_request(query)
     segment = get_user_segment(user_id) if user_id else None
-    response_cache_key = _response_cache_key(query, user_id, top_k, cache, segment)
+    response_cache_key = _response_cache_key(query, user_id, top_k, cache, segment, focus_tour_id=focus_tour_id)
     redis_cache = _get_redis_cache()
 
     if redis_cache is not None:
@@ -796,8 +1189,9 @@ def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_c
         logger.info("RAG response cache hit (memory) query=%r", query)
         return local_response
 
-    sources = retrieve_documents(query, top_k=top_k)
-    answer = _generate_answer(query, segment, sources, max_context_chars=max_context_chars)
+    sources = retrieve_documents(query, top_k=top_k, focus_tour_id=focus_tour_id)
+    focus_source = _find_focus_source(cache, focus_tour_id, sources)
+    answer = _generate_answer(query, segment, sources, max_context_chars=max_context_chars, focus_source=focus_source, focus_tour_id=focus_tour_id)
     latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
     logger.info("RAG answer query=%r latency_ms=%.1f sources=%s", query, latency_ms, len(sources))
     rag_metrics.observe("answer", latency_ms)

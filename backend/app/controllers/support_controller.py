@@ -29,22 +29,51 @@ def normalize_support_text(value: str) -> str:
 
 
 def should_use_ai_support(content: str) -> bool:
-    text = normalize_support_text(content)
-    if not text:
-        return False
-    if len(text) < 3:
+    """
+    Returns True when the AI should respond.
+    Rules (in priority order):
+      1. Has '?' → always ask AI
+      2. Sentence has > 3 words → treat as a real query
+      3. Short message matches any travel keyword
+    """
+    if not content or not content.strip():
         return False
 
+    # Rule 1: explicit question
+    if "?" in content:
+        return True
+
+    text = normalize_support_text(content)
+    if not text or len(text) < 2:
+        return False
+
+    # Rule 2: long enough to be a real query
+    if len(text.split()) > 3:
+        return True
+
+    # Rule 3: short message keyword check
     keywords = [
-        "gợi ý", "goi y", "recommend", "đề xuất", "de xuat", "tour nào", "tour nao",
-        "phù hợp", "phu hop", "du lịch", "du lich", "đi đâu", "di dau", "muốn đi",
-        "muon di", "tư vấn", "tu van", "gia đình", "gia dinh", "giá rẻ", "gia re",
-        "nghỉ dưỡng", "nghi duong", "biển", "bien", "nước ngoài", "nuoc ngoai",
-        "quốc tế", "quoc te", "nóng quá", "nong qua", "trời nóng", "troi nong",
-        "mát mẻ", "mat me", "tránh nóng", "tranh nong", "đổi gió", "doi gio",
+        # Tour / travel intent
+        "goi y", "recommend", "de xuat", "tour nao", "phu hop",
+        "du lich", "di dau", "muon di", "tu van", "tour",
+        "gia dinh", "gia re", "nghi duong", "bien", "nuoc ngoai",
+        "quoc te", "nong qua", "troi nong", "mat me", "tranh nong", "doi gio",
         "luxury", "budget", "family", "beach", "mountain",
+        # Destinations (normalized — no diacritics)
+        "chau au", "chau a", "nhat ban", "han quoc", "thai lan",
+        "singapore", "malaysia", "indonesia", "philippines",
+        "tay ban nha", "anh quoc", "ha lan",
+        "tho nhi ky", "dubai", "australia", "canada",
+        "trung quoc", "bac kinh", "thuong hai",
+        "ha long", "sa pa", "ninh binh", "hoi an", "da nang",
+        "phu quoc", "nha trang", "da lat", "hue", "vung tau",
+        "bangkok", "pattaya", "bali", "tokyo",
+        # Question / info words
+        "bao nhieu", "gia tour", "chi phi", "khi nao", "lich trinh",
+        "bao lau", "may ngay", "con cho", "dat cho", "thanh toan",
+        "uu dai", "khuyen mai", "giam gia",
     ]
-    return any(normalize_support_text(keyword) in text for keyword in keywords)
+    return any(kw in text for kw in keywords)
 
 
 def build_ai_support_reply(user_id: int, prompt: str) -> str:
@@ -53,7 +82,7 @@ def build_ai_support_reply(user_id: int, prompt: str) -> str:
         recommendations = rec.get("sources") or []
         answer = (rec.get("answer") or "").strip()
 
-        lines = ["🤖 Gợi ý cho bạn:"]
+        lines = [" Gợi ý cho bạn:"]
         if answer:
             lines.append(answer)
 
@@ -70,7 +99,7 @@ def build_ai_support_reply(user_id: int, prompt: str) -> str:
         return "\n".join(lines)
     except Exception as e:
         print(f"⚠️ AI support recommendation error: {e}")
-        return "🤖 Mình có thể gợi ý tour theo nhu cầu của bạn. Hãy thử nói rõ hơn như: tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
+        return " Mình có thể gợi ý tour theo nhu cầu của bạn. Hãy thử nói rõ hơn như: tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
 
 
 def queue_ai_support_reply(thread_id: int, owner_user_id: int, full_name: str, prompt: str):
@@ -80,19 +109,22 @@ def queue_ai_support_reply(thread_id: int, owner_user_id: int, full_name: str, p
         auto_msg = None
         auto_sender_name = "Trợ lý AI"
 
-        if should_use_ai_support(prompt):
+        cur.execute(
+            "SELECT COUNT(*) as admin_count FROM support_message WHERE thread_id = %s AND is_admin = 1",
+            (thread_id,)
+        )
+        result = cur.fetchone()
+        admin_count = int(result.get("admin_count") or 0) if result else 0
+
+        if should_use_ai_support(prompt) or admin_count > 0:
+            # Always respond with AI when: query matches travel keywords OR thread already has prior replies
             auto_msg = build_ai_support_reply(owner_user_id, prompt)
         else:
-            cur.execute(
-                "SELECT COUNT(*) as admin_count FROM support_message WHERE thread_id = %s AND is_admin = 1",
-                (thread_id,)
+            # First message with no travel intent → show greeting
+            auto_msg = (
+                f"Chào {full_name} 👋 Mình là trợ lý AI hỗ trợ du lịch. "
+                "Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
             )
-            result = cur.fetchone()
-            if result and int(result.get("admin_count") or 0) == 0:
-                auto_msg = (
-                    f"Chào {full_name} 👋 Mình là trợ lý AI hỗ trợ du lịch. "
-                    "Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng."
-                )
 
         if not auto_msg:
             return
