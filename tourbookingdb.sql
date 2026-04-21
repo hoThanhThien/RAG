@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
--- Máy chủ: 127.0.0.1
--- Thời gian đã tạo: Th8 29, 2025 lúc 05:58 PM
--- Phiên bản máy phục vụ: 10.4.32-MariaDB
--- Phiên bản PHP: 8.0.30
+-- Máy chủ: nhom09_mysql
+-- Thời gian đã tạo: Th4 21, 2026 lúc 11:53 AM
+-- Phiên bản máy phục vụ: 8.0.44
+-- Phiên bản PHP: 8.3.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,54 +24,95 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Cấu trúc bảng cho bảng `bank_txn`
---
-
-CREATE TABLE `bank_txn` (
-  `BankTxnID` int(11) NOT NULL,
-  `Provider` varchar(50) NOT NULL,
-  `ProviderRef` varchar(100) NOT NULL,
-  `Amount` decimal(18,2) NOT NULL,
-  `Description` varchar(255) DEFAULT NULL,
-  `PaidAt` datetime NOT NULL,
-  `RawPayload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`RawPayload`)),
-  `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Đang đổ dữ liệu cho bảng `bank_txn`
---
-
-INSERT INTO `bank_txn` (`BankTxnID`, `Provider`, `ProviderRef`, `Amount`, `Description`, `PaidAt`, `RawPayload`, `CreatedAt`) VALUES
-(1, 'manual', 'dev-001', 20000000.00, 'Chuyen tien ORDER20250829-F7922F', '2025-08-29 14:21:17', '{}', '2025-08-29 07:21:17');
-
--- --------------------------------------------------------
-
---
 -- Cấu trúc bảng cho bảng `booking`
 --
 
 CREATE TABLE `booking` (
-  `BookingID` int(11) NOT NULL,
-  `UserID` int(11) DEFAULT NULL,
-  `TourID` int(11) DEFAULT NULL,
+  `BookingID` int NOT NULL,
+  `UserID` int DEFAULT NULL,
+  `TourID` int DEFAULT NULL,
   `BookingDate` date DEFAULT NULL,
-  `NumberOfPeople` int(11) DEFAULT NULL,
+  `NumberOfPeople` int DEFAULT NULL,
   `TotalAmount` decimal(10,2) DEFAULT NULL,
-  `Status` enum('Pending','Confirmed','Cancelled') DEFAULT 'Pending',
-  `DiscountID` int(11) DEFAULT NULL,
-  `OrderCode` varchar(50) NOT NULL
+  `Status` enum('Pending','Confirmed','Cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'Pending',
+  `DiscountID` int DEFAULT NULL,
+  `OrderCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `UpdatedAt` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `booking`
 --
 
-INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOfPeople`, `TotalAmount`, `Status`, `DiscountID`, `OrderCode`) VALUES
-(9, 11, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-XE0MMF'),
-(10, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-OAAPUK'),
-(11, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-HAFRPY'),
-(12, 12, 29, '2025-08-29', 6, 99999999.99, 'Confirmed', NULL, 'ORDER20250829-RAFGSP');
+INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOfPeople`, `TotalAmount`, `Status`, `DiscountID`, `OrderCode`, `UpdatedAt`) VALUES
+(9, 11, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-XE0MMF', '2026-04-18 16:35:46'),
+(10, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-OAAPUK', '2026-04-18 16:35:46'),
+(11, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-HAFRPY', '2026-04-18 16:35:46'),
+(13, 11, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-79BF3X', '2026-04-19 09:57:36'),
+(14, 11, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-5AY0YZ', '2026-04-19 06:53:52'),
+(15, 11, 43, '2026-04-19', 1, 38000000.00, 'Confirmed', NULL, 'ORDER20260419-I17DG3', '2026-04-19 07:31:18'),
+(16, 11, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-P9D9X4', '2026-04-19 09:27:46'),
+(17, 11, 18, '2026-04-19', 1, 12000000.00, 'Pending', NULL, 'ORDER20260419-GYM0IB', NULL),
+(18, 11, 18, '2026-04-19', 1, 12000000.00, 'Confirmed', NULL, 'ORDER20260419-HFD9FI', '2026-04-19 09:43:19'),
+(19, 11, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-HL7TGY', '2026-04-19 09:49:26'),
+(20, 11, 20, '2026-04-19', 1, 32000000.00, 'Confirmed', NULL, 'ORDER20260419-1PL3P6', '2026-04-19 09:50:35'),
+(21, 11, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-VUQR6M', '2026-04-19 09:58:56'),
+(22, 11, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-8KUA8A', '2026-04-19 09:58:19'),
+(23, 23, 30, '2026-04-19', 1, 3500000.00, 'Pending', NULL, 'ORDER20260419-45P6QV', NULL),
+(24, 23, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-80UJE2', '2026-04-19 10:10:48'),
+(25, 14, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10014', NULL),
+(26, 15, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10015', NULL),
+(27, 16, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10016', NULL),
+(28, 17, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10017', NULL),
+(29, 18, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10018', NULL),
+(30, 19, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10019', NULL),
+(31, 20, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10020', NULL),
+(32, 21, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10021', NULL),
+(33, 22, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10022', NULL),
+(34, 23, 30, '2026-04-19', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260419-A10023', NULL),
+(35, 24, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20024', NULL),
+(36, 25, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20025', NULL),
+(37, 26, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20026', NULL),
+(38, 27, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20027', NULL),
+(39, 28, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20028', NULL),
+(40, 29, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20029', NULL),
+(41, 30, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20030', NULL),
+(42, 31, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20031', NULL),
+(43, 32, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20032', NULL),
+(44, 33, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-B20033', NULL),
+(45, 34, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30034', NULL),
+(46, 35, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30035', NULL),
+(47, 36, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30036', NULL),
+(48, 37, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30037', NULL),
+(49, 38, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30038', NULL),
+(50, 39, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30039', NULL),
+(51, 40, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30040', NULL),
+(52, 41, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30041', NULL),
+(53, 42, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30042', NULL),
+(54, 43, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30043', NULL),
+(55, 44, 40, '2026-04-19', 1, 3100000.00, 'Confirmed', NULL, 'ORDER20260419-C30044', NULL),
+(56, 45, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40045', NULL),
+(57, 46, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40046', NULL),
+(58, 47, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40047', NULL),
+(59, 48, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40048', NULL),
+(60, 49, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40049', NULL),
+(61, 50, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40050', NULL),
+(62, 51, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40051', NULL),
+(63, 52, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40052', NULL),
+(64, 53, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40053', NULL),
+(65, 54, 44, '2026-04-19', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260419-D40054', NULL),
+(66, 55, 29, '2026-04-19', 1, 45000000.00, 'Confirmed', NULL, 'ORDER20260419-E50055', NULL),
+(67, 56, 42, '2026-04-19', 1, 40000000.00, 'Confirmed', NULL, 'ORDER20260419-E50056', NULL),
+(68, 57, 43, '2026-04-19', 1, 38000000.00, 'Confirmed', NULL, 'ORDER20260419-E50057', NULL),
+(69, 58, 20, '2026-04-19', 1, 32000000.00, 'Confirmed', NULL, 'ORDER20260419-E50058', NULL),
+(70, 59, 21, '2026-04-19', 1, 25000000.00, 'Confirmed', NULL, 'ORDER20260419-E50059', NULL),
+(71, 60, 22, '2026-04-19', 1, 20000000.00, 'Confirmed', NULL, 'ORDER20260419-E50060', NULL),
+(72, 61, 22, '2026-04-19', 1, 20000000.00, 'Confirmed', NULL, 'ORDER20260419-E50061', NULL),
+(73, 62, 18, '2026-04-19', 1, 12000000.00, 'Confirmed', NULL, 'ORDER20260419-E50062', NULL),
+(74, 63, 18, '2026-04-19', 1, 12000000.00, 'Confirmed', NULL, 'ORDER20260419-E50063', NULL),
+(75, 23, 31, '2026-04-19', 1, 0.00, 'Pending', 3, 'ORDER20260419-GW088O', NULL),
+(76, 23, 31, '2026-04-19', 1, 4200000.00, 'Pending', 3, 'ORDER20260419-5NC2DU', '2026-04-19 13:12:27'),
+(77, 23, 31, '2026-04-21', 1, 4200000.00, 'Pending', NULL, 'ORDER20260421-T4T0PF', NULL);
 
 -- --------------------------------------------------------
 
@@ -80,9 +121,9 @@ INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOf
 --
 
 CREATE TABLE `category` (
-  `CategoryID` int(11) NOT NULL,
-  `CategoryName` varchar(100) NOT NULL,
-  `Description` text DEFAULT NULL
+  `CategoryID` int NOT NULL,
+  `CategoryName` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `Description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -100,23 +141,109 @@ INSERT INTO `category` (`CategoryID`, `CategoryName`, `Description`) VALUES
 --
 
 CREATE TABLE `comment` (
-  `CommentID` int(11) NOT NULL,
-  `UserID` int(11) DEFAULT NULL,
-  `TourID` int(11) DEFAULT NULL,
-  `Content` text DEFAULT NULL,
-  `Rating` int(11) DEFAULT NULL CHECK (`Rating` >= 1 and `Rating` <= 5),
-  `CreatedAt` datetime DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `CommentID` int NOT NULL,
+  `UserID` int DEFAULT NULL,
+  `TourID` int DEFAULT NULL,
+  `BookingID` int DEFAULT NULL,
+  `Content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `Rating` int DEFAULT NULL,
+  `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `comment`
 --
 
-INSERT INTO `comment` (`CommentID`, `UserID`, `TourID`, `Content`, `Rating`, `CreatedAt`) VALUES
-(5, 8, 34, 'Quá đẹp !!!', 5, '2025-08-29 18:38:06'),
-(6, 11, 30, 'hi', 5, '2025-08-29 21:37:25'),
-(8, 12, 30, 'hi cho tui xin cảm nhận về chuyển đi', 5, '2025-08-29 21:48:41'),
-(9, 12, 29, 'cho tui xin cảm nhận về tour', 5, '2025-08-29 22:51:33');
+INSERT INTO `comment` (`CommentID`, `UserID`, `TourID`, `BookingID`, `Content`, `Rating`, `CreatedAt`) VALUES
+(6, 11, 30, NULL, 'hi', 5, '2025-08-29 21:37:25'),
+(8, 12, 30, NULL, 'hi cho tui xin cảm nhận về chuyển đi', 5, '2025-08-29 21:48:41'),
+(9, 12, 29, NULL, 'cho tui xin cảm nhận về tour', 5, '2025-08-29 22:51:33'),
+(10, 11, 31, NULL, 'xuất sắc', 1, '2026-04-19 09:28:26'),
+(11, 11, 20, NULL, '123', 5, '2026-04-19 09:50:14'),
+(12, 23, 31, NULL, 'dd', 5, '2026-04-19 12:12:16'),
+(13, 23, 31, NULL, 'tttt', 5, '2026-04-19 12:12:48'),
+(14, 23, 31, NULL, 'ttt', 5, '2026-04-19 13:03:09'),
+(15, 23, 43, NULL, 'ggg', NULL, '2026-04-21 08:04:10');
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `customer_segment`
+--
+
+CREATE TABLE `customer_segment` (
+  `UserID` int NOT NULL,
+  `ClusterID` int NOT NULL,
+  `SegmentName` varchar(100) NOT NULL,
+  `TotalSpending` decimal(15,2) DEFAULT '0.00',
+  `OrderCount` int DEFAULT '0',
+  `DaysSinceLastPurchase` int DEFAULT '9999',
+  `DiscountUsageRate` decimal(6,4) DEFAULT '0.0000',
+  `FavoriteCategory` varchar(255) DEFAULT NULL,
+  `UpdatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `customer_segment`
+--
+
+INSERT INTO `customer_segment` (`UserID`, `ClusterID`, `SegmentName`, `TotalSpending`, `OrderCount`, `DaysSinceLastPurchase`, `DiscountUsageRate`, `FavoriteCategory`, `UpdatedAt`) VALUES
+(1, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
+(6, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
+(7, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
+(11, 1, 'Khách mua nhiều', 107800000.00, 10, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(12, 0, 'Khách ít tương tác', 7000000.00, 2, 233, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(13, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
+(14, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(15, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(16, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(17, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(18, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(19, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(20, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(21, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(22, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(23, 0, 'Khách ít tương tác', 7700000.00, 2, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(24, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(25, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(26, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(27, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(28, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(29, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(30, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(31, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(32, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(33, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(34, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(35, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(36, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(37, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(38, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(39, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(40, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(41, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(42, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(43, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(44, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(45, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(46, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(47, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(48, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(49, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(50, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(51, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(52, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(53, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(54, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
+(55, 3, 'Khách mua nhiều', 45000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(56, 3, 'Khách mua nhiều', 40000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(57, 3, 'Khách mua nhiều', 38000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(58, 3, 'Khách mua nhiều', 32000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(59, 3, 'Khách mua nhiều', 25000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(60, 3, 'Khách mua nhiều', 20000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(61, 3, 'Khách mua nhiều', 20000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(62, 0, 'Khách ít tương tác', 12000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
+(63, 0, 'Khách ít tương tác', 12000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20');
 
 -- --------------------------------------------------------
 
@@ -125,9 +252,9 @@ INSERT INTO `comment` (`CommentID`, `UserID`, `TourID`, `Content`, `Rating`, `Cr
 --
 
 CREATE TABLE `discount` (
-  `DiscountID` int(11) NOT NULL,
-  `Code` varchar(50) DEFAULT NULL,
-  `Description` text DEFAULT NULL,
+  `DiscountID` int NOT NULL,
+  `Code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `Description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `DiscountAmount` decimal(10,2) DEFAULT NULL,
   `IsPercent` tinyint(1) DEFAULT NULL,
   `StartDate` date DEFAULT NULL,
@@ -139,20 +266,8 @@ CREATE TABLE `discount` (
 --
 
 INSERT INTO `discount` (`DiscountID`, `Code`, `Description`, `DiscountAmount`, `IsPercent`, `StartDate`, `EndDate`) VALUES
-(3, 'MO1', '', 100.00, 1, '2025-08-01', '2025-08-31'),
-(4, 'MO2', '', 200.00, 0, '2025-08-27', '2025-09-06');
-
--- --------------------------------------------------------
-
---
--- Cấu trúc bảng cho bảng `kv_store`
---
-
-CREATE TABLE `kv_store` (
-  `k` varchar(64) NOT NULL,
-  `v` varchar(255) NOT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+(3, 'MO1', '', 100.00, 1, '2025-08-01', '2026-08-31'),
+(4, 'MO2', '', 200.00, 1, '2025-08-27', '2026-09-06');
 
 -- --------------------------------------------------------
 
@@ -161,26 +276,91 @@ CREATE TABLE `kv_store` (
 --
 
 CREATE TABLE `payment` (
-  `PaymentID` int(11) NOT NULL,
-  `BookingID` int(11) DEFAULT NULL,
-  `Provider` varchar(50) NOT NULL DEFAULT 'manualqr',
-  `OrderCode` varchar(50) NOT NULL,
+  `PaymentID` int NOT NULL,
+  `BookingID` int DEFAULT NULL,
+  `Provider` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'manualqr',
+  `OrderCode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `PaymentDate` date DEFAULT NULL,
+  `PaidAt` datetime DEFAULT NULL,
+  `PaypalOrderID` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `PaypalTransactionID` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `UpdatedAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `Amount` decimal(10,2) DEFAULT NULL,
-  `Status` enum('Pending','Paid','Failed','Cancelled') NOT NULL DEFAULT 'Pending',
-  `PaymentStatus` varchar(50) DEFAULT NULL,
-  `PaymentMethod` enum('Credit Card','Bank Transfer') DEFAULT NULL
+  `Status` enum('Pending','Paid','Failed','Cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Pending',
+  `PaymentStatus` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `PaymentMethod` enum('Credit Card','Bank Transfer') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Đang đổ dữ liệu cho bảng `payment`
 --
 
-INSERT INTO `payment` (`PaymentID`, `BookingID`, `Provider`, `OrderCode`, `PaymentDate`, `Amount`, `Status`, `PaymentStatus`, `PaymentMethod`) VALUES
-(1, 9, 'manualqr', 'ORDER20250829-XE0MMF', NULL, 3500000.00, 'Paid', NULL, NULL),
-(2, 10, 'manualqr', 'ORDER20250829-OAAPUK', NULL, 3500000.00, 'Paid', NULL, NULL),
-(3, 11, 'manualqr', 'ORDER20250829-HAFRPY', NULL, 3500000.00, 'Pending', NULL, NULL),
-(4, 12, 'manualqr', 'ORDER20250829-RAFGSP', NULL, 99999999.99, 'Pending', NULL, NULL);
+INSERT INTO `payment` (`PaymentID`, `BookingID`, `Provider`, `OrderCode`, `PaymentDate`, `PaidAt`, `PaypalOrderID`, `PaypalTransactionID`, `UpdatedAt`, `Amount`, `Status`, `PaymentStatus`, `PaymentMethod`) VALUES
+(5, 13, 'paypal', 'ORDER20260419-79BF3X', NULL, '2026-04-19 09:57:36', '8DL17124JW554604K', '1SH29397MY893453L', '2026-04-19 09:57:36', 4200000.00, 'Paid', NULL, NULL),
+(6, 14, 'paypal', 'ORDER20260419-5AY0YZ', NULL, '2026-04-19 06:53:53', '6FP68063B56888201', '0YC584561C018441D', '2026-04-19 06:53:52', 4200000.00, 'Paid', NULL, NULL),
+(7, 15, 'paypal', 'ORDER20260419-I17DG3', NULL, '2026-04-19 07:31:19', '9N636416MD237172Y', '19581069CW627223H', '2026-04-19 07:31:18', 38000000.00, 'Paid', NULL, NULL),
+(8, 16, 'paypal', 'ORDER20260419-P9D9X4', NULL, '2026-04-19 09:27:46', '98M99439HH9222544', '3FH9974234841622Y', '2026-04-19 09:27:46', 3100000.00, 'Paid', NULL, NULL),
+(9, 17, 'manualqr', 'ORDER20260419-GYM0IB', NULL, NULL, NULL, NULL, '2026-04-19 09:40:53', 12000000.00, 'Pending', NULL, NULL),
+(10, 18, 'paypal', 'ORDER20260419-HFD9FI', NULL, '2026-04-19 09:43:20', '4XN94719LX102352X', '2MP80967SU525863J', '2026-04-19 09:43:19', 12000000.00, 'Paid', NULL, NULL),
+(11, 19, 'paypal', 'ORDER20260419-HL7TGY', NULL, '2026-04-19 09:49:26', '7VL99527KJ913724T', '4VP78088BW507931L', '2026-04-19 09:49:26', 4200000.00, 'Paid', NULL, NULL),
+(12, 20, 'paypal', 'ORDER20260419-1PL3P6', NULL, '2026-04-19 09:50:35', '54348187J7475653E', '3M129002K38973525', '2026-04-19 09:50:35', 32000000.00, 'Paid', NULL, NULL),
+(13, 21, 'paypal', 'ORDER20260419-VUQR6M', NULL, '2026-04-19 09:58:57', '2B032498PR614760K', '3MB507897Y9736728', '2026-04-19 09:58:56', 3500000.00, 'Paid', NULL, NULL),
+(14, 22, 'paypal', 'ORDER20260419-8KUA8A', NULL, '2026-04-19 09:58:20', '6S862913RD2791727', '9N485807UA0625444', '2026-04-19 09:58:19', 3100000.00, 'Paid', NULL, NULL),
+(15, 23, 'manualqr', 'ORDER20260419-45P6QV', NULL, NULL, '2ML686238H051734F', NULL, '2026-04-19 10:09:05', 3500000.00, 'Pending', NULL, NULL),
+(16, 24, 'paypal', 'ORDER20260419-80UJE2', NULL, '2026-04-19 10:10:48', '2BH34567M1313334D', '8YA897860E227664R', '2026-04-19 10:10:48', 4200000.00, 'Paid', NULL, NULL),
+(17, 23, 'paypal', 'ORDER20260419-A10014', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10014', 'TRANS-A10014', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(18, 24, 'paypal', 'ORDER20260419-A10015', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10015', 'TRANS-A10015', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(19, 25, 'paypal', 'ORDER20260419-A10016', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10016', 'TRANS-A10016', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(20, 26, 'paypal', 'ORDER20260419-A10017', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10017', 'TRANS-A10017', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(21, 27, 'paypal', 'ORDER20260419-A10018', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10018', 'TRANS-A10018', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(22, 28, 'paypal', 'ORDER20260419-A10019', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10019', 'TRANS-A10019', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(23, 29, 'paypal', 'ORDER20260419-A10020', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10020', 'TRANS-A10020', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(24, 30, 'paypal', 'ORDER20260419-A10021', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10021', 'TRANS-A10021', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(25, 31, 'paypal', 'ORDER20260419-A10022', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10022', 'TRANS-A10022', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(26, 32, 'paypal', 'ORDER20260419-A10023', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-A10023', 'TRANS-A10023', '2026-04-19 10:20:55', 3500000.00, 'Paid', NULL, NULL),
+(27, 33, 'paypal', 'ORDER20260419-B20024', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20024', 'TRANS-B20024', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(28, 34, 'paypal', 'ORDER20260419-B20025', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20025', 'TRANS-B20025', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(29, 35, 'paypal', 'ORDER20260419-B20026', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20026', 'TRANS-B20026', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(30, 36, 'paypal', 'ORDER20260419-B20027', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20027', 'TRANS-B20027', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(31, 37, 'paypal', 'ORDER20260419-B20028', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20028', 'TRANS-B20028', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(32, 38, 'paypal', 'ORDER20260419-B20029', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20029', 'TRANS-B20029', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(33, 39, 'paypal', 'ORDER20260419-B20030', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20030', 'TRANS-B20030', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(34, 40, 'paypal', 'ORDER20260419-B20031', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20031', 'TRANS-B20031', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(35, 41, 'paypal', 'ORDER20260419-B20032', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20032', 'TRANS-B20032', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(36, 42, 'paypal', 'ORDER20260419-B20033', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-B20033', 'TRANS-B20033', '2026-04-19 10:20:55', 4200000.00, 'Paid', NULL, NULL),
+(37, 43, 'paypal', 'ORDER20260419-C30034', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30034', 'TRANS-C30034', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(38, 44, 'paypal', 'ORDER20260419-C30035', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30035', 'TRANS-C30035', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(39, 45, 'paypal', 'ORDER20260419-C30036', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30036', 'TRANS-C30036', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(40, 46, 'paypal', 'ORDER20260419-C30037', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30037', 'TRANS-C30037', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(41, 47, 'paypal', 'ORDER20260419-C30038', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30038', 'TRANS-C30038', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(42, 48, 'paypal', 'ORDER20260419-C30039', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30039', 'TRANS-C30039', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(43, 49, 'paypal', 'ORDER20260419-C30040', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30040', 'TRANS-C30040', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(44, 50, 'paypal', 'ORDER20260419-C30041', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30041', 'TRANS-C30041', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(45, 51, 'paypal', 'ORDER20260419-C30042', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30042', 'TRANS-C30042', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(46, 52, 'paypal', 'ORDER20260419-C30043', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30043', 'TRANS-C30043', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(47, 53, 'paypal', 'ORDER20260419-C30044', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-C30044', 'TRANS-C30044', '2026-04-19 10:20:55', 3100000.00, 'Paid', NULL, NULL),
+(48, 54, 'paypal', 'ORDER20260419-D40045', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40045', 'TRANS-D40045', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(49, 55, 'paypal', 'ORDER20260419-D40046', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40046', 'TRANS-D40046', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(50, 56, 'paypal', 'ORDER20260419-D40047', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40047', 'TRANS-D40047', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(51, 57, 'paypal', 'ORDER20260419-D40048', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40048', 'TRANS-D40048', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(52, 58, 'paypal', 'ORDER20260419-D40049', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40049', 'TRANS-D40049', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(53, 59, 'paypal', 'ORDER20260419-D40050', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40050', 'TRANS-D40050', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(54, 60, 'paypal', 'ORDER20260419-D40051', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40051', 'TRANS-D40051', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(55, 61, 'paypal', 'ORDER20260419-D40052', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40052', 'TRANS-D40052', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(56, 62, 'paypal', 'ORDER20260419-D40053', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40053', 'TRANS-D40053', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(57, 63, 'paypal', 'ORDER20260419-D40054', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-D40054', 'TRANS-D40054', '2026-04-19 10:20:55', 5000000.00, 'Paid', NULL, NULL),
+(58, 64, 'paypal', 'ORDER20260419-E50055', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50055', 'TRANS-E50055', '2026-04-19 10:20:55', 45000000.00, 'Paid', NULL, NULL),
+(59, 65, 'paypal', 'ORDER20260419-E50056', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50056', 'TRANS-E50056', '2026-04-19 10:20:55', 40000000.00, 'Paid', NULL, NULL),
+(60, 66, 'paypal', 'ORDER20260419-E50057', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50057', 'TRANS-E50057', '2026-04-19 10:20:55', 38000000.00, 'Paid', NULL, NULL),
+(61, 67, 'paypal', 'ORDER20260419-E50058', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50058', 'TRANS-E50058', '2026-04-19 10:20:55', 32000000.00, 'Paid', NULL, NULL),
+(62, 68, 'paypal', 'ORDER20260419-E50059', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50059', 'TRANS-E50059', '2026-04-19 10:20:55', 25000000.00, 'Paid', NULL, NULL),
+(63, 69, 'paypal', 'ORDER20260419-E50060', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50060', 'TRANS-E50060', '2026-04-19 10:20:55', 20000000.00, 'Paid', NULL, NULL),
+(64, 70, 'paypal', 'ORDER20260419-E50061', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50061', 'TRANS-E50061', '2026-04-19 10:20:55', 20000000.00, 'Paid', NULL, NULL),
+(65, 71, 'paypal', 'ORDER20260419-E50062', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50062', 'TRANS-E50062', '2026-04-19 10:20:55', 12000000.00, 'Paid', NULL, NULL),
+(66, 72, 'paypal', 'ORDER20260419-E50063', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50063', 'TRANS-E50063', '2026-04-19 10:20:55', 12000000.00, 'Paid', NULL, NULL),
+(67, 75, 'manualqr', 'ORDER20260419-GW088O', NULL, NULL, NULL, NULL, '2026-04-19 10:40:36', 0.00, 'Pending', NULL, NULL),
+(68, 76, 'manualqr', 'ORDER20260419-5NC2DU', NULL, NULL, NULL, NULL, '2026-04-19 10:40:51', -4200000.00, 'Pending', NULL, NULL),
+(69, 77, 'manualqr', 'ORDER20260421-T4T0PF', NULL, NULL, NULL, NULL, '2026-04-21 10:39:26', 4200000.00, 'Pending', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -189,10 +369,10 @@ INSERT INTO `payment` (`PaymentID`, `BookingID`, `Provider`, `OrderCode`, `Payme
 --
 
 CREATE TABLE `photo` (
-  `PhotoID` int(11) NOT NULL,
-  `TourID` int(11) DEFAULT NULL,
-  `Caption` text DEFAULT NULL,
-  `ImageURL` varchar(255) DEFAULT NULL,
+  `PhotoID` int NOT NULL,
+  `TourID` int DEFAULT NULL,
+  `Caption` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `ImageURL` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `UploadDate` date DEFAULT NULL,
   `IsPrimary` tinyint(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -229,44 +409,12 @@ INSERT INTO `photo` (`PhotoID`, `TourID`, `Caption`, `ImageURL`, `UploadDate`, `
 (58, 29, 'hihi', 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Chateau_Versailles_Galerie_des_Glaces.jpg', '2025-08-29', 1),
 (59, 29, 'Paris – Versailles', 'https://upload.wikimedia.org/wikipedia/commons/e/e6/Paris_Night.jpg', '2025-08-30', 0),
 (60, 29, 'Paris – Versailles', 'https://upload.wikimedia.org/wikipedia/commons/7/76/Palace_of_Versailles_June_2010.jpg', '2025-08-30', 0),
-(61, 30, 'hehe', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Ha_Long_Bay_on_a_sunny_day.jpg/1024px-Ha_Long_Bay_on_a_sunny_day.jpg?20130317160000', '2025-08-29', 1),
+(61, 30, 'hehe', 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Halong_Bay_in_Vietnam.jpg', '2025-08-29', 1),
 (62, 30, 'Tour Hạ Long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Ha_Long_bay_The_Kissing_Rocks.jpg/1024px-Ha_Long_bay_The_Kissing_Rocks.jpg?20070930062110', '2025-08-29', 0),
-(63, 30, 'Tour Hạ Long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Junk_Halong_Bay_Vietnam.jpg/1024px-Junk_Halong_Bay_Vietnam.jpg?20070404184139', '2025-08-29', 0),
 (64, 31, 'huhu', 'https://upload.wikimedia.org/wikipedia/commons/f/f8/Thacbac3.jpg', '2025-08-29', 1),
-(65, 30, 'Tour Hạ Long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Downtown_Sa_Pa%2C_Vietnam.jpg/960px-Downtown_Sa_Pa%2C_Vietnam.jpg?20061206071242', '2025-08-29', 0),
-(66, 30, 'Tour Hạ Long', 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Th%E1%BB%8B_tr%E1%BA%A5n_Sa_Pa.jpg', '2025-08-29', 0),
-(67, 32, 'hihihi', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/V%C3%A0o_%C4%91%E1%BB%99ng_Phong_Nha.jpg/800px-V%C3%A0o_%C4%91%E1%BB%99ng_Phong_Nha.jpg?20130130203259', '2025-08-29', 1),
-(68, 32, 'Tour Phong Nha – Kẻ Bàng', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Phong_Nha-Ke_Bang_cave3.jpg/1024px-Phong_Nha-Ke_Bang_cave3.jpg?20170826060800', '2025-08-29', 0),
-(69, 32, 'Tour Phong Nha – Kẻ Bàng', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Phong_Nha_cave_entrance.jpg/1024px-Phong_Nha_cave_entrance.jpg?20170826074802', '2025-08-29', 0),
-(70, 33, 'hoho', 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Hoi_An_%2842681823051%29.jpg/1024px-Hoi_An_%2842681823051%29.jpg?20210825091940', '2025-08-29', 1),
-(71, 33, 'Tour Hội An', 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Hoi_An_%28I%29.jpg/1024px-Hoi_An_%28I%29.jpg?20200511155154', '2025-08-29', 0),
-(72, 33, 'Tour Hội An', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg/1024px-H%E1%BB%99i_An%2C_Ancient_Town%2C_2020-01_CN-06.jpg?20200413172513', '2025-08-29', 0),
-(73, 33, 'Tour Hội An', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Hoi_An%2C_Vietnam_%2825710326363%29.jpg/1024px-Hoi_An%2C_Vietnam_%2825710326363%29.jpg?20210805101551', '2025-08-29', 0),
-(74, 34, 'hphphp', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Golden_Bridge%2C_Da_Nang_%28I%29.jpg/1024px-Golden_Bridge%2C_Da_Nang_%28I%29.jpg?20200512152124', '2025-08-29', 1),
-(75, 34, 'Tour Đà Nẵng', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Da_Nang_Dragon_Bridge_2020_IMG_4019.jpg/1024px-Da_Nang_Dragon_Bridge_2020_IMG_4019.jpg?20201116183400', '2025-08-29', 0),
-(76, 34, 'Tour Đà Nẵng', 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Lady_Buddha_in_Da_Nang%2C_Vietnam.jpg/800px-Lady_Buddha_in_Da_Nang%2C_Vietnam.jpg?20200226054138', '2025-08-29', 0),
-(77, 35, 'mmomo', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/H%E1%BA%A1_Th%C3%A0nh%2C_H%C3%A0_Giang%2C_Vietnam_-_1.jpg/1024px-H%E1%BA%A1_Th%C3%A0nh%2C_H%C3%A0_Giang%2C_Vietnam_-_1.jpg?20230523172939', '2025-08-29', 1),
-(78, 35, 'Tour Hà Giang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/L%C3%B9ng_V%C3%A0i%2C_H%C3%A0_Giang%2C_Vietnam_-_4.jpg/1024px-L%C3%B9ng_V%C3%A0i%2C_H%C3%A0_Giang%2C_Vietnam_-_4.jpg?20230523211908', '2025-08-29', 0),
-(79, 35, 'Tour Hà Giang', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Ha_Giang_Loop.jpg/800px-Ha_Giang_Loop.jpg?20201216035542', '2025-08-29', 0),
-(80, 36, 'nini', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/B%C3%A3i_bi%E1%BB%83n_%C4%90%E1%BA%A5t_D%E1%BB%91c_C%C3%B4n_%C4%90%E1%BA%A3o_-_panoramio.jpg/1024px-B%C3%A3i_bi%E1%BB%83n_%C4%90%E1%BA%A5t_D%E1%BB%91c_C%C3%B4n_%C4%90%E1%BA%A3o_-_panoramio.jpg?2017', '2025-08-29', 1),
-(81, 36, 'Tour Côn Đảo', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/C%C3%B4n_%C4%90%E1%BA%A3o_National_Park.jpg/1024px-C%C3%B4n_%C4%90%E1%BA%A3o_National_Park.jpg?20150310084203', '2025-08-29', 0),
-(82, 36, 'Tour Côn Đảo', 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Nh%C3%A0_t%C3%B9_C%C3%B4n_%C4%90%E1%BA%A3o.JPG/1024px-Nh%C3%A0_t%C3%B9_C%C3%B4n_%C4%90%E1%BA%A3o.JPG?20150224201534', '2025-08-29', 0),
-(83, 37, 'dsadasdsa', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/CanThoFloatingMarket.jpg/1024px-CanThoFloatingMarket.jpg?20070201200653', '2025-08-29', 1),
-(84, 37, 'Tour Miền Tây', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Floating_Market_-_Can_Tho_-_Vietnam.JPG/800px-Floating_Market_-_Can_Tho_-_Vietnam.JPG?20090716043855', '2025-08-29', 0),
-(85, 37, 'Tour Miền Tây', 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Bridge-can-tho-vietnam.jpg/1024px-Bridge-can-tho-vietnam.jpg?20090408232953', '2025-08-29', 0),
-(86, 38, 'bibi', 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Hanoi-montage-2020-2.jpg/800px-Hanoi-montage-2020-2.jpg?20200426040702', '2025-08-29', 1),
-(87, 38, 'Tour Hà Nội', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Main_gate_of_the_Temple_of_Literature_in_Hanoi.jpg/800px-Main_gate_of_the_Temple_of_Literature_in_Hanoi.jpg?20200321175629', '2025-08-29', 0),
-(88, 38, 'Tour Hà Nội', 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Main_hall%2C_V%C4%83n_Mi%E1%BA%BFu%2C_Hanoi%2C_Vietnam_%282006%29.jpg', '2025-08-29', 0),
-(89, 39, 'koko', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Vietnam%2C_Mui_Ne_sand_dunes.jpg/1024px-Vietnam%2C_Mui_Ne_sand_dunes.jpg?20191102133206', '2025-08-29', 1),
-(90, 39, 'Tour Mũi Né', 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Mui_Ne.jpg/1024px-Mui_Ne.jpg?20071124092858', '2025-08-29', 0),
-(91, 39, 'Tour Mũi Né', 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Mui_Ne_Fairy_Stream.jpg/1024px-Mui_Ne_Fairy_Stream.jpg?20110421030756', '2025-08-29', 0),
 (92, 40, 'lolo', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Trang_An%2C_Ninh_Binh.jpg/960px-Trang_An%2C_Ninh_Binh.jpg?20241012165724', '2025-08-29', 1),
 (93, 40, 'Tour Ninh Bình', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Tam_Coc_Ninh_Binh_%2880286%29.jpg/1024px-Tam_Coc_Ninh_Binh_%2880286%29.jpg?20250330102045', '2025-08-29', 0),
 (94, 40, 'Tour Ninh Bình', 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Ninh_Binh_Hoa_Lu_%2839891%29.jpg/1024px-Ninh_Binh_Hoa_Lu_%2839891%29.jpg?20250402231255', '2025-08-29', 0),
-(95, 41, 'aoiaoaoa', 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Sunset_on_Phu_Quoc_island.jpg/1024px-Sunset_on_Phu_Quoc_island.jpg?20220224072954', '2025-08-29', 1),
-(96, 41, 'Tour Phú Quốc', 'https://upload.wikimedia.org/wikipedia/commons/f/f8/Phu_Quoc_Southern_Islands.jpg?20071115072141', '2025-08-29', 0),
-(97, 41, 'Tour Phú Quốc', 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg/1024px-Beautiful_beach_on_Phu_Quoc_island_Vietnam_%2839543775721%29.jpg?20180112232830', '2025-08-29', 0),
-(98, 41, 'Tour Phú Quốc', 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Phu_quoc_suoi_tranh.jpg/1024px-Phu_quoc_suoi_tranh.jpg?20090119150603', '2025-08-29', 0),
 (99, 42, 'khohoh', 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sydneyoperahouse_at_night.jpg', '2025-08-29', 1),
 (100, 42, 'Sydney – Blue Mountains', 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Blue_Mountains%2C_Sydney%2C_Australia.png', '2025-08-29', 0),
 (101, 42, 'Sydney – Blue Mountains', 'https://upload.wikimedia.org/wikipedia/commons/7/72/Jamison_Valley%2C_Blue_Mountains%2C_Australia_-_Nov_2008.jpg', '2025-08-29', 0),
@@ -283,8 +431,8 @@ INSERT INTO `photo` (`PhotoID`, `TourID`, `Caption`, `ImageURL`, `UploadDate`, `
 --
 
 CREATE TABLE `role` (
-  `RoleID` int(11) NOT NULL,
-  `RoleName` varchar(50) NOT NULL
+  `RoleID` int NOT NULL,
+  `RoleName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -302,12 +450,12 @@ INSERT INTO `role` (`RoleID`, `RoleName`) VALUES
 --
 
 CREATE TABLE `support_message` (
-  `id` int(11) NOT NULL,
-  `thread_id` int(11) NOT NULL,
-  `sender_id` int(11) DEFAULT NULL,
-  `is_admin` tinyint(1) NOT NULL DEFAULT 0,
-  `content` text NOT NULL,
-  `created_at` datetime DEFAULT current_timestamp()
+  `id` int NOT NULL,
+  `thread_id` int NOT NULL,
+  `sender_id` int DEFAULT NULL,
+  `is_admin` tinyint(1) NOT NULL DEFAULT '0',
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -609,7 +757,71 @@ INSERT INTO `support_message` (`id`, `thread_id`, `sender_id`, `is_admin`, `cont
 (292, 9, 1, 1, 'bạn yên tâm tour của bạn đã đặt thành công', '2025-08-29 21:50:49'),
 (293, 9, 12, 0, 'hi hi', '2025-08-29 22:52:02'),
 (294, 9, 12, 0, 'tui muốn biết tui đã đặt tour thafnnh công hay chhuaw', '2025-08-29 22:52:35'),
-(295, 9, 1, 1, 'vâng bạn đã đặt tour tc', '2025-08-29 22:53:14');
+(295, 9, 1, 1, 'vâng bạn đã đặt tour tc', '2025-08-29 22:53:14'),
+(299, 13, 13, 0, 'hihi', '2026-04-18 19:18:53'),
+(300, 13, NULL, 1, 'Chào A I 👋🥰, bạn cần giúp gì không? Chúng tôi sẽ phản hồi sớm nhất có thể. Xin cảm ơn!', '2026-04-18 19:18:53'),
+(301, 13, 1, 1, ',mm,,m', '2026-04-18 19:27:06'),
+(302, 13, 1, 1, ',,,,', '2026-04-18 19:27:09'),
+(303, 13, 1, 1, '4', '2026-04-18 19:44:59'),
+(304, 13, 1, 1, 's', '2026-04-18 20:11:29'),
+(305, 13, 1, 1, 'gfgf', '2026-04-18 21:06:56'),
+(306, 13, 1, 1, 'dhgfkdg', '2026-04-18 21:06:59'),
+(307, 13, 13, 0, 'g', '2026-04-18 22:10:21'),
+(308, 13, 13, 0, 'gg', '2026-04-18 22:28:39'),
+(309, 13, 13, 0, 'g', '2026-04-18 22:28:42'),
+(310, 8, 11, 0, 'g', '2026-04-19 02:25:52'),
+(311, 8, 1, 1, 'hi hi su su', '2026-04-19 05:50:43'),
+(312, 8, 11, 0, 'ss', '2026-04-19 05:51:17'),
+(313, 8, 11, 0, 's', '2026-04-19 05:51:32'),
+(314, 8, 11, 0, 's', '2026-04-19 05:51:34'),
+(315, 8, 11, 0, 'gâu gâu gâu', '2026-04-19 05:51:40'),
+(316, 8, 1, 1, 'gấu gấu', '2026-04-19 05:52:11'),
+(317, 8, 11, 0, '\'', '2026-04-19 09:48:57'),
+(318, 8, 1, 1, 's', '2026-04-19 14:27:41'),
+(319, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:27:57'),
+(320, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:27:57'),
+(321, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:28:04'),
+(322, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:04'),
+(323, 16, 11, 0, 'Tư vấn tour nghỉ dưỡng', '2026-04-19 14:28:13'),
+(324, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Tư vấn tour nghỉ dưỡng\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:13'),
+(325, 16, 11, 0, 'Tư vấn tour nghỉ dưỡng', '2026-04-19 14:28:18'),
+(326, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Tư vấn tour nghỉ dưỡng\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:18'),
+(327, 16, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:28:21'),
+(328, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:21'),
+(329, 16, 11, 0, 'trời nóng quá nên đi đâu', '2026-04-19 14:28:57'),
+(330, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\nTruy vấn gốc: trời nóng quá nên đi đâu\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:57'),
+(331, 8, 11, 0, 'tui rẻ nhất', '2026-04-19 14:30:54'),
+(332, 8, 11, 0, 'trời nắng đi đâu', '2026-04-19 14:31:11'),
+(333, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\nTruy vấn gốc: trời nắng đi đâu\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:31:11'),
+(334, 8, 11, 0, 'tui muốn đi núi', '2026-04-19 14:31:20'),
+(335, 8, 11, 0, 'goi y tour gia dinh test live', '2026-04-19 14:53:17'),
+(336, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: goi y tour gia dinh test live\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:53:17'),
+(337, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:58:38'),
+(338, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:58:38'),
+(341, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:59:33'),
+(342, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:59:33'),
+(394, 22, 23, 0, 'nống quá', '2026-04-21 07:56:38'),
+(395, 22, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 07:56:38'),
+(396, 22, 23, 0, 'nóng quá', '2026-04-21 07:56:48'),
+(397, 21, 23, 0, 'u', '2026-04-21 07:56:57'),
+(398, 21, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 07:56:57'),
+(399, 21, 23, 0, 'nóng quá', '2026-04-21 07:57:02'),
+(400, 21, 23, 0, 'nogns quá', '2026-04-21 07:57:17'),
+(401, 21, 23, 0, 'nóng quá', '2026-04-21 07:57:24'),
+(402, 23, 23, 0, 'nóng quá đi đâu', '2026-04-21 07:57:37'),
+(403, 23, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu trời đang nóng, bạn có thể ưu tiên các tour biển hoặc điểm đến mát mẻ sau:\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Sa Pa – Phan Xi Păng tại Lào Cai: giá 4,200,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 4.0.\n- Sydney – Blue Mountains tại Úc: giá 40,000,000 VND, hạng mục Du lịch ngoài nước, điểm đánh giá 0.0.\nTruy vấn gốc: nóng quá đi đâu\nTour phù hợp:\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Sa Pa – Phan Xi Păng - Lào Cai - 4,200,000đ\n• Sydney – Blue Mountains - Úc - 40,000,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 07:57:37'),
+(404, 23, 23, 0, 'nóng quá', '2026-04-21 07:57:50'),
+(405, 21, 23, 0, 'nóng qyuas', '2026-04-21 09:54:32'),
+(406, 23, 23, 0, 'nóng quá', '2026-04-21 09:54:43'),
+(407, 24, 23, 0, 'hu', '2026-04-21 09:54:54'),
+(408, 24, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 09:54:54'),
+(409, 24, 23, 0, 'nóng quá đi\\', '2026-04-21 09:55:02'),
+(410, 24, 23, 0, 'nóng quá', '2026-04-21 09:55:09'),
+(411, 21, 23, 0, 'nóng quá', '2026-04-21 09:55:36'),
+(412, 21, 23, 0, 'nóng quá', '2026-04-21 10:51:00'),
+(413, 21, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau (Khách ít tương tác):\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 10:51:00'),
+(414, 21, 23, 0, 'tui nuốn đi nước ngoài', '2026-04-21 10:51:26'),
+(415, 21, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách ít tương tác):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Paris – Versailles ở Pháp, giá khoảng 45,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 10:51:26');
 
 -- --------------------------------------------------------
 
@@ -618,10 +830,10 @@ INSERT INTO `support_message` (`id`, `thread_id`, `sender_id`, `is_admin`, `cont
 --
 
 CREATE TABLE `support_thread` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `status` enum('open','closed') DEFAULT 'open',
-  `created_at` datetime DEFAULT current_timestamp()
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `status` enum('open','closed') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'open',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -635,7 +847,15 @@ INSERT INTO `support_thread` (`id`, `user_id`, `status`, `created_at`) VALUES
 (6, 6, 'open', '2025-08-26 16:05:24'),
 (7, 10, 'open', '2025-08-27 18:02:54'),
 (8, 11, 'open', '2025-08-27 18:36:31'),
-(9, 12, 'open', '2025-08-29 21:48:02');
+(9, 12, 'open', '2025-08-29 21:48:02'),
+(12, 13, 'open', '2026-04-18 19:18:45'),
+(13, 13, 'open', '2026-04-18 19:18:48'),
+(14, 1, 'open', '2026-04-19 06:58:49'),
+(16, 11, 'open', '2026-04-19 14:28:08'),
+(21, 23, 'open', '2026-04-21 07:49:45'),
+(22, 23, 'open', '2026-04-21 07:49:48'),
+(23, 23, 'open', '2026-04-21 07:57:27'),
+(24, 23, 'open', '2026-04-21 09:54:46');
 
 -- --------------------------------------------------------
 
@@ -644,16 +864,16 @@ INSERT INTO `support_thread` (`id`, `user_id`, `status`, `created_at`) VALUES
 --
 
 CREATE TABLE `tour` (
-  `TourID` int(11) NOT NULL,
-  `Title` varchar(100) NOT NULL,
-  `Location` varchar(100) DEFAULT NULL,
-  `Description` text DEFAULT NULL,
-  `Capacity` int(11) DEFAULT NULL,
+  `TourID` int NOT NULL,
+  `Title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `Location` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `Description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `Capacity` int DEFAULT NULL,
   `Price` decimal(10,2) DEFAULT NULL,
   `StartDate` date DEFAULT NULL,
   `EndDate` date DEFAULT NULL,
-  `Status` enum('Available','Full','Cancelled') DEFAULT 'Available',
-  `CategoryID` int(11) DEFAULT NULL
+  `Status` enum('Available','Full','Cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'Available',
+  `CategoryID` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -661,28 +881,19 @@ CREATE TABLE `tour` (
 --
 
 INSERT INTO `tour` (`TourID`, `Title`, `Location`, `Description`, `Capacity`, `Price`, `StartDate`, `EndDate`, `Status`, `CategoryID`) VALUES
-(18, 'Tour Bangkok – Pattaya', 'Thái Lan', 'Khám phá thành phố biển Pattaya và thủ đô Bangkok sôi động.', 35, 12000000.00, '2025-10-04', '2025-08-06', 'Available', 10),
-(19, 'Tour Singapore – Kuala Lumpur', 'Singapore – Malaysia', 'Tham quan Singapore hiện đại và Kuala Lumpur cổ kính.', 50, 15000000.00, '2025-10-07', '2025-10-09', 'Available', 10),
-(20, 'Tokyo – Núi Phú Sĩ', 'Nhật Bản', 'Khám phá thủ đô Tokyo và ngắm cảnh Núi Phú Sĩ hùng vĩ.', 45, 32000000.00, '2025-10-10', '2025-10-12', 'Available', 10),
-(21, 'Seoul – Nami – Everland', 'Hàn Quốc', 'Trải nghiệm Hàn Quốc qua Seoul, đảo Nami và công viên Everland.', 45, 25000000.00, '2025-10-13', '2025-10-15', 'Available', 10),
-(22, 'Hong Kong – Ma Cao', 'Hong Kong – Macau', 'Tham quan Hong Kong hiện đại và sòng bạc Ma Cao nổi tiếng', 30, 20000000.00, '2025-10-16', '2025-10-18', 'Available', 10),
-(23, 'Đài Bắc – Cao Hùng', 'Đài Loan', 'Khám phá Đài Bắc nhộn nhịp và thành phố Cao Hùng.', 30, 18000000.00, '2025-10-19', '2025-10-21', 'Available', 10),
-(29, 'Paris – Versailles', 'Pháp', 'Dạo quanh Paris hoa lệ và cung điện Versailles lộng lẫy.', 25, 45000000.00, '2025-08-07', '2025-08-31', 'Available', 10),
-(30, 'Tour Hạ Long', 'Quảng Ninh', 'Khám phá kỳ quan Vịnh Hạ Long.', 30, 3500000.00, '2025-08-01', '2025-08-27', 'Available', 7),
-(31, 'Tour Sa Pa – Phan Xi Păng', 'Lào Cai', 'Leo núi Fansipan, thưởng sương Sa Pa.', 25, 4200000.00, '2025-08-16', '2025-08-19', 'Available', 7),
-(32, 'Tour Phong Nha – Kẻ Bàng', 'Quảng Bình', 'Khám phá hang động kỳ vĩ Phong Nha.', 35, 3800000.00, '2025-08-29', '2025-09-01', 'Available', 7),
-(33, 'Tour Hội An', 'Quảng Nam', 'Phố cổ Hội An về đêm lung linh.', 40, 2500000.00, '2025-08-08', '2025-08-14', 'Available', 7),
-(34, 'Tour Đà Nẵng', 'Đà Nẵng', 'Khám phá biển Mỹ Khê và Bà Nà Hills.', 50, 4000000.00, '2025-08-08', '2025-08-10', 'Available', 7),
-(35, 'Tour Hà Giang', 'Hà Giang', 'Cao nguyên đá Đồng Văn và Mã Pí Lèng.', 27, 3600000.00, '2025-08-29', '2025-09-05', 'Available', 7),
-(36, 'Tour Côn Đảo', 'Bà Rịa – Vũng Tàu', 'Khám phá Côn Đảo huyền thoại.', 20, 5200000.00, '2025-08-15', '2025-09-06', 'Available', 7),
-(37, 'Tour Miền Tây', 'Cần Thơ', 'Khám phá chợ nổi Cái Răng.', 36, 2900000.00, '2025-08-23', '2025-08-24', 'Available', 7),
-(38, 'Tour Hà Nội', 'Hà Nội', 'Văn Miếu – Hồ Hoàn Kiếm – Lăng Bác.', 50, 3000000.00, '2025-08-30', '2025-08-31', 'Available', 7),
-(39, 'Tour Mũi Né', 'Bình Thuận', 'Đồi cát bay và biển Mũi Né.', 38, 3300000.00, '2025-08-01', '2025-08-10', 'Available', 7),
-(40, 'Tour Ninh Bình', 'Ninh Bình', 'Tràng An và Tam Cốc – Bích Động.', 32, 3100000.00, '2025-08-09', '2025-08-17', 'Available', 7),
-(41, 'Tour Phú Quốc', 'Kiên Giang', 'Thiên đường biển đảo Phú Quốc.', 45, 5500000.00, '2025-08-02', '2025-08-12', 'Available', 7),
-(42, 'Sydney – Blue Mountains', 'Úc', 'Tham quan Sydney và dãy núi Blue Mountains hùng vĩ.', 25, 40000000.00, '2025-08-02', '2025-08-12', 'Available', 10),
-(43, 'Dubai – Abu Dhabi', 'UAE', 'Khám phá Dubai hiện đại và Abu Dhabi xa hoa.', 35, 38000000.00, '2025-08-28', '2025-08-31', 'Available', 10),
-(44, 'Gia đình haha', 'Vĩnh Long', 'Du lịch sông nước', 100, 5000000.00, '2025-08-31', '2025-09-04', 'Available', 7);
+(18, 'Tour Bangkok – Pattaya', 'Thái Lan', 'Khám phá thành phố biển Pattaya và thủ đô Bangkok sôi động.', 35, 12000000.00, '2026-06-10', '2026-06-14', 'Available', 10),
+(19, 'Tour Singapore – Kuala Lumpur', 'Singapore – Malaysia', 'Tham quan Singapore hiện đại và Kuala Lumpur cổ kính.', 50, 15000000.00, '2026-06-15', '2026-06-19', 'Available', 10),
+(20, 'Tokyo – Núi Phú Sĩ', 'Nhật Bản', 'Khám phá thủ đô Tokyo và ngắm cảnh Núi Phú Sĩ hùng vĩ.', 45, 32000000.00, '2026-07-05', '2026-07-10', 'Available', 10),
+(21, 'Seoul – Nami – Everland', 'Hàn Quốc', 'Trải nghiệm Hàn Quốc qua Seoul, đảo Nami và công viên Everland.', 45, 25000000.00, '2026-07-12', '2026-07-16', 'Available', 10),
+(22, 'Hong Kong – Ma Cao', 'Hong Kong – Macau', 'Tham quan Hong Kong hiện đại và sòng bạc Ma Cao nổi tiếng', 30, 20000000.00, '2026-08-01', '2026-08-04', 'Available', 10),
+(23, 'Đài Bắc – Cao Hùng', 'Đài Loan', 'Khám phá Đài Bắc nhộn nhịp và thành phố Cao Hùng.', 30, 18000000.00, '2026-08-10', '2026-08-14', 'Available', 10),
+(29, 'Paris – Versailles', 'Pháp', 'Dạo quanh Paris hoa lệ và cung điện Versailles lộng lẫy.', 25, 45000000.00, '2026-09-01', '2026-09-08', 'Available', 10),
+(30, 'Tour Hạ Long', 'Quảng Ninh', 'Khám phá kỳ quan Vịnh Hạ Long.', 30, 3500000.00, '2026-05-15', '2026-05-17', 'Available', 7),
+(31, 'Tour Sa Pa – Phan Xi Păng', 'Lào Cai', 'Leo núi Fansipan, thưởng sương Sa Pa.', 25, 4200000.00, '2026-05-20', '2026-05-23', 'Available', 7),
+(40, 'Tour Ninh Bình', 'Ninh Bình', 'Tràng An và Tam Cốc – Bích Động.', 32, 3100000.00, '2026-06-01', '2026-06-03', 'Available', 7),
+(42, 'Sydney – Blue Mountains', 'Úc', 'Tham quan Sydney và dãy núi Blue Mountains hùng vĩ.', 25, 40000000.00, '2026-10-10', '2026-10-17', 'Available', 10),
+(43, 'Dubai – Abu Dhabi', 'UAE', 'Khám phá Dubai hiện đại và Abu Dhabi xa hoa.', 35, 38000000.00, '2026-11-05', '2026-11-10', 'Available', 10),
+(44, 'Gia đình haha', 'Vĩnh Long', 'Du lịch sông nước', 100, 5000000.00, '2026-05-25', '2026-05-26', 'Available', 7);
 
 -- --------------------------------------------------------
 
@@ -691,14 +902,14 @@ INSERT INTO `tour` (`TourID`, `Title`, `Location`, `Description`, `Capacity`, `P
 --
 
 CREATE TABLE `user` (
-  `UserID` int(11) NOT NULL,
-  `FirstName` varchar(50) DEFAULT NULL,
-  `LastName` varchar(50) DEFAULT NULL,
-  `FullName` varchar(100) DEFAULT NULL,
-  `Password` varchar(100) NOT NULL,
-  `Phone` varchar(20) DEFAULT NULL,
-  `Email` varchar(100) DEFAULT NULL,
-  `RoleID` int(11) DEFAULT NULL
+  `UserID` int NOT NULL,
+  `FirstName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `LastName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `FullName` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `Password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `Phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `Email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `RoleID` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -709,21 +920,63 @@ INSERT INTO `user` (`UserID`, `FirstName`, `LastName`, `FullName`, `Password`, `
 (1, 'Amin', '1', 'Admin1', '$2y$10$S6YFPPkwoSOPtBhfsBRSxulD.e2TeSBZw6s2uvB6nCFI6IqkYyT9u', '0122243434', 'admin1@gmail.com', 1),
 (6, 'Admin', '2', 'Admin2', '$2y$10$3Ygpg279hGbflO1mLCUXi.6dXwz0M9ZejKZ1.ZtjoZt9QyqCZRn/y', '0122243434', 'admin3@gmail.com', 1),
 (7, 'Thanh', 'Thien', 'Thanh Thien', '$2b$12$TL1tZjaaguIujfukSge3FeCYUK7D9GiiSVNwemjC377yWQgKjmS8m', '0222222222', 'thanhthien@gmail.com', 3),
-(8, 'thanh', 'lich', 'Thanh Lich', '$2b$12$U6byv0BTym7K/0PchgD7o.Ua6A3DJp2xoBVeo563xQfm9QdHboome', '0111111111', 'thanhlich@gmail.com', 3),
-(10, 'User', '1', 'User 1', '$2b$12$LKzFnEXoCkkijEcUe57HbO8JHDiDTcrIvuI4Ugb6LQBBbfzRsqi2S', '0222212121', 'user1@gmail.com', 3),
 (11, 'User', '2', 'User2', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121212', 'user2@gmail.com', 3),
-(12, 'Hồ ', 'Thiện', 'Hồ  Thiện', '$2b$12$73KIL1M57ISRadbpvdUDfeuBAy/rGExxki4RCvU3t4aGQI2mn4ary', '0375227764', 'thien@gmail.com', 3);
+(12, 'Hồ ', 'Thiện', 'Hồ  Thiện', '$2b$12$73KIL1M57ISRadbpvdUDfeuBAy/rGExxki4RCvU3t4aGQI2mn4ary', '0375227764', 'thien@gmail.com', 3),
+(13, 'A', 'I', 'A I', '$2b$12$VSvWphaPxrCBThx3AliH1.jMd5uy5uLeeqeqxPFyuLnd0us80n/5a', '0123455667', 'ai@gmail.com', 3),
+(14, 'Đăng', 'Nguyễn Hải', 'Nguyễn Hải Đăng', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000001', 'nguyenhaidang@gmail.com', 3),
+(15, 'Ngọc', 'Trần Bảo', 'Trần Bảo Ngọc', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000002', 'tranbaongoc@gmail.com', 3),
+(16, 'Kiệt', 'Lê Tuấn', 'Lê Tuấn Kiệt', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000003', 'letuankiet@gmail.com', 3),
+(17, 'Thảo', 'Phạm Thu', 'Phạm Thu Thảo', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000004', 'phamthuthao@gmail.com', 3),
+(18, 'Minh', 'Vũ Hoàng', 'Vũ Hoàng Minh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000005', 'vuhoangminh@gmail.com', 3),
+(19, 'Dung', 'Đặng Thùy', 'Đặng Thùy Dung', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000006', 'dangthuydung@gmail.com', 3),
+(20, 'Phát', 'Bùi Xuân', 'Bùi Xuân Phát', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000007', 'buixuanphat@gmail.com', 3),
+(21, 'Phương', 'Đỗ Mai', 'Đỗ Mai Phương', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000008', 'domaiphuong@gmail.com', 3),
+(22, 'Bảo', 'Hồ Quốc', 'Hồ Quốc Bảo', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000009', 'hoquocbao@gmail.com', 3),
+(23, 'Bích', 'Ngô Thị', 'Ngô Thị Bích', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000010', 'ngothibich@gmail.com', 3),
+(24, 'Trí', 'Dương Đức', 'Dương Đức Trí', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000011', 'duongductri@gmail.com', 3),
+(25, 'Kỳ', 'Lý Nhã', 'Lý Nhã Kỳ', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000012', 'lynhaky@gmail.com', 3),
+(26, 'Sơn', 'Hoàng Thanh', 'Hoàng Thanh Sơn', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000013', 'hoangthanhson@gmail.com', 3),
+(27, 'Anh', 'Phan Quỳnh', 'Phan Quỳnh Anh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000014', 'phanquynhanh@gmail.com', 3),
+(28, 'Huy', 'Trương Quang', 'Trương Quang Huy', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000015', 'truongquanghuy@gmail.com', 3),
+(29, 'Dũng', 'Vũ Tấn', 'Vũ Tấn Dũng', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000016', 'vutandung@gmail.com', 3),
+(30, 'Phương', 'Nguyễn Minh', 'Nguyễn Minh Phương', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000017', 'nguyenminhphuong@gmail.com', 3),
+(31, 'My', 'Lê Hà', 'Lê Hà My', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000018', 'lehamy@gmail.com', 3),
+(32, 'Anh', 'Trần Đức', 'Trần Đức Anh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000019', 'tranducanh@gmail.com', 3),
+(33, 'Hưng', 'Phạm Gia', 'Phạm Gia Hưng', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000020', 'phamgiahung@gmail.com', 3),
+(34, 'Ngọc', 'Võ Thị', 'Võ Thị Ngọc', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000021', 'vothingoc@gmail.com', 3),
+(35, 'Yến', 'Đinh Hoàng', 'Đinh Hoàng Yến', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000022', 'dinhhoangyen@gmail.com', 3),
+(36, 'Sơn', 'Mai Thế', 'Mai Thế Sơn', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000023', 'maitheson@gmail.com', 3),
+(37, 'Thắng', 'Chu Việt', 'Chu Việt Thắng', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000024', 'chuvietthang@gmail.com', 3),
+(38, 'Nhật', 'Đào Minh', 'Đào Minh Nhật', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000025', 'daominhnhat@gmail.com', 3),
+(39, 'Linh', 'Trần Phương', 'Trần Phương Linh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000026', 'tranphuonglinh@gmail.com', 3),
+(40, 'Kiên', 'Nguyễn Trung', 'Nguyễn Trung Kiên', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000027', 'nguyentrungkien@gmail.com', 3),
+(41, 'Thanh', 'Bùi Thị', 'Bùi Thị Thanh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000028', 'buithithanh@gmail.com', 3),
+(42, 'Trúc', 'Đoàn Thanh', 'Đoàn Thanh Trúc', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000029', 'doanthanhtruc@gmail.com', 3),
+(43, 'Phong', 'Trịnh Tuấn', 'Trịnh Tuấn Phong', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000030', 'trinhtuanphong@gmail.com', 3),
+(44, 'Hân', 'Lâm Gia', 'Lâm Gia Hân', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000031', 'lamgiahan@gmail.com', 3),
+(45, 'Tâm', 'Hồ Minh', 'Hồ Minh Tâm', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000032', 'hominhtam@gmail.com', 3),
+(46, 'Liên', 'Phan Cẩm', 'Phan Cẩm Liên', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000033', 'phancamlien@gmail.com', 3),
+(47, 'Đạt', 'Vương Quốc', 'Vương Quốc Đạt', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000034', 'vuongquocdat@gmail.com', 3),
+(48, 'Hà', 'Quách Thu', 'Quách Thu Hà', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000035', 'quachthuha@gmail.com', 3),
+(49, 'Trâm', 'Nguyễn Bảo', 'Nguyễn Bảo Trâm', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000036', 'nguyenbaotram@gmail.com', 3),
+(50, 'Khôi', 'Đỗ Minh', 'Đỗ Minh Khôi', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000037', 'dominhkhoi@gmail.com', 3),
+(51, 'Cẩm', 'Trần Thị', 'Trần Thị Cẩm', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000038', 'tranthicam@gmail.com', 3),
+(52, 'Đại', 'Đặng Quang', 'Đặng Quang Đại', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000039', 'dangquangdai@gmail.com', 3),
+(53, 'Thịnh', 'Lê Phúc', 'Lê Phúc Thịnh', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000040', 'lephucthinh@gmail.com', 3),
+(54, 'Michael', 'Johnson', 'Michael Johnson', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000041', 'michaeljohnson@gmail.com', 3),
+(55, 'Sarah', 'Williams', 'Sarah Williams', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000042', 'sarahwilliams@gmail.com', 3),
+(56, 'David', 'Brown', 'David Brown', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000043', 'davidbrown@gmail.com', 3),
+(57, 'Emily', 'Davis', 'Emily Davis', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000044', 'emilydavis@gmail.com', 3),
+(58, 'James', 'Wilson', 'James Wilson', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000045', 'jameswilson@gmail.com', 3),
+(59, 'Jessica', 'Taylor', 'Jessica Taylor', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000046', 'jessicataylor@gmail.com', 3),
+(60, 'Christopher', 'Anderson', 'Christopher Anderson', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000047', 'chrisanderson@gmail.com', 3),
+(61, 'Ashley', 'Thomas', 'Ashley Thomas', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000048', 'ashleythomas@gmail.com', 3),
+(62, 'Matthew', 'Martinez', 'Matthew Martinez', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000049', 'mattmartinez@gmail.com', 3),
+(63, 'Olivia', 'White', 'Olivia White', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000050', 'oliviawhite@gmail.com', 3);
 
 --
 -- Chỉ mục cho các bảng đã đổ
 --
-
---
--- Chỉ mục cho bảng `bank_txn`
---
-ALTER TABLE `bank_txn`
-  ADD PRIMARY KEY (`BankTxnID`),
-  ADD UNIQUE KEY `ProviderRef` (`ProviderRef`);
 
 --
 -- Chỉ mục cho bảng `booking`
@@ -750,17 +1003,17 @@ ALTER TABLE `comment`
   ADD KEY `TourID` (`TourID`);
 
 --
+-- Chỉ mục cho bảng `customer_segment`
+--
+ALTER TABLE `customer_segment`
+  ADD PRIMARY KEY (`UserID`);
+
+--
 -- Chỉ mục cho bảng `discount`
 --
 ALTER TABLE `discount`
   ADD PRIMARY KEY (`DiscountID`),
   ADD UNIQUE KEY `Code` (`Code`);
-
---
--- Chỉ mục cho bảng `kv_store`
---
-ALTER TABLE `kv_store`
-  ADD PRIMARY KEY (`k`);
 
 --
 -- Chỉ mục cho bảng `payment`
@@ -793,8 +1046,7 @@ ALTER TABLE `support_message`
 -- Chỉ mục cho bảng `support_thread`
 --
 ALTER TABLE `support_thread`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_user` (`user_id`);
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Chỉ mục cho bảng `tour`
@@ -816,83 +1068,77 @@ ALTER TABLE `user`
 --
 
 --
--- AUTO_INCREMENT cho bảng `bank_txn`
---
-ALTER TABLE `bank_txn`
-  MODIFY `BankTxnID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
 -- AUTO_INCREMENT cho bảng `booking`
 --
 ALTER TABLE `booking`
-  MODIFY `BookingID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `BookingID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=78;
 
 --
 -- AUTO_INCREMENT cho bảng `category`
 --
 ALTER TABLE `category`
-  MODIFY `CategoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `CategoryID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT cho bảng `comment`
 --
 ALTER TABLE `comment`
-  MODIFY `CommentID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `CommentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT cho bảng `discount`
 --
 ALTER TABLE `discount`
-  MODIFY `DiscountID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `DiscountID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT cho bảng `payment`
 --
 ALTER TABLE `payment`
-  MODIFY `PaymentID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `PaymentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 
 --
 -- AUTO_INCREMENT cho bảng `photo`
 --
 ALTER TABLE `photo`
-  MODIFY `PhotoID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=107;
+  MODIFY `PhotoID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=107;
 
 --
 -- AUTO_INCREMENT cho bảng `role`
 --
 ALTER TABLE `role`
-  MODIFY `RoleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `RoleID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT cho bảng `support_message`
 --
 ALTER TABLE `support_message`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=296;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=416;
 
 --
 -- AUTO_INCREMENT cho bảng `support_thread`
 --
 ALTER TABLE `support_thread`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT cho bảng `tour`
 --
 ALTER TABLE `tour`
-  MODIFY `TourID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `TourID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT cho bảng `user`
 --
 ALTER TABLE `user`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `UserID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
--- Các ràng buộc cho các bảng đã đổ
+-- Ràng buộc đối với các bảng kết xuất
 --
 
 --
--- Các ràng buộc cho bảng `booking`
+-- Ràng buộc cho bảng `booking`
 --
 ALTER TABLE `booking`
   ADD CONSTRAINT `booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`),
@@ -900,38 +1146,38 @@ ALTER TABLE `booking`
   ADD CONSTRAINT `booking_ibfk_3` FOREIGN KEY (`DiscountID`) REFERENCES `discount` (`DiscountID`);
 
 --
--- Các ràng buộc cho bảng `comment`
+-- Ràng buộc cho bảng `comment`
 --
 ALTER TABLE `comment`
   ADD CONSTRAINT `comment_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`),
   ADD CONSTRAINT `comment_ibfk_2` FOREIGN KEY (`TourID`) REFERENCES `tour` (`TourID`);
 
 --
--- Các ràng buộc cho bảng `payment`
+-- Ràng buộc cho bảng `payment`
 --
 ALTER TABLE `payment`
   ADD CONSTRAINT `payment_ibfk_1` FOREIGN KEY (`BookingID`) REFERENCES `booking` (`BookingID`);
 
 --
--- Các ràng buộc cho bảng `photo`
+-- Ràng buộc cho bảng `photo`
 --
 ALTER TABLE `photo`
   ADD CONSTRAINT `photo_ibfk_1` FOREIGN KEY (`TourID`) REFERENCES `tour` (`TourID`);
 
 --
--- Các ràng buộc cho bảng `support_message`
+-- Ràng buộc cho bảng `support_message`
 --
 ALTER TABLE `support_message`
   ADD CONSTRAINT `support_message_ibfk_1` FOREIGN KEY (`thread_id`) REFERENCES `support_thread` (`id`);
 
 --
--- Các ràng buộc cho bảng `tour`
+-- Ràng buộc cho bảng `tour`
 --
 ALTER TABLE `tour`
   ADD CONSTRAINT `tour_ibfk_1` FOREIGN KEY (`CategoryID`) REFERENCES `category` (`CategoryID`);
 
 --
--- Các ràng buộc cho bảng `user`
+-- Ràng buộc cho bảng `user`
 --
 ALTER TABLE `user`
   ADD CONSTRAINT `user_ibfk_1` FOREIGN KEY (`RoleID`) REFERENCES `role` (`RoleID`);
