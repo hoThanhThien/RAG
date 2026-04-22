@@ -370,8 +370,11 @@ export default function TourForm({ onSubmit = () => {}, initialData = {}, onCanc
           <input type="number" name="capacity" value={form.capacity} onChange={handleChange} className="form-control" required />
         </div>
         <div className="col">
-          <label>Giá</label>
-          <input type="number" name="price" value={form.price} onChange={handleChange} className="form-control" required />
+          <label>Giá (đ)</label>
+          <div className="input-group">
+            <input type="number" name="price" value={form.price} onChange={handleChange} className="form-control" required />
+            <span className="input-group-text">đ</span>
+          </div>
         </div>
       </div>
 

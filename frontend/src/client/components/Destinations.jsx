@@ -1,19 +1,36 @@
 // src/client/components/Destinations.jsx
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, createSearchParams } from "react-router-dom";
-// 👉 CHỌN 1 TRONG 2 DÒNG SAU cho đúng cấu trúc dự án của bạn:
-import { tourService } from "../services/tourService";
-// import { tourService } from "../services/tourService";
+import { useNavigate, createSearchParams } from "react-router-dom";
+import { recommendationService } from "../services/recommendationService";
 
-// (tuỳ chọn) nếu bạn có bookingService.list, import nó; nếu chưa có thì đoạn try/catch sẽ tự bỏ qua
-import { bookingService } from "../services/bookingService";
-// import { bookingService } from "../services/bookingService";
+const MAX_DESTINATIONS = 5;
+const ADDRESS_LEVEL_PREFIXES = ["thôn", "xóm", "ấp", "bản", "buôn", "khu phố", "địa phận"];
+const DISTRICT_LEVEL_PREFIXES = ["huyện", "quận", "thị xã", "thị trấn"];
 
-const toKey = (s) => (s || "").trim().toLowerCase();
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
-const pickImage = (tour) => {
-  // tourService trước đó đã map sẵn image_url tuyệt đối
-  return tour?.image_url || tour?.photos?.[0]?.image_url || "/no-image.png";
+const shouldHideDestination = (name) => {
+  const normalizedName = normalizeText(name);
+  if (!normalizedName) return true;
+
+  if (ADDRESS_LEVEL_PREFIXES.some((prefix) => normalizedName.startsWith(prefix))) {
+    return true;
+  }
+
+  if (DISTRICT_LEVEL_PREFIXES.some((prefix) => normalizedName.startsWith(prefix))) {
+    return true;
+  }
+
+  const segments = String(name)
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length >= 4) {
+    return true;
+  }
+
+  return false;
 };
 
 export default function Destinations() {
@@ -26,75 +43,15 @@ export default function Destinations() {
     (async () => {
       try {
         setLoading(true);
-        // Lấy nhiều tour để có đủ dữ liệu nhóm theo location
-        const { items: tours } = await tourService.getAll({ page: 1, page_size: 200 });
-
-        // ===== Lấy thống kê bookings (nếu có endpoint) =====
-                const counts = new Map(); // tourId -> totalBooked (hoặc số booking)
-                try {
-                  if (bookingService?.list) {
-                    // tuỳ backend: page_size lớn để gom đủ, đổi nếu backend của bạn có endpoint aggregate riêng
-                    const { items: bookings } = await bookingService.list({ page: 1, page_size: 1000 });
-                    for (const b of bookings || []) {
-                      const tid = b.tour_id || b.tourId || b.tour?.tour_id || b.tour?.id;
-                      if (!tid) continue;
-                      const qty = Number(b.number_of_people ?? 1);
-                      counts.set(tid, (counts.get(tid) || 0) + (isNaN(qty) ? 1 : qty));
-                    }
-                  }
-                } catch {
-                  // Không có API bookings hoặc lỗi → fallback theo ngày start_date
-                }
-
-        // Đính kèm _bookings vào tour
-        const toursAnno = tours.map((t) => ({
-          ...t,
-          _bookings: counts.get(t.id) || 0,
-          _start: t.start_date || null,
-        }));
-
-        // Nhóm theo location
-        const groups = new Map();
-        for (const t of toursAnno) {
-          const key = toKey(t.location);
-          if (!key) continue;
-          if (!groups.has(key)) {
-            groups.set(key, {
-              // name/country để hiển thị: nếu bạn có country riêng, map thêm ở đây
-              name: t.location,
-              country: "", // không có country trong API → để trống
-              count: 0,
-              latestStart: t._start,
-              image: pickImage(t),
-              sampleTourId: t.id, // dùng để link tới trang tours với location
-            });
-          }
-          const g = groups.get(key);
-          g.count += t._bookings;
-          // chọn ảnh + tour đại diện là tour có start_date mới nhất
-          if (!g.latestStart || (t._start && t._start > g.latestStart)) {
-            g.latestStart = t._start;
-            g.image = pickImage(t);
-            g.sampleTourId = t.id;
-          }
-        }
-
-        // Sắp xếp theo rule:
-        let arr = [...groups.values()];
-        const hasAnyBookings = arr.some((x) => x.count > 0);
-        arr.sort((a, b) => {
-          if (hasAnyBookings) {
-            if (b.count !== a.count) return b.count - a.count; // nhiều đặt trước
-            return (b.latestStart || "").localeCompare(a.latestStart || ""); // cùng count thì mới nhất trước
-          }
-          // Không có booking → sort theo mới nhất
-          return (b.latestStart || "").localeCompare(a.latestStart || "");
+        const data = await recommendationService.getFeaturedDestinations({
+          limit: MAX_DESTINATIONS,
+          activeOnly: true,
         });
-
-        // Lấy 5 địa điểm đẹp nhất
-        arr = arr.slice(0, 5);
         if (!alive) return;
-        setDestinations(arr);
+        const safeItems = (Array.isArray(data?.items) ? data.items : []).filter(
+          (item) => !shouldHideDestination(item?.name)
+        );
+        setDestinations(safeItems);
       } finally {
         if (alive) setLoading(false);
       }

@@ -83,6 +83,15 @@ PUT  /tours/{tour_id}   - Cập nhật tour (Admin only)
 DELETE /tours/{tour_id} - Xóa tour (Admin only, không có booking)
 ```
 
+### AI Recommendations
+```
+GET  /recommend                     - Gợi ý tour theo user + prompt
+GET  /segments/{user_id}           - Lấy cụm khách hàng hiện tại của user
+POST /segments/rebuild             - Rebuild phân cụm khách hàng (Admin only)
+POST /recommend/reindex            - Reindex knowledge base cho AI recommend (Admin only)
+GET  /destinations/featured        - Lấy danh sách điểm đến nổi bật bằng K-Means cho Home page
+```
+
 ### Bookings
 ```
 GET  /bookings/         - Danh sách booking (Admin: tất cả, User: của mình)
@@ -165,6 +174,54 @@ Headers: Authorization: Bearer <token>
     "user_id": 123,
     "message": "Tour này có khung cảnh đẹp quá!",
     "tour_id": 1
+}
+```
+
+### 6. Featured Destinations
+```http
+GET /destinations/featured?limit=5&active_only=true&min_price=1000000&category_id=2&max_location_length=45
+```
+
+Query params:
+- `limit`: số destination trả về, từ 1 đến 12.
+- `active_only`: chỉ lấy tour chưa qua ngày bắt đầu.
+- `min_price`: giá tour tối thiểu để được xét vào clustering.
+- `category_id`: chỉ lấy tour thuộc một danh mục cụ thể.
+- `max_location_length`: loại các location quá dài khỏi section `Choose Your Place`.
+
+Ghi chú:
+- Endpoint này có cache ngắn hạn 180 giây theo từng bộ filter để tránh query + clustering lại mỗi lần tải trang chủ.
+- Location dài hơn `max_location_length` sẽ bị loại trước khi nhóm cụm, để tránh các địa chỉ quá dài xuất hiện trên card destination.
+- Các location mang dạng địa chỉ chi tiết như `thôn`, `khu phố`, `địa phận` hoặc mở đầu bằng cấp hành chính quá nhỏ như `Huyện`, `Quận`, `Thị xã`, `Thị trấn` cũng bị loại khỏi section `Choose Your Place`.
+
+Response:
+```json
+{
+    "message": "Chọn điểm đến nổi bật thành công bằng K-Means",
+    "items": [
+        {
+            "name": "Đà Lạt",
+            "country": "",
+            "image": "/uploads/dalat.jpg",
+            "count": 28,
+            "total_tours": 4,
+            "avg_price": 1890000,
+            "avg_capacity": 18,
+            "latest_start": "2026-05-10",
+            "sample_tour_id": 12,
+            "score": 4.12
+        }
+    ],
+    "meta": {
+        "limit": 5,
+        "total_locations": 17,
+        "returned": 5,
+        "active_only": true,
+        "min_price": 1000000,
+        "category_id": 2,
+        "max_location_length": 45,
+        "cache_ttl_seconds": 180
+    }
 }
 ```
 

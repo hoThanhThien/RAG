@@ -152,9 +152,9 @@ export const tourService = {
   async _ensurePhotos(id, tourObj) {
     if (tourObj.photos?.length) return tourObj;
 
-    // Ưu tiên /tours/:id/photos
+    // Ưu tiên /photos/tour/:id (route đúng của backend)
     try {
-      const pr = await api.get(`/tours/${id}/photos`);
+      const pr = await api.get(`/photos/tour/${id}`);
       const photos = (pr.data?.items ?? pr.data?.data ?? pr.data ?? []).map(mapPhoto);
       return { ...tourObj, photos, image_url: pickPrimaryPhoto(photos, tourObj.image_url) };
     } catch {
