@@ -58,7 +58,7 @@ export default function TourTable({ tours, onEdit, onDelete }) {
                   <td>{safeTour.location || "—"}</td>
                   <td>{safeTour.description || "—"}</td>
                   <td>{safeTour.capacity ?? "—"}</td>
-                  <td>${Number(safeTour.price || 0).toLocaleString()}</td>
+                  <td>{Number(safeTour.price || 0).toLocaleString()}đ</td>
                   <td>{safeTour.start_date || "—"}</td>
                   <td>{safeTour.end_date || "—"}</td>
                   <td>{safeTour.status || "—"}</td>
