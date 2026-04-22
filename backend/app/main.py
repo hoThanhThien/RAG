@@ -23,7 +23,8 @@ import os
 from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+# uploads/ is at the working directory root (/app), not inside app/
+UPLOAD_DIR = os.path.join(os.path.dirname(BASE_DIR), "uploads")
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
