@@ -25,6 +25,8 @@ services:
     container_name: nhom09_backend
     ports:
       - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@nhom09_mysql:3306/tourbookingdb
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
@@ -81,3 +83,4 @@ networks:
 
 volumes:
   mysql_data:
+  uploads_data:
