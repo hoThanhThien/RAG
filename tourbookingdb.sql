@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: nhom09_mysql
--- Thời gian đã tạo: Th4 21, 2026 lúc 11:53 AM
+-- Thời gian đã tạo: Th4 22, 2026 lúc 12:17 PM
 -- Phiên bản máy phục vụ: 8.0.44
 -- Phiên bản PHP: 8.3.30
 
@@ -112,7 +112,9 @@ INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOf
 (74, 63, 18, '2026-04-19', 1, 12000000.00, 'Confirmed', NULL, 'ORDER20260419-E50063', NULL),
 (75, 23, 31, '2026-04-19', 1, 0.00, 'Pending', 3, 'ORDER20260419-GW088O', NULL),
 (76, 23, 31, '2026-04-19', 1, 4200000.00, 'Pending', 3, 'ORDER20260419-5NC2DU', '2026-04-19 13:12:27'),
-(77, 23, 31, '2026-04-21', 1, 4200000.00, 'Pending', NULL, 'ORDER20260421-T4T0PF', NULL);
+(77, 23, 31, '2026-04-21', 1, 4200000.00, 'Pending', NULL, 'ORDER20260421-T4T0PF', NULL),
+(78, 23, 30, '2026-04-21', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260421-ZYP9AW', '2026-04-21 14:01:34'),
+(79, 23, 30, '2026-04-21', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260421-MBJO45', '2026-04-21 14:04:56');
 
 -- --------------------------------------------------------
 
@@ -360,7 +362,9 @@ INSERT INTO `payment` (`PaymentID`, `BookingID`, `Provider`, `OrderCode`, `Payme
 (66, 72, 'paypal', 'ORDER20260419-E50063', NULL, '2026-04-19 10:20:55', 'PAYPAL-ID-E50063', 'TRANS-E50063', '2026-04-19 10:20:55', 12000000.00, 'Paid', NULL, NULL),
 (67, 75, 'manualqr', 'ORDER20260419-GW088O', NULL, NULL, NULL, NULL, '2026-04-19 10:40:36', 0.00, 'Pending', NULL, NULL),
 (68, 76, 'manualqr', 'ORDER20260419-5NC2DU', NULL, NULL, NULL, NULL, '2026-04-19 10:40:51', -4200000.00, 'Pending', NULL, NULL),
-(69, 77, 'manualqr', 'ORDER20260421-T4T0PF', NULL, NULL, NULL, NULL, '2026-04-21 10:39:26', 4200000.00, 'Pending', NULL, NULL);
+(69, 77, 'manualqr', 'ORDER20260421-T4T0PF', NULL, NULL, NULL, NULL, '2026-04-21 10:39:26', 4200000.00, 'Pending', NULL, NULL),
+(70, 78, 'paypal', 'ORDER20260421-ZYP9AW', NULL, '2026-04-21 14:01:35', '66N16730E94195108', '6G447709H30153904', '2026-04-21 14:01:34', 3500000.00, 'Paid', NULL, NULL),
+(71, 79, 'paypal', 'ORDER20260421-MBJO45', NULL, '2026-04-21 14:04:56', '1D5534114B973663D', '6WL75080XK428102W', '2026-04-21 14:04:56', 3500000.00, 'Paid', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -421,8 +425,58 @@ INSERT INTO `photo` (`PhotoID`, `TourID`, `Caption`, `ImageURL`, `UploadDate`, `
 (102, 43, 'Dubai – Abu Dhabi', 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Old_Cultural_Dubai_Area.jpg', '2025-08-29', 1),
 (103, 43, 'Dubai – Abu Dhabi', 'https://upload.wikimedia.org/wikipedia/commons/1/15/13-08-06-abu-dhabi-by-RalfR-088.jpg', '2025-08-29', 0),
 (104, 43, 'Dubai – Abu Dhabi', 'https://upload.wikimedia.org/wikipedia/commons/0/06/Meeru_Island_Resort_and_Spa%2C_Maldives_%28Unsplash%29.jpg', '2025-08-29', 0),
-(105, 44, 'Gia đình haha', 'https://www.sgtiepthi.vn/wp-content/uploads/2020/10/A%CC%89nh-1-Du-li%CC%A3ch-Da%CC%A3i-Vie%CC%A3%CC%82t-e1602339539191.jpg', '2025-08-29', 1),
-(106, 44, 'Gia đình haha', 'https://www.sgtiepthi.vn/wp-content/uploads/2020/10/A%CC%89nh-1-Du-li%CC%A3ch-Da%CC%A3i-Vie%CC%A3%CC%82t-e1602339539191.jpg', '2025-08-29', 0);
+(105, 44, 'Du lịch sông nước mát mẻ giá cả phù hợp', 'https://www.sgtiepthi.vn/wp-content/uploads/2020/10/A%CC%89nh-1-Du-li%CC%A3ch-Da%CC%A3i-Vie%CC%A3%CC%82t-e1602339539191.jpg', '2025-08-29', 1),
+(106, 44, 'Du lịch sông nước mát mẻ giá cả phù hợp', 'https://www.sgtiepthi.vn/wp-content/uploads/2020/10/A%CC%89nh-1-Du-li%CC%A3ch-Da%CC%A3i-Vie%CC%A3%CC%82t-e1602339539191.jpg', '2025-08-29', 0),
+(109, 45, 'Chợ Bến Thành ', '/uploads/20260421224544379109.jpg', '2026-04-21', 1),
+(110, 46, 'hà tiên', '/uploads/20260421224624861790.jpg', '2026-04-21', 1),
+(111, 47, 'Làng hoa buổi chiều', '/uploads/20260421224848504789.jpg', '2026-04-21', 1),
+(112, 47, 'Nông dân chăm sóc hoa', '/uploads/20260421224848555747.jpg', '2026-04-21', 0),
+(113, 48, 'Khu di tích đền Hùng', '/uploads/20260421225155844265.jpg', '2026-04-21', 1),
+(114, 48, 'Khu di tích đền Hùng', '/uploads/20260421225155875352.jpg', '2026-04-21', 0),
+(115, 49, 'Cụm di tích Làng Sen', '/uploads/20260421225605752951.jpg', '2026-04-21', 1),
+(116, 49, 'Cụm di tích Làng Sen', '/uploads/20260421225605807073.jpg', '2026-04-21', 0),
+(117, 50, 'thác nước', '/uploads/20260421225934126184.jpg', '2026-04-21', 0),
+(118, 50, 'Thác Thủy Tiên', '/uploads/20260421225934152678.jpg', '2026-04-21', 1),
+(119, 51, 'Thác Mây nằm', '/uploads/20260421230807296011.jpg', '2026-04-21', 1),
+(120, 52, 'Thác Voi', '/uploads/20260421231040659773.jpg', '2026-04-21', 1),
+(121, 52, 'Thác Voi', '/uploads/20260421231040688262.jpg', '2026-04-21', 0),
+(122, 53, 'Quần đảo Cát Bà', '/uploads/20260421231458739787.jpg', '2026-04-21', 1),
+(123, 53, 'Quần đảo Cát Bà', '/uploads/20260421231458767507.jpeg', '2026-04-21', 0),
+(124, 54, 'Vườn Quốc gia Cúc Phương', '/uploads/20260421231654639865.jpg', '2026-04-21', 1),
+(125, 55, 'Tháp Pô Klông Garai', '/uploads/20260421231854084630.jpg', '2026-04-21', 1),
+(126, 55, 'Tháp Pô Klông Garai', '/uploads/20260421231854115698.jpg', '2026-04-21', 0),
+(127, 56, 'Đồi cát bay Mũi Né', '/uploads/20260421232053647131.jpg', '2026-04-21', 1),
+(128, 57, 'Sông Gianh', '/uploads/20260421232523487491.jpeg', '2026-04-21', 1),
+(129, 57, 'Sông Gianh', '/uploads/20260421232523526143.jpg', '2026-04-21', 0),
+(130, 57, 'Sông Gianh', '/uploads/20260421232523599781.jpg', '2026-04-21', 0),
+(131, 57, 'Sông Gianh', '/uploads/20260421232523625767.jpg', '2026-04-21', 0),
+(132, 58, 'Bãi tắm Long Hải', '/uploads/20260422084128048681.jpg', '2026-04-22', 1),
+(133, 59, 'Hà Nội', '/uploads/20260422084559166798.jpg', '2026-04-22', 1),
+(134, 59, 'Hà Nội', '/uploads/20260422084559217963.jpg', '2026-04-22', 0),
+(135, 59, 'Hà Nội', '/uploads/20260422084559259926.jpg', '2026-04-22', 0),
+(136, 60, 'Cánh Đồng Hoa Hướng Dương', '/uploads/20260422085100203404.jpg', '2026-04-22', 1),
+(137, 60, 'Cánh Đồng Hoa Hướng Dương', '/uploads/20260422085100236287.jpg', '2026-04-22', 0),
+(138, 60, 'Cánh Đồng Hoa Hướng Dương', '/uploads/20260422085100256341.jpg', '2026-04-22', 0),
+(139, 61, 'Bãi biển Sa Huỳnh', '/uploads/20260422085530572208.jpg', '2026-04-22', 1),
+(140, 62, 'Liên Tuyến Ba Quốc Gia: Malaysia - Indonesia - Singapore', '/uploads/20260422094138528161.webp', '2026-04-22', 1),
+(141, 62, 'Liên Tuyến Ba Quốc Gia: Malaysia - Indonesia - Singapore', '/uploads/20260422094138570958.webp', '2026-04-22', 0),
+(142, 62, 'Liên Tuyến Ba Quốc Gia: Malaysia - Indonesia - Singapore', '/uploads/20260422094138607693.webp', '2026-04-22', 0),
+(143, 63, 'Hồng Kông Tặng trải nghiệm xe Ding Ding', '/uploads/20260422110257268895.webp', '2026-04-22', 1),
+(144, 63, 'Hồng Kông Tặng trải nghiệm xe Ding Ding', '/uploads/20260422110257306070.webp', '2026-04-22', 0),
+(145, 64, 'BALI - TIRTA GANGA - TAMPAK SIRING - UBUD', '/uploads/20260422110542822512.webp', '2026-04-22', 1),
+(146, 65, 'Bắc Kinh - Vạn Lý Trường Thành - Hàng Châu - Thượng Hải - Ô Trấn', '/uploads/20260422110803304836.webp', '2026-04-22', 1),
+(147, 65, 'Bắc Kinh - Vạn Lý Trường Thành - Hàng Châu - Thượng Hải - Ô Trấn', '/uploads/20260422110803341596.webp', '2026-04-22', 0),
+(148, 66, 'Hòa Mình Vào Thiên Đường Nghỉ Dưỡng', '/uploads/20260422120014033537.webp', '2026-04-22', 1),
+(149, 67, 'Thưởng thức Colloseum Show', '/uploads/20260422120552959727.webp', '2026-04-22', 1),
+(150, 67, 'Thưởng thức Colloseum Show', '/uploads/20260422120552998732.webp', '2026-04-22', 0),
+(151, 68, 'Garden By The Bay - Botanic Garden', '/uploads/20260422120803074566.webp', '2026-04-22', 0),
+(152, 68, 'Garden By The Bay - Botanic Garden', '/uploads/20260422120803118900.webp', '2026-04-22', 1),
+(153, 69, 'Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành', '/uploads/20260422121005029298.webp', '2026-04-22', 1),
+(154, 69, 'Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành', '/uploads/20260422121005073099.webp', '2026-04-22', 0),
+(155, 70, ' Siem Reap - Phnom Penh', '/uploads/20260422121147670474.webp', '2026-04-22', 1),
+(156, 70, ' Siem Reap - Phnom Penh', '/uploads/20260422121147710518.webp', '2026-04-22', 0),
+(157, 71, 'Anh Quốc - Scotland', '/uploads/20260422121639049911.jpg', '2026-04-22', 1),
+(158, 71, 'Anh Quốc - Scotland', '/uploads/20260422121639087479.jpg', '2026-04-22', 0);
 
 -- --------------------------------------------------------
 
@@ -744,13 +798,6 @@ INSERT INTO `support_message` (`id`, `thread_id`, `sender_id`, `is_admin`, `cont
 (279, 7, NULL, 1, 'Chào User 1 👋🥰, bạn cần giúp gì không? Chúng tôi sẽ phản hồi sớm nhất có thể. Xin cảm ơn!', '2025-08-27 18:30:10'),
 (280, 7, 10, 0, 'Xin chào', '2025-08-27 18:35:33'),
 (281, 7, 6, 1, 'Chào bạn', '2025-08-27 18:35:40'),
-(282, 8, 11, 0, 'Xin chào', '2025-08-27 18:36:43'),
-(283, 8, NULL, 1, 'Chào User 2 👋🥰, bạn cần giúp gì không? Chúng tôi sẽ phản hồi sớm nhất có thể. Xin cảm ơn!', '2025-08-27 18:36:43'),
-(284, 8, 11, 0, 'Xin chào', '2025-08-27 18:36:56'),
-(285, 8, 11, 0, 'Xin chào', '2025-08-27 18:37:15'),
-(286, 8, 6, 1, 'Chào bạn', '2025-08-27 18:37:31'),
-(287, 8, 11, 0, 'Tôi cần sự giúp đỡ', '2025-08-27 18:37:58'),
-(288, 8, 6, 1, 'bạn cần giúp gì', '2025-08-27 18:38:09'),
 (289, 6, 6, 1, 'ngày 1', '2025-08-29 10:08:39'),
 (290, 9, 12, 0, 'tui muốn biết tui đã thanh toán xong chưa', '2025-08-29 21:49:34'),
 (291, 9, NULL, 1, 'Chào Hồ  Thiện 👋🥰, bạn cần giúp gì không? Chúng tôi sẽ phản hồi sớm nhất có thể. Xin cảm ơn!', '2025-08-29 21:49:34'),
@@ -769,59 +816,39 @@ INSERT INTO `support_message` (`id`, `thread_id`, `sender_id`, `is_admin`, `cont
 (307, 13, 13, 0, 'g', '2026-04-18 22:10:21'),
 (308, 13, 13, 0, 'gg', '2026-04-18 22:28:39'),
 (309, 13, 13, 0, 'g', '2026-04-18 22:28:42'),
-(310, 8, 11, 0, 'g', '2026-04-19 02:25:52'),
-(311, 8, 1, 1, 'hi hi su su', '2026-04-19 05:50:43'),
-(312, 8, 11, 0, 'ss', '2026-04-19 05:51:17'),
-(313, 8, 11, 0, 's', '2026-04-19 05:51:32'),
-(314, 8, 11, 0, 's', '2026-04-19 05:51:34'),
-(315, 8, 11, 0, 'gâu gâu gâu', '2026-04-19 05:51:40'),
-(316, 8, 1, 1, 'gấu gấu', '2026-04-19 05:52:11'),
-(317, 8, 11, 0, '\'', '2026-04-19 09:48:57'),
-(318, 8, 1, 1, 's', '2026-04-19 14:27:41'),
-(319, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:27:57'),
-(320, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:27:57'),
-(321, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:28:04'),
-(322, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:04'),
-(323, 16, 11, 0, 'Tư vấn tour nghỉ dưỡng', '2026-04-19 14:28:13'),
-(324, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Tư vấn tour nghỉ dưỡng\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:13'),
-(325, 16, 11, 0, 'Tư vấn tour nghỉ dưỡng', '2026-04-19 14:28:18'),
-(326, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Tư vấn tour nghỉ dưỡng\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:18'),
-(327, 16, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:28:21'),
-(328, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:21'),
-(329, 16, 11, 0, 'trời nóng quá nên đi đâu', '2026-04-19 14:28:57'),
-(330, 16, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\nTruy vấn gốc: trời nóng quá nên đi đâu\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:28:57'),
-(331, 8, 11, 0, 'tui rẻ nhất', '2026-04-19 14:30:54'),
-(332, 8, 11, 0, 'trời nắng đi đâu', '2026-04-19 14:31:11'),
-(333, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\nTruy vấn gốc: trời nắng đi đâu\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:31:11'),
-(334, 8, 11, 0, 'tui muốn đi núi', '2026-04-19 14:31:20'),
-(335, 8, 11, 0, 'goi y tour gia dinh test live', '2026-04-19 14:53:17'),
-(336, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: goi y tour gia dinh test live\nTour phù hợp:\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:53:17'),
-(337, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:58:38'),
-(338, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:58:38'),
-(341, 8, 11, 0, 'Gợi ý tour biển giá tốt', '2026-04-19 14:59:33'),
-(342, 8, NULL, 1, '🤖 Trợ lý AI gợi ý cho bạn (VIP customers):\nGợi ý dành cho nhóm VIP customers:\n- Tour Ninh Bình tại Ninh Bình: giá 3,100,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Gia đình haha tại Vĩnh Long: giá 5,000,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 0.0.\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\nTruy vấn gốc: Gợi ý tour biển giá tốt\nTour phù hợp:\n• Tour Ninh Bình - Ninh Bình - 3,100,000đ\n• Gia đình haha - Vĩnh Long - 5,000,000đ\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-19 14:59:33'),
-(394, 22, 23, 0, 'nống quá', '2026-04-21 07:56:38'),
-(395, 22, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 07:56:38'),
-(396, 22, 23, 0, 'nóng quá', '2026-04-21 07:56:48'),
-(397, 21, 23, 0, 'u', '2026-04-21 07:56:57'),
-(398, 21, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 07:56:57'),
-(399, 21, 23, 0, 'nóng quá', '2026-04-21 07:57:02'),
-(400, 21, 23, 0, 'nogns quá', '2026-04-21 07:57:17'),
-(401, 21, 23, 0, 'nóng quá', '2026-04-21 07:57:24'),
-(402, 23, 23, 0, 'nóng quá đi đâu', '2026-04-21 07:57:37'),
-(403, 23, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu trời đang nóng, bạn có thể ưu tiên các tour biển hoặc điểm đến mát mẻ sau:\n- Tour Hạ Long tại Quảng Ninh: giá 3,500,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 5.0.\n- Tour Sa Pa – Phan Xi Păng tại Lào Cai: giá 4,200,000 VND, hạng mục Du lịch trong nước, điểm đánh giá 4.0.\n- Sydney – Blue Mountains tại Úc: giá 40,000,000 VND, hạng mục Du lịch ngoài nước, điểm đánh giá 0.0.\nTruy vấn gốc: nóng quá đi đâu\nTour phù hợp:\n• Tour Hạ Long - Quảng Ninh - 3,500,000đ\n• Tour Sa Pa – Phan Xi Păng - Lào Cai - 4,200,000đ\n• Sydney – Blue Mountains - Úc - 40,000,000đ\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 07:57:37'),
-(404, 23, 23, 0, 'nóng quá', '2026-04-21 07:57:50'),
-(405, 21, 23, 0, 'nóng qyuas', '2026-04-21 09:54:32'),
-(406, 23, 23, 0, 'nóng quá', '2026-04-21 09:54:43'),
-(407, 24, 23, 0, 'hu', '2026-04-21 09:54:54'),
-(408, 24, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 09:54:54'),
-(409, 24, 23, 0, 'nóng quá đi\\', '2026-04-21 09:55:02'),
-(410, 24, 23, 0, 'nóng quá', '2026-04-21 09:55:09'),
-(411, 21, 23, 0, 'nóng quá', '2026-04-21 09:55:36'),
-(412, 21, 23, 0, 'nóng quá', '2026-04-21 10:51:00'),
-(413, 21, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau (Khách ít tương tác):\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 10:51:00'),
-(414, 21, 23, 0, 'tui nuốn đi nước ngoài', '2026-04-21 10:51:26'),
-(415, 21, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách ít tương tác):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Paris – Versailles ở Pháp, giá khoảng 45,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 10:51:26');
+(420, 27, 63, 0, 'hi', '2026-04-21 14:09:15'),
+(421, 27, NULL, 1, 'Chào Olivia White 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 14:09:15'),
+(422, 27, 63, 0, 'trời nắng quá đi đâu', '2026-04-21 14:09:27'),
+(423, 27, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:09:27'),
+(424, 27, 63, 0, 'lạnh quá', '2026-04-21 14:09:39'),
+(425, 28, 63, 0, 'nóng quá đi đâu', '2026-04-21 14:10:03'),
+(426, 28, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau (Khách ít tương tác):\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:10:03'),
+(427, 29, 63, 0, 'lạnh quá đi đâu', '2026-04-21 14:10:24'),
+(428, 29, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:10:24'),
+(429, 29, 63, 0, 'nước ngoài đi đâu', '2026-04-21 14:10:41'),
+(430, 29, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách ít tương tác):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Tokyo – Núi Phú Sĩ ở Nhật Bản, giá khoảng 32,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:10:41'),
+(431, 29, 63, 0, 'ngoài', '2026-04-21 14:10:52'),
+(432, 29, 63, 0, 'nước ngoài', '2026-04-21 14:11:02'),
+(433, 29, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách ít tương tác):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Tokyo – Núi Phú Sĩ ở Nhật Bản, giá khoảng 32,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:11:02'),
+(455, 37, 23, 0, 'hi', '2026-04-21 14:31:45'),
+(456, 37, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 14:31:45'),
+(457, 37, 23, 0, 'tiền ít nên đi đâu', '2026-04-21 14:31:57'),
+(458, 37, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:31:57'),
+(459, 37, 23, 0, 'tiền nhiều', '2026-04-21 14:32:17'),
+(460, 37, 23, 0, 'tiền nhiều nên đi đâu', '2026-04-21 14:32:30'),
+(461, 37, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:32:30'),
+(493, 36, 23, 0, 'nóng quá đi đau', '2026-04-21 20:28:54'),
+(494, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau (Khách ít tương tác):\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:28:54'),
+(495, 36, 23, 0, 'đà lạt\\', '2026-04-21 20:29:01'),
+(496, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:29:01'),
+(497, 36, 23, 0, 'đà lạt', '2026-04-21 20:29:13'),
+(498, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:29:13'),
+(499, 45, 11, 0, 'giá rẻ', '2026-04-21 22:29:31'),
+(500, 45, NULL, 1, ' Gợi ý cho bạn:\nTour giá rẻ nhất hiện có cho bạn (Khách mua nhiều):\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:32'),
+(501, 45, 11, 0, 'nước ngoài', '2026-04-21 22:29:43'),
+(502, 45, NULL, 1, ' Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách mua nhiều):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Paris – Versailles ở Pháp, giá khoảng 45,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:44'),
+(503, 45, 11, 0, 'tui đi biển', '2026-04-21 22:29:57'),
+(504, 45, NULL, 1, ' Gợi ý cho bạn:\nGợi ý tour biển cho bạn (Khách mua nhiều):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\n- Hong Kong – Ma Cao ở Hong Kong – Macau, giá khoảng 20,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\n- Tour Singapore – Kuala Lumpur ở Singapore – Malaysia, giá khoảng 15,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:57');
 
 -- --------------------------------------------------------
 
@@ -846,16 +873,17 @@ INSERT INTO `support_thread` (`id`, `user_id`, `status`, `created_at`) VALUES
 (4, 8, 'open', '2025-08-26 15:36:43'),
 (6, 6, 'open', '2025-08-26 16:05:24'),
 (7, 10, 'open', '2025-08-27 18:02:54'),
-(8, 11, 'open', '2025-08-27 18:36:31'),
 (9, 12, 'open', '2025-08-29 21:48:02'),
 (12, 13, 'open', '2026-04-18 19:18:45'),
 (13, 13, 'open', '2026-04-18 19:18:48'),
 (14, 1, 'open', '2026-04-19 06:58:49'),
-(16, 11, 'open', '2026-04-19 14:28:08'),
-(21, 23, 'open', '2026-04-21 07:49:45'),
-(22, 23, 'open', '2026-04-21 07:49:48'),
-(23, 23, 'open', '2026-04-21 07:57:27'),
-(24, 23, 'open', '2026-04-21 09:54:46');
+(27, 63, 'open', '2026-04-21 14:09:05'),
+(28, 63, 'open', '2026-04-21 14:09:54'),
+(29, 63, 'open', '2026-04-21 14:10:11'),
+(36, 23, 'open', '2026-04-21 14:31:39'),
+(37, 23, 'open', '2026-04-21 14:31:42'),
+(44, 11, 'open', '2026-04-21 22:29:20'),
+(45, 11, 'open', '2026-04-21 22:29:21');
 
 -- --------------------------------------------------------
 
@@ -893,7 +921,34 @@ INSERT INTO `tour` (`TourID`, `Title`, `Location`, `Description`, `Capacity`, `P
 (40, 'Tour Ninh Bình', 'Ninh Bình', 'Tràng An và Tam Cốc – Bích Động.', 32, 3100000.00, '2026-06-01', '2026-06-03', 'Available', 7),
 (42, 'Sydney – Blue Mountains', 'Úc', 'Tham quan Sydney và dãy núi Blue Mountains hùng vĩ.', 25, 40000000.00, '2026-10-10', '2026-10-17', 'Available', 10),
 (43, 'Dubai – Abu Dhabi', 'UAE', 'Khám phá Dubai hiện đại và Abu Dhabi xa hoa.', 35, 38000000.00, '2026-11-05', '2026-11-10', 'Available', 10),
-(44, 'Gia đình haha', 'Vĩnh Long', 'Du lịch sông nước', 100, 5000000.00, '2026-05-25', '2026-05-26', 'Available', 7);
+(44, 'Chợ nổi cái răng', 'Vĩnh Long', 'Du lịch sông nước mát mẻ giá cả phù hợp, phong cảnh thơ mộng hữu tình', 100, 5000000.00, '2026-05-25', '2026-05-26', 'Available', 7),
+(45, 'Chợ Bến Thành ', 'Cửa Nam – Chợ Bến Thành, Phường Bến Thành, Quận 1, Bến Thành, Quận 1, Thành phố Hồ Chí Minh', 'Tọa lạc tại Quận 1, TP. Hồ Chí Minh, tiếp giáp với đường Lê Lợi ở phía nam, đường Phan Bội Châu ở phía đông, Phan Chu Trinh ở phía tây và Lê Thánh Tôn ở phía bắc, chợ Bến Thành là chợ bán lẻ quy mô lớn nhất thành phố với đầy đủ các mặt hàng từ bình dân đến cao cấp và là điểm đến hấp dẫn không thể bỏ qua của du khách khi đến TP. Hồ Chí Minh.', 50, 3000000.00, '2026-08-05', '2026-08-06', 'Available', 7),
+(46, 'Thắng cảnh Hà Tiên', 'Thị xã Hà Tiên, An Giang', 'Hà Tiên là một thị xã biên giới, tỉnh Kiên Giang, cách thành phố Rạch Giá 90km đường bộ. Đặc điểm:Hà Tiên là nơi hội tụ của nhiều danh lam thắng cảnh, thiên nhiên hoang sơ đầy quyến rũ: có hang sâu, động hiểm, nhiều đảo đá trên biển; có sông, hồ, chùa, lăng tẩm và nhiều bãi tắm đẹp.', 50, 10000000.00, '2026-09-01', '2026-09-01', 'Available', 7),
+(47, 'Làng hoa Sa Đéc', 'Cách trung tâm thành phố Sa Đéc 03km, Thành phố Sa Đéc', 'Du khách đến với Đồng bằng Sông Cửu Long không thể không nhớ tới làng hoa Sa Đéc, một địa chỉ du lịch nổi tiếng của tỉnh Đồng Tháp, nơi nằm giữa sông Hậu và sông Tiền.\n\nTương truyền khi chúa Nguyễn thành lập Tỉnh lỵ Sa Đéc, lúc bấy giờ có mang theo nhiều gia nhân và để lại nhằm giúp truyền nghề cho người dân địa phương như dệt, làm bánh, làm nem, và hơn hết là nghề trồng hoa. ', 30, 3000000.00, '2026-09-02', '2026-09-03', 'Available', 7),
+(48, 'Khu di tích đền Hùng', 'Thành phố Việt Trì, Phú Thọ', 'Khu di tích đền Hùng là một quần thể kiến trúc thâm nghiêm trên núi Nghĩa Lĩnh. Từ Hà Nội theo quốc lộ số 2 đến thành phố Việt Trì (84km) đi tiếp khoảng 10km đến ngã ba Hàng rẽ về bên trái 3 km là đến khu di tích. Khu di tích lịch sử đền Hùng gồm có đền Hạ và chùa, đền Giếng, đền Trung, đền Thượng, lăng vua Hùng.', 50, 3000000.00, '2026-09-09', '2026-09-09', 'Available', 7),
+(49, 'Cụm di tích Làng Sen', 'Kim Liên, Huyện Nam Đàn, Nghệ An', 'Làng Sen xưa là làng Kim Liên thuộc xã Chung Cự, tổng Lâm Thịnh, huyện Nam Đàn, nay làng Sen thuộc xã Kim Liên, huyện Nam Đàn, tỉnh Nghệ An. Làng Sen là mảnh đất quê hương của Chủ tịch Hồ Chí Minh, nơi lưu giữ nhiều di tích, hiện vật, nhiều kỷ niệm, gắn liền với cuộc sống thời thơ ấu của Chủ tịch Hồ Chí Minh, cùng những thành viên trong gia đình của Người trong những năm 1901-1906 và hai lần Người về thăm quê năm 1957, 1961.', 50, 5000000.00, '2027-05-19', '2027-05-19', 'Available', 7),
+(50, 'Thác Thủy Tiên', 'thôn Giang Tiến, Huyện Krông Năng, Đắc Lắk', 'Bắt nguồn từ những dòng suối trong rừng sâu đổ ra với 4 thác chính, mỗi thác có một vẻ đẹp riêng. Thuỷ Tiên tựa như một nàng tiên ẩn mình bên rừng núi với những dòng thác hiền hòa uốn lượn giữa đại ngàn.', 50, 5000000.00, '2027-04-25', '2027-04-25', 'Available', 7),
+(51, 'Thác Mây ', 'Thôn Đăng Thượng, Huyện Thạch Thành, Thanh Hoá', 'Giữa núi rừng trùng điệp của dãy Trường Sơn, thác Mây hiện ra như đám mây trắng tinh khôi. Vẻ đẹp của thác, theo truyền thuyết, còn lôi cuốn được 9 nàng tiên xuống tắm...\nThác Mây nằm ở thôn Đăng Thượng, xã Thạch Lâm (huyện Thạch Thành, Thanh Hóa), cách thành phố Thanh Hóa khoảng 100 km và cách đường mòn Hồ Chí Minh chỉ khoảng 10 km đường ô tô. Dù chưa được nhiều người biết đến, nhưng thác Mây được đánh giá là đẹp nhất ở xứ Thanh.', 50, 7000000.00, '2026-09-09', '2026-09-11', 'Available', 7),
+(52, 'Thác Voi', 'Thác Voi là thác trên dòng suối Đa Mlo tại vùng đất Thôn 8, Huyện Bù Đăng, Bình Phước', 'Thác Voi hay còn gọi là thác Nokrop thuộc xã Đồng Nai, huyện Bù Đăng, tỉnh Bình Phước, một địa danh du lịch không thể bỏ qua được nhiều phượt thủ “săn đón” trong hành trình khám phá vẻ đẹp tiềm ẩn của núi rừng mà thiên nhiên đã ban tặng cho con người Bình Phước.', 50, 1000000.00, '2026-10-08', '2026-10-11', 'Available', 7),
+(53, 'Quần đảo Cát Bà', ' Thành phố Hải Phòng', 'Nằm cách trung tâm thành phố chừng 60km, quần đảo Cát Bà là một địa chỉ ở Hải Phòng được nhiều người quan tâm. Quần đảo này nằm liền kề với vịnh Hạ Long, ngoài khơi thành phố Hải Phòng. Ngoài du lịch biển đảo, Cát Bà còn là nơi duy nhất ở Việt Nam hội tụ ba danh hiệu quốc gia và quốc tế gồm vườn Quốc gia Cát Bà, khu bảo tồn biển và khu dự trữ sinh quyển thế giới.', 60, 15000000.00, '2026-11-11', '2026-11-14', 'Available', 7),
+(54, 'Vườn Quốc gia Cúc Phương', 'Huyện Nho Quan, Ninh Bình', 'Vườn Quốc gia Cúc Phương thuộc huyện Nho Quan, tỉnh Ninh Bình, giáp gianh giữa ba tỉnh Ninh Bình, Hoà Bình và Thanh Hoá, cách Hà Nội hơn 100km về phía tây nam. Đặc điểm: Cúc Phương là vườn quốc gia đầu tiên của Việt Nam, thành lập vào tháng 7/1962. Vườn quốc gia Cúc Phương có một quần thể hệ động thực vật vô cùng phong phú, đa dạng và độc đáo.', 40, 5000000.00, '2026-12-12', '2026-12-14', 'Available', 7),
+(55, 'Tháp Pô Klông Garai', 'Khu phố 8, Đô Vinh, Thành phố Phan Rang-Tháp Chàm, Ninh Thuận', 'Trên lộ trình đường sắt Bắc Nam, lại nằm sát quốc lộ 27A đi Đà Lạt, cách trung tâm Phan Rang - Tháp Chàm 07 km về phía Tây là quần thể tháp Chàm nằm trọn vẹn trên ngọn đồi có tên là Đồi Trầu, thuộc khu phố 8, phường Đô Vinh. Đây là cụm tháp được xây dựng từ thế kỷ XIII để thờ vị vua Chăm trị vì xứ Panduranga (Ninh Thuận ngày nay); ông có tên là Pô Klông Garai (1151 - 1205); hiện nay cụm tháp còn nguyên vẹn về cả công trình kiến trúc lẫn việc tổ chức thờ phượng, cúng kính của người Chăm.', 50, 9000000.00, '2026-10-15', '2026-10-15', 'Available', 7),
+(56, 'Đồi cát bay Mũi Né', 'Khu phố 5, Thành phố Phan Thiết, Bình Thuận', 'Đồi Cát Mũi Né nằm ở khu phố 5, phường Mũi Né, thành phố Phan Thiết. Đây là một trong những bãi cát trải dài nhiều km, lan rộng ở một diện tích không nhất định với tổng thể lớn.\nĐiểm độc đáo nhất của đồi cát Mũi Né là sau mỗi đợt gió lớn hoặc trải qua khoảng thời gian một ngày đêm thì diện mạo của đồi cát lại trở nên mới nguyên, khác hẳn với hình dạng trước đó.', 50, 10000000.00, '2026-08-25', '2026-08-25', 'Available', 7),
+(57, 'Sông Gianh', 'địa phận các huyện Minh Hóa, Tuyên Hóa, Bố Trạch, Quảng Trạch và thị xã Ba Đồn., Quảng Trị', 'Sông Gianh phát nguyên từ bốn đầu nguồn: Nguồn Son, nguồn Nan, nguồn Trổ và nguồn Nậy.  Sông Gianh có lòng sông sâu, lượng nước chảy mạnh, bắt đầu từ rừng núi Trường Sơn hiểm trở, lách núi, xuyên ngàn, tạo ra nhiều ghềnh thác rồi đổ ra biển Đông. Với chiều dài con sông là 152 km, chiều rộng có nơi đến 900 m, nó đi qua vùng đất của 4 huyện: Minh Hóa, Tuyên Hóa, Bố Trạch, Quảng Trạch. Lòng sông có 5 cồn và đảo nhỏ trên sông, trong đó đảo dài nhất khoảng 3,8km, rộng nhất khoảng 0,8km. Dòng nước sông Gianh về đến cửa biển thì hơi hẹp lại và tiếp nhận thêm dòng nước của con sông nhỏ gọi là Rào Chùa, hay còn gọi là Rào Bồ Khê, Thanh Trạch ở bờ phải phía Nam cửa lạch.', 50, 3000000.00, '2027-01-01', '2027-01-03', 'Available', 7),
+(58, 'Bãi tắm Long Hải', 'Long Hải, Huyện Long Điền, Bà Rịa - Vũng Tàu', 'ãi Long Hải thuộc thị trấn Long Hải, huyện Long Điền, cách thành phố Vũng Tàu 30km về hướng đông bắc. Đặc điểm: Chạy dài, uốn lượn phía nam chân núi Thùy Vân, hay Kỳ Vân (ngày nay có tên Minh đạm), bãi Long Hải là một bãi biển sạch, đẹp, nước xanh trong.', 50, 5000000.00, '2026-07-07', '2026-07-09', 'Available', 7),
+(59, 'Hà Nội', 'Chùa Một Cột,Văn Miếu - Quốc Tử Giám,Hồ Hoàn Kiếm', 'Chùa Một Cột,Văn Miếu - Quốc Tử Giám,Hồ Hoàn Kiếm. Dạo chơi tại phố đi bộ và dành thời gian thưởng thức các món ẩm thực nổi tiếng ở trung tâm phố cổ sẽ là trải nghiệm đáng nhớ của du khách khi tới Hà Nội.', 50, 10000000.00, '2026-08-28', '2026-08-30', 'Available', 7),
+(60, 'Cánh Đồng Hoa Hướng Dương', 'Phố Thanh Mai, Đa Mai, Thành phố Bắc Giang, Bắc Ninh', 'Cùng Phượt – Hàng nghìn đoá hướng dương nở rộ tại một cánh đồng ở Bắc Giang đang thu hút nhiều bạn trẻ đến chụp hình. Đây hứa hẹn sẽ là một trong những địa điểm du lịch Bắc Giang rất “hot” trong thời gian tới.', 50, 50000000.00, '2026-02-01', '2026-02-02', 'Available', 7),
+(61, 'Bãi biển Sa Huỳnh', 'Biển Sa Huỳnh, Quốc lộ 1A, Sa Huỳnh, Huyện Đức Phổ, Quảng Ngãi', 'Bãi biển nằm sát quốc lộ 1A, ở cây số 985, thuộc Phổ Thạnh, huyện Đức Phổ, tỉnh Quảng Ngãi. Đặc điểm: Bãi biển rất thuận tiện cho du khách đến nghỉ ngơi, tham quan, có motel để du khách dừng chân nghỉ rồi tiếp tục hành trình.', 56, 15000000.00, '2026-08-08', '2026-08-10', 'Available', 7),
+(62, 'Liên Tuyến Ba Quốc Gia: Malaysia - Indonesia - Singapore', ' Malaysia - Indonesia - Singapore', 'Hành trình liên tuyến 3 nước Singapore – Malaysia – Indonesia mở ra cơ hội khám phá ba quốc gia đặc sắc của Đông Nam Á. Khởi đầu từ Singapore – “quốc đảo thông minh” với nhịp sống hiện đại, quy hoạch xanh và những biểu tượng mang tầm quốc tế như Gardens by the Bay hay Marina Bay Sands; tiếp nối đến Malaysia – “thiên đường nhiệt đới” quyến rũ, nơi du khách chiêm ngưỡng sự giao hòa giữa Malacca cổ kính, Kuala Lumpur sôi động và bầu không khí mát lành của cao nguyên Genting. Hành trình còn đưa Quý khách đến Indonesia – xứ sở vạn đảo, với Batam như một điểm dừng chân thuận tiện, mang lại trải nghiệm mới mẻ trong hành trình khám phá.\n\nXuyên suốt chuyến đi, du khách sẽ được chiêm ngưỡng cảnh quan đa dạng, thưởng thức ẩm thực đặc trưng của từng quốc gia, thỏa sức mua sắm và tận hưởng những khoảnh khắc đáng nhớ trong không gian văn hóa – giải trí sôi động của ba nước.', 50, 15990000.00, '2026-09-02', '2026-09-02', 'Available', 10),
+(63, 'Hồng Kông Tặng trải nghiệm xe Ding Ding', 'Hồng Kông', 'Chợ Quý Bà (Ladies Market) thiên đường mua sắm của Hongkong\nVườn Nam Liên ốc đảo xanh kiến trúc cổ xưa thời nhà Đường (618–907 SCN)\nNúi Thái Bình Victoria Peak ngắm nhìn toàn cảnh Hongkong.\nĐại Lộ Ngôi Sao Avenue of Star nơi tôn vinh những ngôi sao điện ảnh Hongkong\nTrải nghiệm ferry tham quan Vịnh biển Victory và vịnh Loan Tể Wan Chai ngắm toàn cảnh Hongkong\nVịnh Nước Cạn (Repulse Bay) được đánh giá là vịnh biển đẹp bậc nhất xứ Cảng Thơm\nLàng Văn Hóa Dân Tộc Trung Hoa bảo tàng thu nhỏ những thắng cảnh thế giới\nOCT Loft Công viên Văn Hóa Sáng Tạo công nghệ và kiến trúc\nPhố cổ Vĩnh Khánh Phường nơi lưu giữ nhiều kỷ vật của huyền thoại Lý Tiểu Long\nCheck-in Tháp Truyền Hình Quảng Châu Canton Tower\nKhám phá các khu chợ sỉ lớn nhất thế giới : Hoa Cường Bắc, Đông Môn, Bạch Mã.', 50, 20990000.00, '2026-10-10', '2026-10-15', 'Available', 10),
+(64, 'BALI - TIRTA GANGA - TAMPAK SIRING - UBUD', 'Indonesia', 'Đến với Đảo Bali, Quý khách sẽ cảm nhận được một không gian thanh bình, một vẻ đẹp quyến rũ khó cưỡng, luôn mời gọi du khách quốc tế. Thiên đường nhiệt đới này là sự kết hợp tuyệt vời giữa mua sắm, giải trí và du lịch là liều thuốc giải toả căng thẳng hữu hiệu nhất.\n\n- Chinh phục \"cổng trời\" Lempuyang, chiêm ngưỡng núi Agung hùng vĩ.\n\n- Khám phá cung điện nước Tirta Gangga huyền thoại.\n\n- Tham quan các làng văn hóa và trải nghiệm trang phục truyền thống Bali\n\n- Tự do khám phá các đảo nổi tiếng của Bali như Nusa Dua, Nusa Penida,...', 50, 14590000.00, '2027-02-20', '2027-02-20', 'Available', 10),
+(65, 'Bắc Kinh - Vạn Lý Trường Thành - Hàng Châu - Thượng Hải - Ô Trấn', 'Trung Quốc', 'i Hòa Viên cung điện mùa hè của Từ Hy Thái Hậu\nCố cung Tử Cấm Thành bảo tàng cung điện lớn nhất thế giới.\nVạn Lý Trường Thành – Cư Dung Quan thành trì kiên cố và còn trọn vẹn nhất.\nThập Tam Lăng - Định Lăng địa cung dưới lòng đất của quần thể Thập Tam Lăng.\nPhố cổ Tiền Môn, phố Vương Phủ Tỉnh nổi tiếng sầm uất và có niên đại hơn 500 năm lịch sử.\nNgoạn cảnh Tây Hồ bằng du thuyền, thắng cảnh UNESCO.\nÔ Trấn – Đông Sách thủy trấn được ví như mỹ cảnh Giang Nam.\nChùa Phật Ngọc ngôi chùa nổi tiếng và thiêng liêng nhất ở Thượng Hải kiến trúc độc đáo và bức tượng Phật bằng ngọc bích quý giá.\nBến Thượng Hải vị trí ngắm cảnh đẹp nhất Thượng Hải.\nCheck in các điểm thu hút nhất Thượng Hải: tháp Lục Gia Chủy, phố Tân Thiên Địa, đường Wukang, phố Nam Kinh.', 50, 22990000.00, '2026-10-20', '2026-10-28', 'Available', 10),
+(66, 'Hòa Mình Vào Thiên Đường Nghỉ Dưỡng', 'Maldives', 'Maldives không chỉ là một điểm đến – mà là nơi thời gian chậm lại, để mỗi khoảnh khắc trở thành ký ức. Giữa đại dương Ấn Độ xanh thẳm, nơi những dải san hô vẽ nên bảng màu thiên nhiên tuyệt mỹ, hành trình đưa Quý khách chạm đến một chuẩn mực sống khác – tinh tế, riêng tư và trọn vẹn. Tại Siyam World Maldives 5*, mỗi trải nghiệm không đơn thuần là nghỉ dưỡng, mà là hành trình kết nối – với thiên nhiên, với cảm xúc và với những người thân yêu bên cạnh.', 50, 109.99, '2027-01-01', '2027-01-01', 'Available', 10),
+(67, 'Thưởng thức Colloseum Show', 'Bangkok - Pattaya', 'Bangkok - Pattaya - Chợ nổi Bốn Miền – Wat Phra Yai – Khu du lịch Suan Thai Pattaya – Thưởng thức Colloseum Show', 50, 8490000.00, '2026-11-10', '2026-11-15', 'Available', 10),
+(68, 'Garden By The Bay - Botanic Garden', 'Singapore', 'Singapore, viên ngọc quý của Đông Nam Á, quốc đảo nhỏ bé nhưng lại là điểm đến du lịch đầy mê hoặc, nơi sự hòa quyện giữa kiến trúc hiện đại và văn hóa truyền thống tạo nên một sức hút khó cưỡng. Hãy cùng Vietravel khám phá những điều kỳ diệu tại Đảo quốc Sư tử và lưu lại những kỷ niệm khó quên:\n\n- Vịnh Marina tráng lệ với những công trình kiến trúc độc đáo và sang trọng, biểu tượng cho sự phát triển vượt bậc của Singapore.', 50, 15990000.00, '2026-12-10', '2026-12-15', 'Available', 10),
+(69, 'Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành', 'Đài Trung', 'Đài Trung - Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành - Tặng trà sữa & bánh bao Khách Gia', 20, 10990000.00, '2026-07-30', '2026-08-05', 'Available', 10),
+(70, ' Siem Reap - Phnom Penh', 'Campuchia', 'Campuchia, được mệnh danh là Xứ sở chùa tháp với vẻ đẹp huyền bí, không chỉ thu hút du khách bởi những ngôi đền cổ kính như Angkor Wat, mà còn bởi những câu chuyện lịch sử và văn hóa phong phú.\n\nHành trình tham quan Campuchia hứa hẹn mang lại những trải nghiệm bất ngờ cho Quý khách:\n\n- Khám phá Siem Reap với quần thể Angkor ký bí nổi tiếng: Angkor Thom, đền Ta Prohm, Angkor Wat, ...', 50, 7490000.00, '2026-07-27', '2026-08-01', 'Available', 10),
+(71, 'Anh Quốc - Scotland', 'Anh Quốc', 'Vòng tròn đá Stonehenge – Công trình từ thời cổ đại chưa nhiều điều bí ẩn.\nDạo bước ở Cotswolds – một quần thể tập trung các thị trấn nhỏ nhắn xinh đẹp và những ngôi làng thoáng mát dễ chịu cùng với các ngôi nhà bằng đá vô cùng lạ mắt và độc đáo\nQuê hương William Shakespeare – ngôi làng nhỏ xinh Stratford-upon-Avon\nDu thuyền trên Windermere – hồ tự nhiên lớn nhất tại Anh Quốc\nLâu đài Windsor cổ kính – biểu tượng của Hoàng gia Anh, và là lâu đài lớn nhất thế giới còn có người ở. Lâu đài có sự pha trộn nhiều phong cách khác nhau. Windsor được xem là công trình đại diện cho phong cách kiến trúc Baroque, Gothic, Tudor và Georgian.\nChiêm ngưỡng Lâu đài Edinburgh (cung điện mùa hè của Hoàng Gia Anh)\nĐi dạo trên Phố Shambles – được bình chọn là con phố đẹp nhất ở Anh, đồng thời là con phố Trung cổ được bảo tồn tốt nhất ở châu Âu\nTìm hiểu về Tháp đồng hồ Big Ben và Cầu Tower Bridge, 2 biểu tượng của Thủ đô London', 50, 89990000.00, '2026-09-10', '2026-09-20', 'Available', 10);
 
 -- --------------------------------------------------------
 
@@ -1071,7 +1126,7 @@ ALTER TABLE `user`
 -- AUTO_INCREMENT cho bảng `booking`
 --
 ALTER TABLE `booking`
-  MODIFY `BookingID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=78;
+  MODIFY `BookingID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=80;
 
 --
 -- AUTO_INCREMENT cho bảng `category`
@@ -1095,13 +1150,13 @@ ALTER TABLE `discount`
 -- AUTO_INCREMENT cho bảng `payment`
 --
 ALTER TABLE `payment`
-  MODIFY `PaymentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+  MODIFY `PaymentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
 -- AUTO_INCREMENT cho bảng `photo`
 --
 ALTER TABLE `photo`
-  MODIFY `PhotoID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=107;
+  MODIFY `PhotoID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=159;
 
 --
 -- AUTO_INCREMENT cho bảng `role`
@@ -1113,19 +1168,19 @@ ALTER TABLE `role`
 -- AUTO_INCREMENT cho bảng `support_message`
 --
 ALTER TABLE `support_message`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=416;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=505;
 
 --
 -- AUTO_INCREMENT cho bảng `support_thread`
 --
 ALTER TABLE `support_thread`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT cho bảng `tour`
 --
 ALTER TABLE `tour`
-  MODIFY `TourID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `TourID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
 -- AUTO_INCREMENT cho bảng `user`
