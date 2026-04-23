@@ -19,6 +19,7 @@ from app.services.rag.bm25 import BM25Index
 from app.services.rag.cache import InMemoryTTLCache, RedisCache, decode_vector, encode_vector
 from app.services.rag.chunking import build_semantic_chunks
 from app.services.rag.config import get_rag_settings
+from app.services.rag.knowledge_base import load_knowledge_chunks
 from app.services.rag.intents import (
     BEACH_TERMS,
     DOMESTIC_TERMS,
@@ -39,6 +40,32 @@ try:
     import faiss  # type: ignore
 except Exception:
     faiss = None
+
+# ---------------------------------------------------------------------------
+# Optional sentence-transformers (local SBERT embedding + cross-encoder rerank)
+# WHY SBERT > TF-IDF: SentenceTransformer encodes semantic meaning across 50+
+# languages including Vietnamese. TF-IDF is a bag-of-words model with no
+# understanding of synonyms, paraphrases, or multilingual equivalence.
+# WHY cross-encoder reranker: bi-encoders (FAISS/BM25) score query and doc
+# independently; a cross-encoder attends to both simultaneously giving far
+# more accurate relevance judgements on the shortlisted candidates.
+# ---------------------------------------------------------------------------
+try:
+    from sentence_transformers import SentenceTransformer as _SentenceTransformer  # type: ignore
+    _SBERT_AVAILABLE = True
+except ImportError:
+    _SentenceTransformer = None  # type: ignore
+    _SBERT_AVAILABLE = False
+
+try:
+    from sentence_transformers.cross_encoder import CrossEncoder as _CrossEncoder  # type: ignore
+    _CROSS_ENCODER_AVAILABLE = True
+except ImportError:
+    _CrossEncoder = None  # type: ignore
+    _CROSS_ENCODER_AVAILABLE = False
+
+_SBERT_MODEL: Optional[Any] = None
+_CROSS_ENCODER_MODEL: Optional[Any] = None
 
 
 settings = get_rag_settings()
@@ -170,7 +197,80 @@ def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
     return vectors / np.clip(norms, 1e-12, None)
 
 
-def _fit_local_embeddings(texts: List[str]) -> Tuple[TfidfVectorizer, np.ndarray]:
+def _get_sbert_model() -> Optional[Any]:
+    """Lazy-load SentenceTransformer for local embedding.
+
+    WHY: paraphrase-multilingual-MiniLM-L12-v2 (384-dim) understands Vietnamese
+    semantics, while TF-IDF treats every word independently with no meaning.
+    Upgrade path: set RAG_LOCAL_EMBEDDING_MODEL=intfloat/multilingual-e5-base
+    for 768-dim vectors with even better Vietnamese coverage.
+    """
+    global _SBERT_MODEL
+    if not _SBERT_AVAILABLE or _SentenceTransformer is None:
+        return None
+    if _SBERT_MODEL is not None:
+        return _SBERT_MODEL
+    try:
+        _SBERT_MODEL = _SentenceTransformer(settings.local_embedding_model)
+        logger.info("Loaded local SentenceTransformer: %s", settings.local_embedding_model)
+        return _SBERT_MODEL
+    except Exception:
+        logger.warning("Failed to load SentenceTransformer, falling back to TF-IDF", exc_info=False)
+        return None
+
+
+def _get_cross_encoder() -> Optional[Any]:
+    """Lazy-load CrossEncoder for re-ranking.
+
+    WHY: Cross-encoders process (query, document) pairs jointly, enabling
+    fine-grained interaction signals that bi-encoders miss. Applied on the
+    top-N candidates after hybrid retrieval it dramatically improves precision
+    without hurting recall. BAAI/bge-reranker-base is multilingual and works
+    well for Vietnamese.
+    """
+    global _CROSS_ENCODER_MODEL
+    if not settings.reranker_enabled:
+        return None
+    if not _CROSS_ENCODER_AVAILABLE or _CrossEncoder is None:
+        return None
+    if _CROSS_ENCODER_MODEL is not None:
+        return _CROSS_ENCODER_MODEL
+    try:
+        _CROSS_ENCODER_MODEL = _CrossEncoder(settings.reranker_model)
+        logger.info("Loaded CrossEncoder reranker: %s", settings.reranker_model)
+        return _CROSS_ENCODER_MODEL
+    except Exception:
+        logger.warning("Failed to load CrossEncoder reranker, reranking disabled", exc_info=False)
+        return None
+
+
+def _call_local_sbert_embeddings(texts: List[str]) -> np.ndarray:
+    """Encode texts with the local SentenceTransformer model."""
+    model = _get_sbert_model()
+    if model is None:
+        raise RuntimeError("SentenceTransformer model not available")
+    embeddings = model.encode(
+        texts,
+        batch_size=min(settings.embedding_batch_size, 64),
+        show_progress_bar=False,
+        convert_to_numpy=True,
+    )
+    return np.array(embeddings, dtype="float32")
+
+
+def _fit_local_embeddings(texts: List[str]) -> Tuple[Optional[TfidfVectorizer], np.ndarray]:
+    """Build local embeddings. Uses SBERT when available, falls back to TF-IDF.
+
+    WHY the preference order:
+    - SBERT (paraphrase-multilingual-MiniLM-L12-v2): semantic, multilingual,
+      captures synonyms and paraphrases — massive improvement for Vietnamese.
+    - TF-IDF: sparse bag-of-words fallback, zero dependencies but no semantics.
+    """
+    sbert = _get_sbert_model()
+    if sbert is not None:
+        vectors = _call_local_sbert_embeddings(texts)
+        return None, vectors  # no vectorizer object needed
+    # Fallback: TF-IDF
     vectorizer = TfidfVectorizer(max_features=4096, ngram_range=(1, 2), min_df=1)
     vectors = vectorizer.fit_transform(texts).toarray().astype("float32")
     return vectorizer, vectors
@@ -252,40 +352,48 @@ def _generate_enrichment_text(title: str, location: str, category_name: str, pri
     cat = normalize_text(category_name or "")
     parts: List[str] = [f"Tour {title} tai {location}, danh muc {category_name}."]
 
+    def has_any_phrase(text: str, phrases: List[str]) -> bool:
+        normalized_text = re.sub(r"[^a-z0-9]+", " ", text).strip()
+        padded_text = f" {normalized_text} "
+        for phrase in phrases:
+            normalized_phrase = re.sub(r"[^a-z0-9]+", " ", normalize_text(phrase)).strip()
+            if normalized_phrase and f" {normalized_phrase} " in padded_text:
+                return True
+        return False
+
     # ---- Geography & destination type ----
     domestic_keywords = ["ha long", "sa pa", "fansipan", "ninh binh", "trang an", "tam coc", "viet nam",
                          "ha noi", "sai gon", "hcm", "da nang", "hoi an", "phu quoc", "nha trang",
                          "da lat", "mui ne", "quy nhon", "gia lai", "kon tum", "vinh long"]
-    sea_keywords = ["ha long", "pattaya", "phu quoc", "nha trang", "da nang", "mui ne", "quy nhon",
-                    "hong kong", "singapore", "sydney", "dubai", "abu dhabi"]
+    sea_keywords = ["ha long", "phu quoc", "nha trang", "da nang", "mui ne", "quy nhon", "con dao", "vung tau"]
     mountain_keywords = ["sa pa", "fansipan", "da lat", "sapa", "nui", "everland", "blue mountains"]
     intl_asean_keywords = ["bangkok", "pattaya", "thai lan", "singapore", "kuala lumpur", "malaysia",
                            "bali", "indonesia", "philippines", "myanmar", "campuchia", "cambodia"]
     intl_east_asia = ["tokyo", "nhat ban", "japan", "seoul", "han quoc", "korea", "hong kong",
                       "ma cao", "macau", "dai bac", "cao hung", "taiwan", "dai loan"]
-    intl_europe = ["paris", "versailles", "phap", "france", "anh", "y", "duc", "tay ban nha", "bac au",
+    intl_europe = ["paris", "versailles", "phap", "france", "anh quoc", "italy", "duc", "tay ban nha", "bac au",
                    "ha lan", "thuy si", "bi", "ao", "chau au", "europa"]
     intl_oceania = ["sydney", "uc", "australia", "new zealand", "blue mountains"]
     intl_middle_east = ["dubai", "abu dhabi", "uae", "saudi", "trung dong"]
 
     geo_tags: List[str] = []
-    if any(kw in loc for kw in domestic_keywords) or "du lich trong nuoc" in cat:
+    if has_any_phrase(loc, domestic_keywords) or "du lich trong nuoc" in cat:
         geo_tags += ["du lich trong nuoc", "viet nam", "noi dia"]
     else:
         geo_tags += ["du lich nuoc ngoai", "quoc te", "international"]
-    if any(kw in loc for kw in intl_asean_keywords):
+    if has_any_phrase(loc, intl_asean_keywords):
         geo_tags += ["dong nam a", "asean", "chau a"]
-    if any(kw in loc for kw in intl_east_asia):
+    if has_any_phrase(loc, intl_east_asia):
         geo_tags += ["dong a", "chau a"]
-    if any(kw in loc for kw in intl_europe):
+    if has_any_phrase(loc, intl_europe):
         geo_tags += ["chau au", "europe", "nuoc ngoai"]
-    if any(kw in loc for kw in intl_oceania):
+    if has_any_phrase(loc, intl_oceania):
         geo_tags += ["chau dai duong", "uc", "australia"]
-    if any(kw in loc for kw in intl_middle_east):
+    if has_any_phrase(loc, intl_middle_east):
         geo_tags += ["trung dong", "chau phi", "nuoc ngoai"]
-    if any(kw in loc for kw in sea_keywords):
+    if has_any_phrase(loc, sea_keywords):
         geo_tags += ["tour bien", "bien ca", "bai bien", "resort bien", "tam bien"]
-    if any(kw in loc for kw in mountain_keywords):
+    if has_any_phrase(loc, mountain_keywords):
         geo_tags += ["tour nui", "leo nui", "khi hau mat", "kham pha thien nhien"]
     if geo_tags:
         parts.append("Khu vuc / loai hinh: " + ", ".join(dict.fromkeys(geo_tags)) + ".")
@@ -483,17 +591,35 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
     started_at = time.perf_counter()
     rows = _fetch_tour_rows()
     chunks = _build_chunks(rows)
+
+    # --- Integrate Vietnam tourism knowledge base ---
+    # WHY: Knowledge chunks from train/valid_vietnam_tourism.json describe
+    # destinations in depth. They bridge the vocabulary gap between natural
+    # user queries ("Hội An có gì hay?") and sparse tour metadata fields.
+    # BM25 benefits most: knowledge chunks contain the exact Vietnamese terms.
+    if settings.knowledge_base_enabled:
+        kb_chunks = load_knowledge_chunks(max_chunks=settings.knowledge_base_max_chunks)
+        if kb_chunks:
+            chunks.extend(kb_chunks)
+            logger.info("Added %d knowledge base chunks to RAG index", len(kb_chunks))
+
     texts = [chunk["text"] for chunk in chunks]
     if not texts:
         raise RuntimeError("No tour data found to build the RAG index")
 
     vectorizer = None
-    embedding_provider = "local-tfidf"
     if os.getenv("OPENAI_API_KEY"):
         vectors = _call_openai_embeddings(texts)
         embedding_provider = "openai"
+    elif _get_sbert_model() is not None:
+        # WHY: SBERT produces 384-dim dense vectors that capture semantic
+        # meaning in Vietnamese, far superior to TF-IDF for this use-case.
+        # Set OPENAI_API_KEY to use text-embedding-3-large for best quality.
+        _, vectors = _fit_local_embeddings(texts)
+        embedding_provider = "local-sbert"
     else:
         vectorizer, vectors = _fit_local_embeddings(texts)
+        embedding_provider = "local-tfidf"
 
     vectors = _normalize_vectors(vectors.astype("float32"))
     index = None
@@ -510,7 +636,11 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         "document_count": len(chunks),
         "tour_count": len(rows),
         "embedding_provider": embedding_provider,
-        "embedding_model": DEFAULT_EMBEDDING_MODEL if embedding_provider == "openai" else "tfidf",
+        "embedding_model": (
+            DEFAULT_EMBEDDING_MODEL if embedding_provider == "openai"
+            else settings.local_embedding_model if embedding_provider == "local-sbert"
+            else "tfidf"
+        ),
         "retriever": "hybrid-faiss-bm25" if faiss is not None else "hybrid-numpy-bm25",
         "chunking": {
             "description_chunk_size_words": settings.chunk_size_words,
@@ -543,6 +673,7 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         "tour_count": len(rows),
         "embedding_provider": embedding_provider,
         "path": str(RAG_DIR),
+        "knowledge_base_enabled": settings.knowledge_base_enabled,
     }
 
 
@@ -602,7 +733,8 @@ def _response_cache_key(
 
 def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
     provider = str((cache.get("state") or {}).get("embedding_provider") or "local-tfidf")
-    cache_key = f"{provider}:{normalize_text(query)}"
+    built_at = str((cache.get("state") or {}).get("built_at") or "0")
+    cache_key = f"{provider}:{built_at}:{normalize_text(query)}"
     redis_cache = _get_redis_cache()
     if redis_cache is not None:
         payload = redis_cache.get_bytes(f"embed:{cache_key}")
@@ -619,7 +751,11 @@ def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
 
     if provider == "openai":
         vectors = _call_openai_embeddings([query])
-    else:
+    elif provider == "local-sbert":
+        # WHY: SBERT query embedding must match the SBERT document embeddings
+        # stored in the index. Using TF-IDF transform here would give wrong dims.
+        vectors = _call_local_sbert_embeddings([query])
+    else:  # local-tfidf (legacy fallback)
         vectorizer = cache.get("vectorizer")
         if vectorizer is None:
             raise RuntimeError("Local vectorizer is not loaded")
@@ -702,6 +838,33 @@ def _lexical_candidates(expanded_query: str, cache: Dict[str, Any], search_k: in
     return bm25.search(normalize_text(expanded_query), search_k)
 
 
+def _rerank_candidates(query: str, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Re-rank items using a cross-encoder model.
+
+    WHY: The first-stage hybrid retriever scores query and document independently.
+    A cross-encoder attends to the full (query, document) pair simultaneously,
+    capturing subtle relevance signals — especially useful for Vietnamese where
+    short queries can be highly ambiguous ("tour đẹp", "đi biển mùa hè").
+    Falls back gracefully to original order if the model is not available.
+    """
+    cross_encoder = _get_cross_encoder()
+    if cross_encoder is None or not items:
+        return items
+    try:
+        texts = [str(item.get("text") or "")[:512] for item in items]
+        pairs = [[query, text] for text in texts]
+        scores = cross_encoder.predict(pairs)
+        for item, score in zip(items, scores):
+            item["rerank_score"] = round(float(score), 4)
+        reranked = sorted(items, key=lambda x: float(x.get("rerank_score") or 0.0), reverse=True)
+        rag_metrics.increment("reranker_calls_total")
+        return reranked
+    except Exception:
+        logger.warning("Cross-encoder reranking failed, using original ordering", exc_info=False)
+        rag_metrics.increment("reranker_fallback_total")
+        return items
+
+
 def _collect_hybrid_candidates(query: str, cache: Dict[str, Any], top_k: int) -> List[Dict[str, Any]]:
     chunks = cache.get("chunks") or []
     if not chunks:
@@ -772,9 +935,20 @@ def _intent_score_adjustment(query: str, item: Dict[str, Any]) -> float:
 
 
 def _pick_best_chunk_per_tour(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Deduplicate tour chunks (keep best per tour_id).
+
+    Knowledge chunks (tour_id == 0) are kept separately — up to 2 are
+    retained so the LLM receives background context without crowding out
+    actual tour recommendations.
+    """
+    knowledge_items: List[Dict[str, Any]] = []
     best_by_tour: Dict[int, Dict[str, Any]] = {}
     for item in items:
         tour_id = _safe_int(item.get("tour_id"))
+        if tour_id <= 0:
+            # Knowledge chunk — collect separately, do NOT deduplicate
+            knowledge_items.append(item)
+            continue
         current = best_by_tour.get(tour_id)
         if current is None:
             best_by_tour[tour_id] = item
@@ -785,7 +959,10 @@ def _pick_best_chunk_per_tour(items: List[Dict[str, Any]]) -> List[Dict[str, Any
             best_by_tour[tour_id] = item
         elif candidate_score == current_score and item.get("chunk_type") == "overview":
             best_by_tour[tour_id] = item
-    ranked = list(best_by_tour.values())
+
+    # Keep top-2 knowledge chunks sorted by score (enough context, not too many)
+    knowledge_items.sort(key=lambda x: float(x.get("score") or 0.0), reverse=True)
+    ranked = list(best_by_tour.values()) + knowledge_items[:2]
     ranked.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
     return ranked
 
@@ -1057,10 +1234,20 @@ def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] 
             deduped.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
 
     final_results = _filter_results_by_intent(deduped, query=query, top_k=top_k)
+
+    # --- Cross-encoder reranking (optional, enabled via RAG_RERANKER_ENABLED=true) ---
+    # WHY: Intent filtering and hybrid scoring already give a good shortlist.
+    # The cross-encoder re-reads (query, document) jointly to produce more
+    # accurate relevance scores, reordering the final top-K without extra DB calls.
+    if settings.reranker_enabled and final_results:
+        final_results = _rerank_candidates(query, final_results)
+        final_results = final_results[:top_k]
+
     logger.info(
-        "RAG retrieve query=%r top_k=%s candidates=%s results=%s similar=%s focus=%s latency_ms=%.1f",
+        "RAG retrieve query=%r top_k=%s candidates=%s results=%s similar=%s focus=%s reranker=%s latency_ms=%.1f",
         query, top_k, len(candidates), len(final_results),
         bool(is_similar_query), focus_tour_id,
+        settings.reranker_enabled,
         (time.perf_counter() - started_at) * 1000,
     )
     rag_metrics.observe("retrieve", (time.perf_counter() - started_at) * 1000)
@@ -1115,8 +1302,25 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
     else:
         intro = f"Gợi ý phù hợp cho bạn ({segment_name}):"
 
+    tour_sources = [source for source in sources if _safe_int(source.get("tour_id")) > 0]
+    knowledge_sources = [source for source in sources if _safe_int(source.get("tour_id")) <= 0]
+
+    top_source_is_knowledge = bool(sources) and _safe_int((sources[0] or {}).get("tour_id")) <= 0
+
+    if knowledge_sources and (not tour_sources or top_source_is_knowledge):
+        lines = [f"Thông tin tham khảo cho bạn ({segment_name}):"]
+        for source in knowledge_sources[:3]:
+            title = _normalize_whitespace(source.get("title") or "Thông tin du lịch")
+            text = _normalize_whitespace(source.get("text") or "")
+            if text.lower().startswith(f"{title.lower()}:"):
+                text = text[len(title) + 1 :].strip()
+            snippet = text[:220].rstrip(" .,;:")
+            suffix = "..." if len(text) > len(snippet) else ""
+            lines.append(f"- {title}: {snippet}{suffix}.")
+        return "\n".join(lines)
+
     lines = [intro]
-    for source in sources[:3]:
+    for source in tour_sources[:3]:
         price = _safe_float(source.get("price"))
         match_text = source_match_text(source)
         reasons: List[str] = []
@@ -1130,6 +1334,17 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
         lines.append(
             f"- {source.get('title')} ở {source.get('location')}, giá khoảng {price:,.0f} VND, danh mục {source.get('category_name')}{reason_text}."
         )
+
+    if knowledge_sources:
+        tip = knowledge_sources[0]
+        tip_title = _normalize_whitespace(tip.get("title") or "Thông tin du lịch")
+        tip_text = _normalize_whitespace(tip.get("text") or "")
+        if tip_text.lower().startswith(f"{tip_title.lower()}:"):
+            tip_text = tip_text[len(tip_title) + 1 :].strip()
+        tip_snippet = tip_text[:180].rstrip(" .,;:")
+        tip_suffix = "..." if len(tip_text) > len(tip_snippet) else ""
+        lines.append(f"- Thông tin thêm: {tip_title} - {tip_snippet}{tip_suffix}.")
+
     return "\n".join(lines)
 
 

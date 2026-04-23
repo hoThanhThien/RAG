@@ -47,12 +47,9 @@ Hệ thống quản lý đặt tour du lịch với FastAPI backend và React fr
 - **Payment Integration**: Cấu trúc sẵn sàng tích hợp payment gateway
 - **Discount System**: Áp dụng mã giảm giá tự động
 
-## 🚀 Quick Start\
-set all in one Command with docker:
-docker compose build
-docker compose up
 
-### Backend Setup
+
+### 🚀Backend Setup
 ```bash
 cd backend
 python -m venv .venv
@@ -61,20 +58,18 @@ pip install -r requirements.txt
 
 # Cấu hình database
 # 1. Import tourbookingdb.sql vào MySQL
-# 2. Chạy add_comment_table.sql
-# 3. Chạy init_data.sql
 
-# Chạy server
-uvicorn app.main:app --reload
-# Hoặc: start_server.bat
-```
 
-### RAG Chatbot Ops
+### 🚀RAG Chatbot Ops
 ```bash
 cd backend
 .venv\Scripts\activate
 python build_rag_index.py
-uvicorn app.main:app --reload
+
+## 🚀 Quick Start\
+set all in one Command with docker:
+docker compose build
+docker compose up
 ```
 
 Các biến môi trường RAG mới để tune production mà không sửa code:

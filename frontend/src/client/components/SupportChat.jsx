@@ -18,6 +18,7 @@ export default function SupportChat() {
   const [typing, setTyping] = useState(false);
   const [showThreadList, setShowThreadList] = useState(false);
   const [threads, setThreads] = useState([]);
+  const [isDeletingAllThreads, setIsDeletingAllThreads] = useState(false);
   const wsRef = useRef(null);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -117,6 +118,30 @@ export default function SupportChat() {
     } catch (error) {
       console.error("Lỗi khi xóa thread:", error);
       alert("Không thể xóa cuộc trò chuyện");
+    }
+  };
+
+  const deleteAllThreads = async () => {
+    if (!threads.length || isDeletingAllThreads) return;
+    if (!confirm(`Bạn có chắc muốn xóa tất cả ${threads.length} cuộc trò chuyện?`)) return;
+
+    try {
+      setIsDeletingAllThreads(true);
+      const threadIds = threads.map((thread) => thread.thread_id);
+      await Promise.all(threadIds.map((id) => supportApi.deleteThread(id)));
+
+      const { data } = await supportApi.openOrCreateThread();
+      setThreadId(data.thread_id);
+      const hist = await supportApi.getMessages(data.thread_id);
+      setMessages(hist.data || []);
+      await loadThreads();
+
+      alert("Đã xóa tất cả cuộc trò chuyện!");
+    } catch (error) {
+      console.error("Lỗi khi xóa tất cả threads:", error);
+      alert("Không thể xóa tất cả cuộc trò chuyện");
+    } finally {
+      setIsDeletingAllThreads(false);
     }
   };
 
@@ -403,13 +428,23 @@ export default function SupportChat() {
             <div className="thread-list-sidebar">
               <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <h6 className="m-0">Cuộc trò chuyện</h6>
-                <button 
-                  className="btn btn-sm btn-primary"
-                  onClick={createNewThread}
-                  title="Tạo cuộc trò chuyện mới"
-                >
-                  <i className="bi bi-plus-lg"></i> Tạo mới
-                </button>
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={deleteAllThreads}
+                    title="Xóa tất cả cuộc trò chuyện"
+                    disabled={!threads.length || isDeletingAllThreads}
+                  >
+                    <i className="bi bi-trash3"></i> {isDeletingAllThreads ? "Đang xóa..." : "Xóa tất cả"}
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-primary"
+                    onClick={createNewThread}
+                    title="Tạo cuộc trò chuyện mới"
+                  >
+                    <i className="bi bi-plus-lg"></i> Tạo mới
+                  </button>
+                </div>
               </div>
               
               <div className="thread-list">
