@@ -49,3 +49,7 @@ numpy==1.26.4
 pandas==2.2.3
 scikit-learn==1.5.2
 faiss-cpu==1.8.0.post1
+# sentence-transformers: local SBERT embedding + cross-encoder reranking.
+# Replaces TF-IDF fallback with paraphrase-multilingual-MiniLM-L12-v2 (Vietnamese-capable).
+# Optional reranker: BAAI/bge-reranker-base (enable via RAG_RERANKER_ENABLED=true).
+sentence-transformers>=2.7.0
