@@ -79,4 +79,21 @@ export const adminService = {
       throw error;
     }
   },
+
+  // Lấy dữ liệu K-Means phân cụm điểm đến để hiển thị biểu đồ admin
+  getKmeansDestinations: async (nClusters = 0) => {
+    try {
+      const response = await api.get('/admin/kmeans/destinations', {
+        ...liveConfig(),
+        params: {
+          n_clusters: nClusters,
+          _ts: Date.now(),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching K-Means destinations:', error);
+      throw error;
+    }
+  },
 };
