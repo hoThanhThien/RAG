@@ -1,0 +1,39 @@
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any, Dict, List, Tuple
+
+import numpy as np
+import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import StandardScaler
+
+from app.database import get_db_connection
+
+
+ZERO_SEGMENT_NAME = "Khách mới / Chưa tương tác"
+
+
+def _auto_select_k(
+    scaled: "np.ndarray",
+    k_min: int = 2,
+    k_max: int = 8,
+) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]]]:
+    """Chọn K tối ưu bằng Silhouette Score."""
+    n = scaled.shape[0]
+    k_max = min(k_max, n - 1)
+    if k_max < k_min:
+        return k_min, [], []
+    inertias: List[float] = []
+    silhouettes: List[float] = []
+    ks = list(range(k_min, k_max + 1))
+    for k in ks:
+        m = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = m.fit_predict(scaled)
+        inertias.append(round(float(m.inertia_), 2))
+        sil = float(silhouette_score(scaled, labels)) if len(set(labels)) > 1 else 0.0
+        silhouettes.append(round(sil, 4))
+
+    best_idx = silhouettes.index(max(silhouettes))
+    best_k = ks[best_idx]
