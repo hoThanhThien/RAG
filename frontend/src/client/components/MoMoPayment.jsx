@@ -34,7 +34,7 @@ const MoMoPayment = ({ bookingID, amount, onCancel }) => {
             <div className="payment-method-card">
                 <div className="payment-header">
                     <img 
-                        src="https://developers.momo.vn/v3/assets/images/logo.svg" 
+                        src="https://www.bing.com/ck/a?!&&p=b1baf6d77b6692ec5125ecedcf35ff3fa8a8d0bb6db2c5d6312a9f03383ad815JmltdHM9MTc3NjkwMjQwMA&ptn=3&ver=2&hsh=4&fclid=205fc901-812a-68fb-1eb6-dae280226985&u=a1L2ltYWdlcy9zZWFyY2g_cT1sb2dvK21vbW8lNWMmaWQ9QUNBNUM3MjE1NzIxMzk4MTVFQUQ1OUY0MTlBRDdDN0MwRDcyQUY1QiZGT1JNPUlRRlJCQQ" 
                         alt="MoMo" 
                         className="momo-logo"
                     />
