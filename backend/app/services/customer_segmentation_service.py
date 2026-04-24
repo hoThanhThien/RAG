@@ -53,6 +53,8 @@ def _auto_select_k(
         [(k, v) for k, v in zip(ks, inertias)],
         [(k, v) for k, v in zip(ks, silhouettes)],
     )
+
+
 def ensure_customer_segment_table(cur) -> None:
     cur.execute(
         """
@@ -78,6 +80,8 @@ def ensure_customer_segment_table(cur) -> None:
         cur.execute(f"SHOW COLUMNS FROM customer_segment LIKE '{col}'")
         if not cur.fetchone():
             cur.execute(f"ALTER TABLE customer_segment ADD COLUMN {col} {definition}")
+
+
 def _days_since_last_purchase(value: Any) -> int:
     if value is None:
         return -1
@@ -128,6 +132,7 @@ def _infer_segment_name(
         return "Khách mới"
 
     return "Khách trung thành"
+
 
 def fetch_customer_features() -> List[Dict[str, Any]]:
     conn = get_db_connection()
