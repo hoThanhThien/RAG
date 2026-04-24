@@ -71,3 +71,10 @@ def ensure_customer_segment_table(cur) -> None:
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """
     )
+    for col, definition in [
+        ("DiscountUsageRate", "DECIMAL(6,4) DEFAULT 0 AFTER DaysSinceLastPurchase"),
+        ("AvgOrderValue",     "DECIMAL(15,2) DEFAULT 0 AFTER DiscountUsageRate"),
+    ]:
+        cur.execute(f"SHOW COLUMNS FROM customer_segment LIKE '{col}'")
+        if not cur.fetchone():
+            cur.execute(f"ALTER TABLE customer_segment ADD COLUMN {col} {definition}")
