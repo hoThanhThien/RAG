@@ -37,3 +37,19 @@ def _auto_select_k(
 
     best_idx = silhouettes.index(max(silhouettes))
     best_k = ks[best_idx]
+
+    preferred = [k for k in ks if 3 <= k <= 5]
+    if preferred:
+        best_score = float(silhouettes[best_idx])
+        preferred_scores = {k: float(silhouettes[ks.index(k)]) for k in preferred}
+        preferred_k = max(preferred_scores.keys(), key=lambda k: preferred_scores[k])
+        preferred_score = preferred_scores[preferred_k]
+        tolerance = 0.08 if scaled.shape[0] <= 25 else 0.05
+        if preferred_score >= (best_score - tolerance):
+            best_k = preferred_k
+
+    return (
+        best_k,
+        [(k, v) for k, v in zip(ks, inertias)],
+        [(k, v) for k, v in zip(ks, silhouettes)],
+    )
