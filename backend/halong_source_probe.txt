@@ -1,0 +1,17 @@
+{
+  "tour_id": 30,
+  "title": "Tour Hạ Long",
+  "location": "Quảng Ninh",
+  "category_name": "Du lịch trong nước",
+  "price": 3500000.0,
+  "start_date": "2026-05-15",
+  "end_date": "2026-05-17",
+  "capacity": 30,
+  "status": "Available",
+  "booking_count": 16,
+  "chunk_type": "enrichment",
+  "text": "Tour Tour Hạ Long tai Quảng Ninh, danh muc Du lịch trong nước. Khu vuc / loai hinh: du lich trong nuoc, viet nam, noi dia. Muc gia khoang 3,500,000 VND — gia trung binh, phu hop gia dinh, nhom ban, pho thong. Tour duoc danh gia rat cao, khach rat hai long, hot, pho bien. Da co 16 luot dat tour.",
+  "dense_score": 0.7956,
+  "lexical_score": 0.117,
+  "score": 0.5784
+}

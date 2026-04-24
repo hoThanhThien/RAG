@@ -7,9 +7,8 @@ Hệ thống quản lý đặt tour du lịch với FastAPI backend và React fr
 ### 🔐 Authentication & Authorization
 - **Đăng nhập/Đăng xuất**: JWT token authentication
 - **Đăng ký tài khoản**: Với validation email và mật khẩu
-- **Phân quyền 3 cấp**:
+- **Phân quyền cấp**:
   - **Admin**: Toàn quyền quản lý hệ thống
-  - **Guide**: Xem tour mình dẫn và thông tin booking
   - **User**: Đặt tour, xem lịch sử, đánh giá tour
 
 ### 🎯 Phân quyền chi tiết

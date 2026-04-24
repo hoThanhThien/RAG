@@ -3,6 +3,41 @@ import { useEffect, useRef, useState } from "react";
 import { supportApi } from "../services/supportService";
 import { connectSupportWS } from "../../client/services/ws.js";
 
+function parseSupportRecommendation(content) {
+  if (!content || typeof content !== "string") return null;
+
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const mode = String(parsed.mode ?? (Array.isArray(parsed.tours) ? "suggest_tour" : "")).trim();
+    if (!["suggest_tour", "consulting", "chitchat"].includes(mode)) {
+      return null;
+    }
+
+    const tours = Array.isArray(parsed.tours)
+      ? parsed.tours
+          .map((tour) => ({
+            id: String(tour?.id ?? "").trim(),
+            name: String(tour?.name ?? "Tour").trim(),
+            price: String(tour?.price ?? "Liên hệ").trim(),
+            url: String(tour?.url ?? "").trim(),
+          }))
+          .filter((tour) => (tour.id ? Boolean(tour.url) : false))
+      : [];
+
+    return {
+      mode,
+      message: String(parsed.message ?? "").trim(),
+      tours,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseJwt(token) {
   try {
     return JSON.parse(atob(token.split('.')[1]));
@@ -290,6 +325,7 @@ export default function SupportChat() {
             {messages.map((m, i) => {
               const showAvatar = i === 0 || messages[i - 1]?.is_admin !== m.is_admin;
               const isAdmin = m.is_admin;
+              const structuredPayload = isAdmin ? parseSupportRecommendation(m.content) : null;
               
               return (
                 <div 
@@ -337,7 +373,30 @@ export default function SupportChat() {
                         wordWrap: 'break-word'
                       }}
                     >
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                      <div style={{ whiteSpace: structuredPayload ? 'normal' : 'pre-wrap' }}>
+                        {structuredPayload ? (
+                          <div className="d-flex flex-column gap-2">
+                            {structuredPayload.message ? <div>{structuredPayload.message}</div> : null}
+                            {structuredPayload.mode === 'suggest_tour' && structuredPayload.tours.length > 0 ? (
+                              <div className="d-flex flex-column gap-1">
+                              {structuredPayload.tours.map((tour) => (
+                                <button
+                                  key={`${m.id}-${tour.id}`}
+                                  type="button"
+                                  className="btn btn-sm btn-light text-start border"
+                                  onClick={() => navigate(tour.url)}
+                                >
+                                  <div className="fw-semibold text-dark">{tour.name}</div>
+                                  <div className="small text-muted">{tour.price}</div>
+                                </button>
+                              ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          m.content
+                        )}
+                      </div>
                       <div 
                         className={`small mt-2 d-flex align-items-center gap-1 ${isAdmin ? 'justify-content-end' : ''}`}
                         style={{ opacity: 0.7, fontSize: '11px' }}

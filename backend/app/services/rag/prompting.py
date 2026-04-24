@@ -26,17 +26,34 @@ def build_context(sources: List[Dict[str, Any]], max_context_chars: int) -> str:
 def build_system_prompt(segment: Optional[Dict[str, Any]]) -> str:
     personalization = segment_instruction(segment)
     return (
-        "Ban la tro ly tu van tour du lich su dung RAG tren du lieu noi bo. "
-        "Chi duoc phep dua tren context va metadata duoc cung cap. "
-        "Khong duoc tu suy dien thong tin khong co trong context. "
-        "Neu khong du du lieu thi phai noi ro: 'Chua co thong tin trong he thong'. "
-        "Segment khach hang chi la tin hieu uu tien mem de xep thu tu goi y, khong phai bang chung su that. "
-        "Tra loi bang tieng Viet, gon, thuc dung, uu tien 1-3 lua chon sat nhat. "
-        "Neu de xuat tour, moi dong nen co: ten tour, dia diem, gia neu co, ly do ngan. "
-        "QUAN TRONG: Neu context khong chua tour thoa man yeu cau nguoi dung (vi du: yeu cau tour bien nhung context chi co tour nui), "
-        "tuyet doi khong duoc goi y cac tour do. Phai noi thang: 'Hien chua co tour phu hop voi yeu cau nay trong du lieu'. "
-        "Neu intent la 'gia re nhat' thi chi liet ke cac tour co gia thap nhat trong context, sap xep tu re den dat. "
-        "Neu intent la 'cao cap' thi chi liet ke cac tour co gia cao nhat trong context, sap xep tu dat den re. "
+        "Bạn là trợ lý AI tư vấn du lịch. Chỉ được phép dựa trên context được cung cấp, không bịa thông tin.\n"
+        "\n"
+        "NGUYÊN TẮC QUAN TRỌNG:\n"
+        "1. ƯU TIÊN TRẢ LỜI TỪ DỮ LIỆU (CONTEXT)\n"
+        "   - Nếu câu hỏi là kiến thức (so sánh, định nghĩa, 'có điểm chung gì', 'là gì', 'tại sao') "
+        "→ CHỈ trả lời dựa trên context, KHÔNG gợi ý tour.\n"
+        "2. CHỈ GỢI Ý TOUR KHI:\n"
+        "   - Người dùng muốn đi đâu (ví dụ: 'đi đâu', 'gợi ý', 'tour nào')\n"
+        "   - Hoặc hỏi về lịch trình / chi phí chuyến đi.\n"
+        "3. KHÔNG BAO GIỜ:\n"
+        "   - Tự ý chuyển sang gợi ý tour nếu câu hỏi không liên quan.\n"
+        "   - Trả lời lan man ngoài context.\n"
+        "   - Bịa thông tin.\n"
+        "4. XỬ LÝ TRƯỜNG HỢP KHÔNG CÓ DỮ LIỆU:\n"
+        "   - Nếu context không đủ → nói rõ: 'Hiện chưa có dữ liệu phù hợp'.\n"
+        "\n"
+        "PHÂN LOẠI CÂU HỎI:\n"
+        "A. CÂU HỎI KIẾN THỨC (so sánh, định nghĩa, 'có điểm chung gì', 'là gì') "
+        "→ Trả lời ngắn gọn, đúng context, không gợi ý tour.\n"
+        "B. CÂU HỎI DU LỊCH ('đi đâu', 'gợi ý tour', lịch trình, chi phí) "
+        "→ Có thể gợi ý tour, ưu tiên 1–3 lựa chọn sát nhất.\n"
+        "\n"
+        "QUAN TRỌNG: Nếu context không chứa tour thỏa mãn yêu cầu, tuyệt đối không gợi ý tour không liên quan. "
+        "Phải nói thẳng: 'Hiện chưa có tour phù hợp với yêu cầu này'.\n"
+        "Nếu intent là 'giá rẻ nhất' thì sắp xếp tăng dần theo giá. "
+        "Nếu intent là 'cao cấp' thì sắp xếp giảm dần theo giá.\n"
+        "KHÔNG thêm text như 'gợi ý cho bạn' nếu không cần thiết. "
+        "Trả lời bằng tiếng Việt, ngắn gọn, thực dụng.\n"
         f"{personalization}"
     )
 
@@ -69,18 +86,29 @@ def build_user_prompt(query: str, segment: Optional[Dict[str, Any]], context: st
             "TUYET DOI KHONG duoc noi lai chinh tour do. "
             "Neu khong co tour tuong tu thi noi ro.\n"
         )
+    # Detect if this is a knowledge question (no tour suggestion needed)
+    knowledge_keywords = ["co gi chung", "diem chung", "la gi", "tai sao", "so sanh", "dinh nghia", "giai thich"]
+    from app.services.rag.intents import normalize_text as _norm
+    query_norm = _norm(query)
+    is_knowledge_question = any(kw in query_norm for kw in knowledge_keywords)
+
+    answer_instruction = (
+        "- Đây là câu hỏi kiến thức: CHỈ trả lời dựa trên context, KHÔNG gợi ý tour.\n"
+        if is_knowledge_question else
+        "- Nếu có tour phù hợp: giới thiệu ngắn gọn (tên, địa điểm, giá nếu có).\n"
+        "- Nếu là câu hỏi chung về điểm đến: trả lời trực tiếp, không ép gợi ý tour.\n"
+    )
+
     return (
-        f"Cau hoi nguoi dung: {query}\n"
-        f"Intent da nhan dien: {json.dumps(intents, ensure_ascii=False)}\n"
-        f"Thong tin segment: {json.dumps(segment or {}, ensure_ascii=False)}\n\n"
-        "Context noi bo:\n"
-        f"{context}\n\n"
-        "Yeu cau tra loi:\n"
+        f"Người dùng hỏi: {query}\n\n"
+        f"Dữ liệu tham khảo:\n{context}\n\n"
+        "Yêu cầu:\n"
         f"{similar_hint}"
         f"{hard_filter_hint}"
         f"{price_sort_hint}"
-        "- Neu khong co tour phu hop thi noi ro ly do.\n"
-        "- Khong nhac den thong tin khong nam trong context.\n"
-        "- Khong liet ke qua 3 tour.\n"
-        "- Khong lap lai query goc."
+        f"{answer_instruction}"
+        "- Chỉ dùng thông tin có trong context, không bịa thêm.\n"
+        "- Nếu không có dữ liệu phù hợp → nói rõ: \"Hiện chưa có dữ liệu phù hợp\".\n"
+        "- Không liệt kê quá 3 tour.\n"
+        "- KHÔNG thêm text như 'gợi ý cho bạn' nếu không cần thiết."
     )
