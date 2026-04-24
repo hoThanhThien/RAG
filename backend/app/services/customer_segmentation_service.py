@@ -424,3 +424,82 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         }
         for cluster_id, stats in cluster_summary.iterrows()
     ])
+
+    return {
+        "message": "Phân cụm khách hàng thành công bằng K-Means",
+        "total_users": int(len(df.index)),
+        "n_clusters": int(df["cluster_id"].nunique()),
+        "optimal_k": int(best_k + cluster_offset),
+        "auto_selected": int(n_clusters or 0) == 0,
+        "clusters": summary,
+        "elbow_data": [{"k": k, "inertia": v} for k, v in elbow_data],
+        "silhouette_data": [{"k": k, "score": v} for k, v in silhouette_data],
+        "zero_group_users": int(len(zero_df.index)),
+        "modeled_users": int(len(modeled_df.index)),
+        "recency_cap_days": int(recency_cap),
+    }
+
+
+def get_user_segment(user_id: int) -> Dict[str, Any]:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            ensure_customer_segment_table(cur)
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT UserID, ClusterID, SegmentName, TotalSpending,
+                       OrderCount, DaysSinceLastPurchase, FavoriteCategory, UpdatedAt
+                FROM customer_segment
+                WHERE UserID = %s
+                LIMIT 1
+                """,
+                (user_id,),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        rebuild_customer_segments()
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT UserID, ClusterID, SegmentName, TotalSpending,
+                           OrderCount, DaysSinceLastPurchase, DiscountUsageRate, FavoriteCategory, UpdatedAt
+                    FROM customer_segment
+                    WHERE UserID = %s
+                    LIMIT 1
+                    """,
+                    (user_id,),
+                )
+                row = cur.fetchone()
+        finally:
+            conn.close()
+
+    if not row:
+        return {
+            "user_id": user_id,
+            "cluster_id": 0,
+            "segment_name": "Khách mới",
+            "total_spending": 0.0,
+            "order_count": 0,
+            "days_since_last_purchase": 9999,
+            "discount_usage_rate": 0.0,
+            "favorite_category": "General",
+        }
+
+    return {
+        "user_id": int(row["UserID"]),
+        "cluster_id": int(row["ClusterID"]),
+        "segment_name": row["SegmentName"],
+        "total_spending": float(row.get("TotalSpending") or 0.0),
+        "order_count": int(row.get("OrderCount") or 0),
+        "days_since_last_purchase": int(row.get("DaysSinceLastPurchase") or 9999),
+        "discount_usage_rate": float(row.get("DiscountUsageRate") or 0.0),
+        "favorite_category": row.get("FavoriteCategory") or "General",
+        "updated_at": row.get("UpdatedAt").isoformat() if row.get("UpdatedAt") else None,
+    }
