@@ -301,3 +301,126 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
     # Chuẩn hóa bằng StandardScaler trước khi fit K-Means.
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+
+    # Auto-select K if n_clusters=0, else use provided value
+    if len(modeled_df.index) <= 2:
+        cluster_count = 1
+        best_k = 1
+        elbow_data, silhouette_data = [], []
+    elif int(n_clusters or 0) == 0:
+        best_k, elbow_data, silhouette_data = _auto_select_k(
+            X_scaled, k_min=2, k_max=min(6, len(modeled_df) - 1)
+        )
+        cluster_count = best_k
+    else:
+        cluster_count = max(1, min(int(n_clusters), len(modeled_df.index)))
+        best_k = cluster_count
+        elbow_data, silhouette_data = [], []
+
+    if cluster_count <= 1:
+        modeled_df["cluster_id"] = 0
+    else:
+        kmeans = KMeans(n_clusters=cluster_count, random_state=42, n_init=10)
+        modeled_df["cluster_id"] = kmeans.fit_predict(X_scaled)
+
+    cluster_offset = 1 if not zero_df.empty else 0
+    modeled_df["cluster_id"] = modeled_df["cluster_id"].astype(int) + cluster_offset
+
+    cluster_summary = (
+        modeled_df.groupby("cluster_id", as_index=True)
+        .agg(
+            users=("user_id", "count"),
+            mean_spending=("total_spending", "mean"),
+            mean_orders=("order_count", "mean"),
+            mean_recency=("days_since_last_purchase", "mean"),
+            mean_avg_order_value=("avg_order_value", "mean"),
+            mean_discount_rate=("discount_usage_rate", "mean"),
+        )
+        .sort_index()
+    )
+
+    segment_names: Dict[int, str] = {}
+    for cluster_id, stats in cluster_summary.iterrows():
+        segment_names[int(cluster_id)] = _infer_segment_name(
+            stats.to_dict(),
+            spend_threshold,
+            order_threshold,
+            recency_threshold,
+            discount_threshold,
+            vip_spend_threshold=vip_spend_threshold,
+            vip_order_threshold=vip_order_threshold,
+        )
+
+    modeled_df["segment_name"] = modeled_df["cluster_id"].map(segment_names)
+    if not zero_df.empty:
+        zero_df["cluster_id"] = 0
+        zero_df["segment_name"] = ZERO_SEGMENT_NAME
+
+    df = pd.concat([zero_df, modeled_df], ignore_index=True)
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            ensure_customer_segment_table(cur)
+            for row in df.to_dict(orient="records"):
+                cur.execute(
+                    """
+                    INSERT INTO customer_segment (
+                        UserID, ClusterID, SegmentName, TotalSpending,
+                        OrderCount, DaysSinceLastPurchase, DiscountUsageRate, AvgOrderValue, FavoriteCategory
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        ClusterID = VALUES(ClusterID),
+                        SegmentName = VALUES(SegmentName),
+                        TotalSpending = VALUES(TotalSpending),
+                        OrderCount = VALUES(OrderCount),
+                        DaysSinceLastPurchase = VALUES(DaysSinceLastPurchase),
+                        DiscountUsageRate = VALUES(DiscountUsageRate),
+                        AvgOrderValue = VALUES(AvgOrderValue),
+                        FavoriteCategory = VALUES(FavoriteCategory),
+                        UpdatedAt = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        int(row["user_id"]),
+                        int(row["cluster_id"]),
+                        row["segment_name"],
+                        float(row["total_spending"]),
+                        int(row["order_count"]),
+                        int(row["days_since_last_purchase"]),
+                        float(row["discount_usage_rate"]),
+                        float(row["avg_order_value"]),
+                        row["favorite_category"],
+                    ),
+                )
+            conn.commit()
+    finally:
+        conn.close()
+
+    summary: List[Dict[str, Any]] = []
+    if not zero_df.empty:
+        summary.append(
+            {
+                "cluster_id": 0,
+                "segment_name": ZERO_SEGMENT_NAME,
+                "users": int(len(zero_df.index)),
+                "mean_spending": 0,
+                "mean_orders": 0.0,
+                "mean_recency_days": int(recency_cap),
+                "mean_avg_order_value": 0,
+                "mean_discount_rate": 0.0,
+            }
+        )
+    summary.extend([
+        {
+            "cluster_id": int(cluster_id),
+            "segment_name": segment_names[int(cluster_id)],
+            "users": int(stats["users"]),
+            "mean_spending": round(float(stats["mean_spending"]), 0),
+            "mean_orders": round(float(stats["mean_orders"]), 2),
+            "mean_recency_days": round(float(stats["mean_recency"]), 0),
+            "mean_avg_order_value": round(float(stats["mean_avg_order_value"]), 0),
+            "mean_discount_rate": round(float(stats["mean_discount_rate"]), 3),
+        }
+        for cluster_id, stats in cluster_summary.iterrows()
+    ])
