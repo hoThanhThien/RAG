@@ -64,7 +64,7 @@ export default function SupportChat() {
   const typingTimeoutRef = useRef(null);
   const userIdRef = useRef(null); // always-current userId for WS callbacks
 
-  // 🔐 Lấy userId và tên từ AuthContext
+  //  Lấy userId và tên từ AuthContext
   useEffect(() => {
     if (user) {
       setUserId(user.UserID || user.user_id || null);
@@ -76,7 +76,7 @@ export default function SupportChat() {
   }, [user]);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  // 🚀 Lấy thread và lịch sử — chạy khi userId thay đổi
+  //  Lấy thread và lịch sử — chạy khi userId thay đổi
   useEffect(() => {
     const boot = async () => {
       if (!userId) return; // Chưa đăng nhập, bỏ qua
@@ -84,14 +84,14 @@ export default function SupportChat() {
       try {
         setIsLoading(true);
         const { data } = await supportApi.openOrCreateThread();
-        console.log("✅ Thread opened/created:", data.thread_id);
+        console.log(" Thread opened/created:", data.thread_id);
         setThreadId(data.thread_id);
         const hist = await supportApi.getMessages(data.thread_id);
         setMessages(hist.data || []);
         // Load all threads
         await loadThreads();
       } catch (error) {
-        console.error("❌ Lỗi khi khởi tạo chat:", error);
+        console.error(" Lỗi khi khởi tạo chat:", error);
         console.error("Error details:", error.response?.data);
       } finally {
         setIsLoading(false);
@@ -100,7 +100,7 @@ export default function SupportChat() {
     boot();
   }, [userId]);
 
-  // 📋 Load danh sách threads
+  //  Load danh sách threads
   const loadThreads = async () => {
     try {
       const { data } = await supportApi.getMyThreads();
@@ -110,7 +110,7 @@ export default function SupportChat() {
     }
   };
 
-  // 🆕 Tạo thread mới
+  //  Tạo thread mới
   const createNewThread = async () => {
     try {
       console.log("🔄 Creating new thread...");

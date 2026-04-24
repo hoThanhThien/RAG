@@ -7,13 +7,13 @@ import Tours from "./pages/Tours";
 import TourDetail from "./pages/TourDetail";
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
-import PaymentSuccess from "./pages/PaymentSuccess";  // <-- THÊM
-import PaymentSuccessPage from "./pages/PaymentSuccessPage";  // <-- THÊM PayPal success page
-import MoMoCallback from "./pages/MoMoCallback";  // <-- THÊM MoMo callback page
+import PaymentSuccess from "./pages/PaymentSuccess";  
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";  
+import MoMoCallback from "./pages/MoMoCallback";  
 import Contact from "./pages/Contact";
 import UserProfile from "./pages/UserProfile";
-import BookingHistory from "./pages/BookingHistory";  // <-- THÊM Booking History
-import BookingDetail from "./pages/BookingDetail";  // <-- THÊM Booking Detail
+import BookingHistory from "./pages/BookingHistory";  
+import BookingDetail from "./pages/BookingDetail";  
 import Recommendations from "./pages/Recommendations";
 import AuthPage from "./pages/Auth";
 
