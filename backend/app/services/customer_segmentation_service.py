@@ -128,3 +128,176 @@ def _infer_segment_name(
         return "Khách mới"
 
     return "Khách trung thành"
+
+def fetch_customer_features() -> List[Dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            ensure_customer_segment_table(cur)
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT
+                    u.UserID AS user_id,
+                    COALESCE(u.FullName, u.Email, CONCAT('User ', u.UserID)) AS user_name,
+                    COALESCE(SUM(CASE WHEN b.Status IN ('Confirmed', 'Paid') THEN b.TotalAmount ELSE 0 END), 0) AS total_spending,
+                    COALESCE(SUM(CASE WHEN b.Status IN ('Confirmed', 'Paid') THEN 1 ELSE 0 END), 0) AS order_count,
+                    COALESCE(SUM(CASE WHEN b.Status IN ('Confirmed', 'Paid') AND b.DiscountID IS NOT NULL THEN 1 ELSE 0 END), 0) AS discounted_order_count,
+                    MAX(CASE WHEN b.Status IN ('Confirmed', 'Paid') THEN b.BookingDate END) AS last_purchase_date,
+                    (
+                        SELECT c.CategoryName
+                        FROM booking b2
+                        JOIN tour t2 ON b2.TourID = t2.TourID
+                        JOIN category c ON t2.CategoryID = c.CategoryID
+                        WHERE b2.UserID = u.UserID AND b2.Status IN ('Confirmed', 'Paid')
+                        GROUP BY c.CategoryID, c.CategoryName
+                        ORDER BY COUNT(*) DESC, c.CategoryName ASC
+                        LIMIT 1
+                    ) AS favorite_category
+                FROM user u
+                LEFT JOIN booking b ON u.UserID = b.UserID
+                GROUP BY u.UserID, u.FullName, u.Email
+                ORDER BY u.UserID
+                """
+            )
+            return list(cur.fetchall() or [])
+    finally:
+        conn.close()
+
+
+def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
+    rows = fetch_customer_features()
+    if not rows:
+        return {"message": "Không có dữ liệu khách hàng để phân cụm", "clusters": [], "total_users": 0}
+
+    normalized_rows: List[Dict[str, Any]] = []
+    for row in rows:
+        total_spending = float(row.get("total_spending") or 0.0)
+        order_count = int(row.get("order_count") or 0)
+        discounted_order_count = int(row.get("discounted_order_count") or 0)
+        days_since = _days_since_last_purchase(row.get("last_purchase_date"))
+        avg_order_value = round(total_spending / order_count, 2) if order_count > 0 else 0.0
+        discount_usage_rate = round(discounted_order_count / order_count, 4) if order_count > 0 else 0.0
+
+        normalized_rows.append(
+            {
+                "user_id": int(row["user_id"]),
+                "user_name": row.get("user_name") or f"User {row['user_id']}",
+                "total_spending": total_spending,
+                "order_count": order_count,
+                "discounted_order_count": discounted_order_count,
+                "days_since_last_purchase": days_since,
+                "avg_order_value": avg_order_value,
+                "discount_usage_rate": discount_usage_rate,
+                "favorite_category": row.get("favorite_category") or "General",
+            }
+        )
+
+    df = pd.DataFrame(normalized_rows)
+    zero_mask = (df["order_count"] <= 0) & (df["total_spending"] <= 0)
+    zero_df = df[zero_mask].copy().reset_index(drop=True)
+    modeled_df = df[~zero_mask].copy().reset_index(drop=True)
+
+    observed_recency = modeled_df.loc[
+        modeled_df["days_since_last_purchase"] >= 0,
+        "days_since_last_purchase",
+    ] if not modeled_df.empty else pd.Series(dtype=float)
+    recency_cap = int(observed_recency.max()) if not observed_recency.empty else 365
+
+    if not zero_df.empty:
+        zero_df["days_since_last_purchase"] = recency_cap
+    if not modeled_df.empty:
+        modeled_df["days_since_last_purchase"] = (
+            modeled_df["days_since_last_purchase"]
+            .mask(modeled_df["days_since_last_purchase"] < 0, recency_cap)
+            .clip(upper=recency_cap)
+            .astype(int)
+        )
+
+    # Tách riêng nhóm cold-start thay vì đưa vào K-Means.
+    if modeled_df.empty:
+        zero_df["cluster_id"] = 0
+        zero_df["segment_name"] = ZERO_SEGMENT_NAME
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                ensure_customer_segment_table(cur)
+                for row in zero_df.to_dict(orient="records"):
+                    cur.execute(
+                        """
+                        INSERT INTO customer_segment (
+                            UserID, ClusterID, SegmentName, TotalSpending,
+                            OrderCount, DaysSinceLastPurchase, DiscountUsageRate, AvgOrderValue, FavoriteCategory
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                            ClusterID = VALUES(ClusterID),
+                            SegmentName = VALUES(SegmentName),
+                            TotalSpending = VALUES(TotalSpending),
+                            OrderCount = VALUES(OrderCount),
+                            DaysSinceLastPurchase = VALUES(DaysSinceLastPurchase),
+                            DiscountUsageRate = VALUES(DiscountUsageRate),
+                            AvgOrderValue = VALUES(AvgOrderValue),
+                            FavoriteCategory = VALUES(FavoriteCategory),
+                            UpdatedAt = CURRENT_TIMESTAMP
+                        """,
+                        (
+                            int(row["user_id"]),
+                            int(row["cluster_id"]),
+                            row["segment_name"],
+                            float(row["total_spending"]),
+                            int(row["order_count"]),
+                            int(row["days_since_last_purchase"]),
+                            float(row["discount_usage_rate"]),
+                            float(row["avg_order_value"]),
+                            row["favorite_category"],
+                        ),
+                    )
+                conn.commit()
+        finally:
+            conn.close()
+        return {
+            "message": "Phân cụm khách hàng thành công bằng K-Means",
+            "total_users": int(len(df.index)),
+            "n_clusters": 1,
+            "optimal_k": 1,
+            "auto_selected": True,
+            "clusters": [{
+                "cluster_id": 0,
+                "segment_name": ZERO_SEGMENT_NAME,
+                "users": int(len(zero_df.index)),
+                "mean_spending": 0,
+                "mean_orders": 0.0,
+                "mean_recency_days": int(recency_cap),
+                "mean_avg_order_value": 0,
+                "mean_discount_rate": 0.0,
+            }],
+            "elbow_data": [],
+            "silhouette_data": [],
+            "zero_group_users": int(len(zero_df.index)),
+            "modeled_users": 0,
+            "recency_cap_days": int(recency_cap),
+        }
+
+    # RFM + avg_order_value + discount_usage_rate → 5 features
+    feature_columns = [
+        "total_spending",           # Monetary
+        "order_count",              # Frequency
+        "days_since_last_purchase", # Recency (inverted)
+        "avg_order_value",          # Average spending per order
+        "discount_usage_rate",      # Sale-hunting behavior
+    ]
+    X = modeled_df[feature_columns].fillna(0.0)
+
+    spend_threshold     = float(modeled_df["total_spending"].quantile(0.75))      if not modeled_df.empty else 0.0
+    order_threshold     = float(modeled_df["order_count"].quantile(0.75))         if not modeled_df.empty else 1.0
+    recency_threshold   = float(modeled_df["days_since_last_purchase"].quantile(0.60)) if not modeled_df.empty else 90.0
+    discount_threshold  = max(0.25, float(modeled_df["discount_usage_rate"].quantile(0.75))) if not modeled_df.empty else 0.5
+    # VIP: top 10% spend AND top 25% frequency
+    vip_spend_threshold = float(modeled_df["total_spending"].quantile(0.90))      if not modeled_df.empty else 0.0
+    vip_order_threshold = float(modeled_df["order_count"].quantile(0.75))         if not modeled_df.empty else 2.0
+
+    # Chuẩn hóa bằng StandardScaler trước khi fit K-Means.
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
