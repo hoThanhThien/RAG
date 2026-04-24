@@ -53,3 +53,21 @@ def _auto_select_k(
         [(k, v) for k, v in zip(ks, inertias)],
         [(k, v) for k, v in zip(ks, silhouettes)],
     )
+def ensure_customer_segment_table(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS customer_segment (
+            UserID INT PRIMARY KEY,
+            ClusterID INT NOT NULL,
+            SegmentName VARCHAR(100) NOT NULL,
+            TotalSpending DECIMAL(15,2) DEFAULT 0,
+            OrderCount INT DEFAULT 0,
+            DaysSinceLastPurchase INT DEFAULT 9999,
+            DiscountUsageRate DECIMAL(6,4) DEFAULT 0,
+            AvgOrderValue DECIMAL(15,2) DEFAULT 0,
+            FavoriteCategory VARCHAR(255) NULL,
+            UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+    )
