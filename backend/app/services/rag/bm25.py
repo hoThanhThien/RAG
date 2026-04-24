@@ -4,7 +4,6 @@ import math
 from collections import Counter
 from typing import Dict, List, Tuple
 
-
 class BM25Index:
     def __init__(self, documents: List[str], k1: float = 1.5, b: float = 0.75):
         self.documents = documents
@@ -42,3 +41,4 @@ class BM25Index:
         scores = self.score(query)
         ranked = sorted(enumerate(scores), key=lambda item: item[1], reverse=True)
         return [(index, score) for index, score in ranked[:top_n] if score > 0]
+
