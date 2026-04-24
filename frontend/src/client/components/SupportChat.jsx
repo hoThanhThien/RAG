@@ -1,11 +1,51 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toAbsoluteUrl } from "../services/api";
 import { supportApi } from "../services/supportService";
 import { connectSupportWS } from "../services/ws";
 import { useAuth } from "../context/AuthContext";
 import "../../styles/SupportChat.css";
 
+function parseSupportRecommendation(content) {
+  if (!content || typeof content !== "string") return null;
+
+  try {
+    const parsed = JSON.parse(content);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const mode = String(parsed.mode ?? (Array.isArray(parsed.tours) ? "suggest_tour" : "")).trim();
+    if (!["suggest_tour", "consulting", "chitchat"].includes(mode)) {
+        return null;
+    }
+
+    const tours = Array.isArray(parsed.tours)
+      ? parsed.tours
+          .map((tour) => ({
+            id: String(tour?.id ?? "").trim(),
+            name: String(tour?.name ?? "Tour").trim(),
+            price: String(tour?.price ?? "Liên hệ").trim(),
+            image: toAbsoluteUrl(String(tour?.image ?? "").trim()) || "https://placehold.co/600x400?text=Tour",
+            description: String(tour?.description ?? "").trim(),
+            url: String(tour?.url ?? "").trim(),
+          }))
+          .filter((tour) => (tour.id ? Boolean(tour.url) : false))
+      : [];
+
+    return {
+      mode,
+      message: String(parsed.message ?? "").trim(),
+      tours,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function SupportChat() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -503,6 +543,7 @@ export default function SupportChat() {
                 {messages.map((m, i) => {
                   const isUser = m.sender_id === userId || !m.is_admin;
                   const showAvatar = i === 0 || messages[i - 1]?.is_admin !== m.is_admin;
+                  const structuredPayload = !isUser ? parseSupportRecommendation(m.content) : null;
                   
                   return (
                     <div 
@@ -522,7 +563,48 @@ export default function SupportChat() {
                         {showAvatar && (
                           <div className="msg-sender">{m.full_name || (isUser ? userFullName : "Hỗ trợ")}</div>
                         )}
-                        <div className="msg-content" style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+                        <div className="msg-content" style={{ whiteSpace: structuredPayload ? "normal" : "pre-wrap" }}>
+                          {structuredPayload ? (
+                            <div className="support-ai-recommendation">
+                              {structuredPayload.message ? (
+                                <div className="support-ai-message">{structuredPayload.message}</div>
+                              ) : null}
+                              {structuredPayload.mode === "suggest_tour" && structuredPayload.tours.length > 0 ? (
+                                <div className="support-tour-card-list">
+                                {structuredPayload.tours.map((tour) => (
+                                  <button
+                                    key={`${m.id}-${tour.id}`}
+                                    type="button"
+                                    className="support-tour-card"
+                                    onClick={() => {
+                                      navigate(tour.url);
+                                      setOpen(false);
+                                    }}
+                                    title={`Xem chi tiết ${tour.name}`}
+                                  >
+                                    <img
+                                      src={tour.image}
+                                      alt={tour.name}
+                                      className="support-tour-card-image"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = "https://placehold.co/600x400?text=Tour";
+                                      }}
+                                    />
+                                    <div className="support-tour-card-body">
+                                      <div className="support-tour-card-title">{tour.name}</div>
+                                      <div className="support-tour-card-price">{tour.price}</div>
+                                      <div className="support-tour-card-description">{tour.description}</div>
+                                    </div>
+                                  </button>
+                                ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            m.content
+                          )}
+                        </div>
                         <div className="msg-time">
                           {formatTime(m.created_at)}
                           {m.pending && <i className="bi bi-clock-history ms-1"></i>}
