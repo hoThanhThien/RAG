@@ -1,0 +1,63 @@
+.booking-detail-page {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    padding-bottom: 3rem;
+}
+
+.booking-detail-page .card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.booking-detail-page .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.booking-detail-page .card-header {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    font-weight: 600;
+}
+
+.status-badge {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+.tour-info p {
+    font-size: 1rem;
+    line-height: 1.8;
+}
+
+.tour-info i {
+    font-size: 1.2rem;
+}
+
+.booking-detail-page .img-fluid {
+    object-fit: cover;
+    height: 200px;
+    width: 100%;
+}
+
+.payment-status {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .booking-detail-page .sticky-top {
+        position: relative !important;
+        top: 0 !important;
+    }
+    
+    .booking-detail-page h2 {
+        font-size: 1.5rem;
+    }
+    
+    .status-badge {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+}
