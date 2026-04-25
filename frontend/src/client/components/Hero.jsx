@@ -165,13 +165,6 @@ export default function Hero() {
             </div>
           </div>
         </div>
-
-        <div className="scroll-indicator position-absolute bottom-0 start-50 translate-middle-x mb-4">
-          <div className="scroll-mouse">
-            <div className="scroll-wheel"></div>
-          </div>
-          <span className="scroll-text text-white small">Scroll Down</span>
-        </div>
       </div>
     </section>
   );

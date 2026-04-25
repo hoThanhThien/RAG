@@ -35,6 +35,13 @@ services:
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       RAG_REDIS_ENABLED: ${RAG_REDIS_ENABLED:-true}
       RAG_REDIS_URL: ${RAG_REDIS_URL:-redis://nhom09_redis:6379/0}
+      MOMO_PARTNER_CODE: ${MOMO_PARTNER_CODE}
+      MOMO_ACCESS_KEY: ${MOMO_ACCESS_KEY}
+      MOMO_SECRET_KEY: ${MOMO_SECRET_KEY}
+      MOMO_REDIRECT_URL: ${MOMO_REDIRECT_URL}
+      MOMO_IPN_URL: ${MOMO_IPN_URL}
+      MOMO_API_ENDPOINT: ${MOMO_API_ENDPOINT:-https://test-payment.momo.vn/v2/gateway/api/create}
+      MOMO_ENVIRONMENT: ${MOMO_ENVIRONMENT:-test}
     depends_on:
       nhom09_mysql:
         condition: service_healthy

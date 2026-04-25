@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import math
 from datetime import date, datetime
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
@@ -13,6 +15,20 @@ from app.database import get_db_connection
 
 
 ZERO_SEGMENT_NAME = "Khách mới / Chưa tương tác"
+ALLOWED_CUSTOMER_CLUSTER_COUNTS = (3, 5)
+
+
+def _formula_target_k(sample_count: int) -> int:
+    """Chọn K mục tiêu theo heuristic sqrt(n/2), sau đó làm tròn về tập {3, 5}."""
+    if sample_count < ALLOWED_CUSTOMER_CLUSTER_COUNTS[0]:
+        return 1
+
+    feasible = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k <= sample_count]
+    if not feasible:
+        return 1
+
+    heuristic_value = math.sqrt(max(sample_count, 1) / 2.0)
+    return min(feasible, key=lambda k: (abs(k - heuristic_value), -k))
 
 
 def _auto_select_k(
@@ -20,14 +36,15 @@ def _auto_select_k(
     k_min: int = 2,
     k_max: int = 8,
 ) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]]]:
-    """Chọn K tối ưu bằng Silhouette Score."""
+    """Chọn K cho customer segmentation, chỉ trong tập {3, 5}."""
     n = scaled.shape[0]
-    k_max = min(k_max, n - 1)
-    if k_max < k_min:
-        return k_min, [], []
+    target_k = _formula_target_k(n)
+    ks = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k_min <= k <= min(k_max, n - 1)]
+    if not ks:
+        return target_k, [], []
+
     inertias: List[float] = []
     silhouettes: List[float] = []
-    ks = list(range(k_min, k_max + 1))
     for k in ks:
         m = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = m.fit_predict(scaled)
@@ -35,18 +52,13 @@ def _auto_select_k(
         sil = float(silhouette_score(scaled, labels)) if len(set(labels)) > 1 else 0.0
         silhouettes.append(round(sil, 4))
 
-    best_idx = silhouettes.index(max(silhouettes))
-    best_k = ks[best_idx]
+    score_by_k = {k: float(score) for k, score in zip(ks, silhouettes)}
+    best_k = target_k if target_k in score_by_k else ks[0]
 
-    preferred = [k for k in ks if 3 <= k <= 5]
-    if preferred:
-        best_score = float(silhouettes[best_idx])
-        preferred_scores = {k: float(silhouettes[ks.index(k)]) for k in preferred}
-        preferred_k = max(preferred_scores.keys(), key=lambda k: preferred_scores[k])
-        preferred_score = preferred_scores[preferred_k]
-        tolerance = 0.08 if scaled.shape[0] <= 25 else 0.05
-        if preferred_score >= (best_score - tolerance):
-            best_k = preferred_k
+    silhouette_best_k = max(score_by_k.keys(), key=lambda k: score_by_k[k])
+    tolerance = 0.03 if scaled.shape[0] <= 25 else 0.02
+    if score_by_k[silhouette_best_k] > score_by_k[best_k] + tolerance:
+        best_k = silhouette_best_k
 
     return (
         best_k,
@@ -279,7 +291,10 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
                 "mean_discount_rate": 0.0,
             }],
             "elbow_data": [],
+            "inertia_data": [],
             "silhouette_data": [],
+            "pca_points": [],
+            "pca_centroids": [],
             "zero_group_users": int(len(zero_df.index)),
             "modeled_users": 0,
             "recency_cap_days": int(recency_cap),
@@ -308,17 +323,23 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
     X_scaled = scaler.fit_transform(X)
 
     # Auto-select K if n_clusters=0, else use provided value
+    formula_suggested_k = _formula_target_k(len(modeled_df.index)) if not modeled_df.empty else 1
+
     if len(modeled_df.index) <= 2:
         cluster_count = 1
         best_k = 1
         elbow_data, silhouette_data = [], []
     elif int(n_clusters or 0) == 0:
         best_k, elbow_data, silhouette_data = _auto_select_k(
-            X_scaled, k_min=2, k_max=min(6, len(modeled_df) - 1)
+            X_scaled, k_min=2, k_max=min(5, len(modeled_df) - 1)
         )
         cluster_count = best_k
     else:
-        cluster_count = max(1, min(int(n_clusters), len(modeled_df.index)))
+        requested_clusters = int(n_clusters)
+        if requested_clusters not in ALLOWED_CUSTOMER_CLUSTER_COUNTS:
+            raise ValueError("n_clusters chỉ được phép là 3 hoặc 5 cho customer segmentation")
+        feasible_requested = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k <= len(modeled_df.index)]
+        cluster_count = requested_clusters if requested_clusters <= len(modeled_df.index) else max(feasible_requested, default=1)
         best_k = cluster_count
         elbow_data, silhouette_data = [], []
 
@@ -344,19 +365,106 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         .sort_index()
     )
 
+    # Enforce unique key labels: each important label appears at most once.
+    stats_by_cluster: Dict[int, Dict[str, float]] = {
+        int(cluster_id): {
+            "users": float(stats.get("users", 0.0) or 0.0),
+            "mean_spending": float(stats.get("mean_spending", 0.0) or 0.0),
+            "mean_orders": float(stats.get("mean_orders", 0.0) or 0.0),
+            "mean_recency": float(stats.get("mean_recency", 9999.0) or 9999.0),
+            "mean_discount_rate": float(stats.get("mean_discount_rate", 0.0) or 0.0),
+        }
+        for cluster_id, stats in cluster_summary.iterrows()
+    }
+
+    remaining_clusters = set(stats_by_cluster.keys())
     segment_names: Dict[int, str] = {}
-    for cluster_id, stats in cluster_summary.iterrows():
-        segment_names[int(cluster_id)] = _infer_segment_name(
-            stats.to_dict(),
-            spend_threshold,
-            order_threshold,
-            recency_threshold,
-            discount_threshold,
-            vip_spend_threshold=vip_spend_threshold,
-            vip_order_threshold=vip_order_threshold,
-        )
+
+    def _assign_unique_label(
+        label: str,
+        condition,
+        score,
+    ) -> None:
+        candidates = [cid for cid in remaining_clusters if condition(stats_by_cluster[cid])]
+        if not candidates:
+            return
+        winner = max(candidates, key=lambda cid: score(stats_by_cluster[cid]))
+        segment_names[winner] = label
+        remaining_clusters.remove(winner)
+
+    _assign_unique_label(
+        "VIP",
+        lambda s: vip_spend_threshold > 0 and vip_order_threshold > 0
+        and s["mean_spending"] >= vip_spend_threshold
+        and s["mean_orders"] >= vip_order_threshold,
+        lambda s: (s["mean_spending"], s["mean_orders"], s["users"]),
+    )
+
+    _assign_unique_label(
+        "Khách mua nhiều",
+        lambda s: s["mean_spending"] >= spend_threshold and s["mean_orders"] >= order_threshold,
+        lambda s: (s["mean_spending"], s["mean_orders"], s["users"]),
+    )
+
+    _assign_unique_label(
+        "Khách săn sale",
+        lambda s: s["mean_discount_rate"] >= discount_threshold and s["mean_orders"] >= 1.0,
+        lambda s: (s["mean_discount_rate"], s["mean_orders"], -s["mean_recency"]),
+    )
+
+    _assign_unique_label(
+        "Khách ít tương tác",
+        lambda s: s["mean_recency"] >= recency_threshold or s["mean_orders"] <= 0.5,
+        lambda s: (s["mean_recency"], -s["mean_orders"], s["users"]),
+    )
+
+    _assign_unique_label(
+        "Khách mới",
+        lambda s: s["mean_orders"] <= 1.5 and s["mean_recency"] <= 90,
+        lambda s: (-s["mean_orders"], -s["mean_recency"], s["users"]),
+    )
+
+    for cid in sorted(remaining_clusters):
+        segment_names[cid] = "Khách trung thành"
 
     modeled_df["segment_name"] = modeled_df["cluster_id"].map(segment_names)
+
+    # PCA 2D projection for customer chart visualization.
+    customer_pca_points: List[Dict[str, Any]] = []
+    customer_pca_centroids: List[Dict[str, Any]] = []
+    if not modeled_df.empty:
+        n_pca = min(2, X_scaled.shape[0], X_scaled.shape[1])
+        pca = PCA(n_components=n_pca, random_state=42)
+        coords = pca.fit_transform(X_scaled)
+        modeled_df["pca_x"] = [float(c[0]) for c in coords]
+        modeled_df["pca_y"] = [float(c[1]) if len(c) > 1 else 0.0 for c in coords]
+
+        customer_pca_points = [
+            {
+                "user_id": int(row["user_id"]),
+                "user_name": str(row["user_name"]),
+                "cluster_id": int(row["cluster_id"]),
+                "segment_name": str(row["segment_name"]),
+                "pca_x": round(float(row["pca_x"]), 6),
+                "pca_y": round(float(row["pca_y"]), 6),
+            }
+            for _, row in modeled_df.iterrows()
+        ]
+
+        for cluster_id, cdf in modeled_df.groupby("cluster_id"):
+            cid = int(cluster_id)
+            customer_pca_centroids.append(
+                {
+                    "cluster_id": cid,
+                    "segment_name": str(segment_names.get(cid, "Khách trung thành")),
+                    "centroid_x": round(float(cdf["pca_x"].mean()), 6),
+                    "centroid_y": round(float(cdf["pca_y"].mean()), 6),
+                    "size": int(len(cdf.index)),
+                }
+            )
+
+        customer_pca_centroids.sort(key=lambda item: item["cluster_id"])
+
     if not zero_df.empty:
         zero_df["cluster_id"] = 0
         zero_df["segment_name"] = ZERO_SEGMENT_NAME
@@ -433,12 +541,18 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
     return {
         "message": "Phân cụm khách hàng thành công bằng K-Means",
         "total_users": int(len(df.index)),
-        "n_clusters": int(df["cluster_id"].nunique()),
-        "optimal_k": int(best_k + cluster_offset),
+        "n_clusters": int(cluster_count),
+        "total_groups": int(df["cluster_id"].nunique()),
+        "optimal_k": int(best_k),
+        "formula_suggested_k": int(formula_suggested_k),
+        "allowed_k_values": list(ALLOWED_CUSTOMER_CLUSTER_COUNTS),
         "auto_selected": int(n_clusters or 0) == 0,
         "clusters": summary,
         "elbow_data": [{"k": k, "inertia": v} for k, v in elbow_data],
+        "inertia_data": [{"k": k, "inertia": v} for k, v in elbow_data],
         "silhouette_data": [{"k": k, "score": v} for k, v in silhouette_data],
+        "pca_points": customer_pca_points,
+        "pca_centroids": customer_pca_centroids,
         "zero_group_users": int(len(zero_df.index)),
         "modeled_users": int(len(modeled_df.index)),
         "recency_cap_days": int(recency_cap),

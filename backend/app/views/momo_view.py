@@ -52,9 +52,9 @@ class MoMoView:
         
         # Tạo payment mới
         cursor.execute("""
-            INSERT INTO payment (BookingID, Amount, Status, Method, CreatedAt)
-            VALUES (%s, %s, 'Pending', 'momo', NOW())
-        """, (booking_id, total_amount))
+            INSERT INTO payment (BookingID, Amount, Status, Provider, OrderCode)
+            SELECT %s, %s, 'Pending', 'momo', OrderCode FROM booking WHERE BookingID = %s
+        """, (booking_id, total_amount, booking_id))
         
         return cursor.lastrowid
     
@@ -74,7 +74,7 @@ class MoMoView:
         """
         cursor.execute("""
             UPDATE payment 
-            SET TransactionID = %s, PaymentDate = NOW()
+            SET PaypalOrderID = %s, PaymentDate = NOW()
             WHERE PaymentID = %s
         """, (transaction_id, payment_id))
     
@@ -94,7 +94,7 @@ class MoMoView:
             SELECT p.PaymentID, p.BookingID, b.OrderCode
             FROM payment p
             JOIN booking b ON p.BookingID = b.BookingID
-            WHERE p.TransactionID = %s
+            WHERE p.PaypalOrderID = %s
         """, (order_id,))
         
         return cursor.fetchone()
@@ -119,7 +119,7 @@ class MoMoView:
         cursor.execute("""
             UPDATE payment 
             SET Status = 'Paid', 
-                TransactionID = %s,
+                PaypalTransactionID = %s,
                 Provider = 'momo',
                 PaidAt = NOW()
             WHERE PaymentID = %s

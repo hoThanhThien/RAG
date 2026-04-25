@@ -2,26 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.database import get_db_connection
 from app.dependencies.auth_dependencies import get_current_user
+from app.utils.location_utils import is_vietnam_location
 from typing import Dict, Any, Optional
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
-
-# Danh sách tỉnh/thành phố Việt Nam
-VIETNAM_LOCATIONS = [
-    'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ',
-    'Quảng Ninh', 'Lâm Đồng', 'Khánh Hòa', 'Kiên Giang', 'Bình Thuận',
-    'Thừa Thiên Huế', 'Quảng Nam', 'Bà Rịa - Vũng Tàu', 'Đồng Nai',
-    'Bình Dương', 'Long An', 'Tiền Giang', 'Bến Tre', 'Trà Vinh',
-    'Vĩnh Long', 'Đồng Tháp', 'An Giang', 'Sóc Trăng', 'Bạc Liêu',
-    'Cà Mau', 'Ninh Bình', 'Thanh Hóa', 'Nghệ An', 'Hà Tĩnh',
-    'Quảng Bình', 'Quảng Trị', 'Kon Tum', 'Gia Lai', 'Đắk Lắk',
-    'Đắk Nông', 'Phú Yên', 'Bình Định', 'Ninh Thuận', 'Tây Ninh',
-    'Bình Phước', 'Phú Thọ', 'Vĩnh Phúc', 'Bắc Ninh', 'Hải Dương',
-    'Hưng Yên', 'Thái Bình', 'Nam Định', 'Hà Nam', 'Ninh Bình',
-    'Sơn La', 'Lai Châu', 'Lào Cai', 'Yên Bái', 'Điện Biên',
-    'Hòa Bình', 'Tuyên Quang', 'Lạng Sơn', 'Cao Bằng', 'Bắc Kạn',
-    'Thái Nguyên', 'Quảng Ngãi', 'Bình Định', 'Hà Giang'
-]
 
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(current_user: Dict[str, Any] = Depends(get_current_user)):
@@ -203,7 +187,7 @@ async def get_revenue_by_location(
             filtered_results = []
             for row in results:
                 location = row['location']
-                is_domestic = location in VIETNAM_LOCATIONS
+                is_domestic = is_vietnam_location(location)
                 
                 if location_type == 'domestic' and not is_domestic:
                     continue

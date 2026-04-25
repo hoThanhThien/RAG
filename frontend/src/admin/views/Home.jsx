@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { adminService } from "../services/adminService";
 import { connectAdminDashboardWS } from "../../client/services/ws";
+import { Link } from "react-router-dom";
 import { 
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -24,6 +25,10 @@ const CLUSTER_COLORS = [
 // Xóa emoji đứng đầu chuỗi insight
 function stripEmoji(s) {
   return (s || '').replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})+\s*/u, '');
+}
+
+function formatAxisTick(value) {
+  return Number(value || 0).toFixed(2);
 }
 
 // Tạo path SVG hình ngôi sao 5 cánh
@@ -53,6 +58,7 @@ const AdminHome = () => {
   const [bookingStatus, setBookingStatus] = useState([]);
   const [locationRevenue, setLocationRevenue] = useState([]);
   const [kmeansData, setKmeansData] = useState({ locations: [], clusters: [], total: 0, n_clusters: 0 });
+  const [topCustomerSegments, setTopCustomerSegments] = useState({});
   const [kmeansLoading, setKmeansLoading] = useState(false);
   const [kmeansHovered, setKmeansHovered] = useState(null);
   const kmeansCanvasRef = useRef(null);
@@ -190,6 +196,7 @@ const AdminHome = () => {
         setLocationRevenue([]);
         setTopCustomers([]);
         setBookingStatus([]);
+        setTopCustomerSegments({});
       }
     } catch (error) {
       console.error("❌ Lỗi khi load dữ liệu dashboard:", error);
@@ -199,6 +206,46 @@ const AdminHome = () => {
       setRefreshing(false);
     }
   }, [locationFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const enrichTopCustomersWithSegments = async () => {
+      if (!isAdmin || topCustomers.length === 0) {
+        setTopCustomerSegments({});
+        return;
+      }
+
+      try {
+        const entries = await Promise.all(
+          topCustomers.slice(0, 5).map(async (customer) => {
+            try {
+              const segment = await adminService.getCustomerSegment(customer.user_id);
+              return [customer.user_id, segment];
+            } catch {
+              return [customer.user_id, null];
+            }
+          })
+        );
+
+        if (!cancelled) {
+          setTopCustomerSegments(
+            Object.fromEntries(entries.filter(([, segment]) => Boolean(segment)))
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setTopCustomerSegments({});
+        }
+      }
+    };
+
+    enrichTopCustomersWithSegments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, topCustomers]);
 
   // Load data on mount and when filter changes
   useEffect(() => {
@@ -591,6 +638,12 @@ const AdminHome = () => {
                     Mỗi điểm = 1 địa điểm &nbsp;·&nbsp; Màu/vùng = Nhóm cluster &nbsp;·&nbsp; ★ = đại diện nhóm
                   </small>
                 </div>
+                <div className="mt-3 d-flex justify-content-end">
+                  <Link to="/admin/clustering" className="btn btn-sm btn-outline-primary">
+                    <i className="bi bi-box-arrow-up-right me-1"></i>
+                    Xem trang phân cụm khách hàng / tour
+                  </Link>
+                </div>
               </div>
               <div className="card-body">
                 {kmeansLoading ? (
@@ -642,7 +695,7 @@ const AdminHome = () => {
                                     <g key={`xt-${i}`}>
                                       <line x1={x} y1={MT} x2={x} y2={MT + H} stroke="#e4e4e4" strokeWidth={1} />
                                       <text x={x} y={MT + H + 16} textAnchor="middle" fontSize={10} fill="#888" fontFamily="sans-serif">
-                                        {v.toFixed(1)}
+                                        {formatAxisTick(v)}
                                       </text>
                                     </g>
                                   );
@@ -655,7 +708,7 @@ const AdminHome = () => {
                                     <g key={`yt-${i}`}>
                                       <line x1={ML} y1={y} x2={plotRight} y2={y} stroke="#e4e4e4" strokeWidth={1} />
                                       <text x={ML - 7} y={y + 4} textAnchor="end" fontSize={10} fill="#888" fontFamily="sans-serif">
-                                        {v.toFixed(1)}
+                                        {formatAxisTick(v)}
                                       </text>
                                     </g>
                                   );
@@ -663,6 +716,41 @@ const AdminHome = () => {
 
                                 {/* Plot border */}
                                 <rect x={ML} y={MT} width={W} height={H} fill="none" stroke="#ccc" strokeWidth={1} />
+
+                                {/* Axis titles */}
+                                <text
+                                  x={ML + W / 2}
+                                  y={MT + H + 32}
+                                  textAnchor="middle"
+                                  fontSize={11}
+                                  fontWeight="600"
+                                  fill="#5b6470"
+                                  fontFamily="sans-serif"
+                                >
+                                  Trục X (PCA 1)
+                                </text>
+                                <text
+                                  x={14}
+                                  y={MT + H / 2}
+                                  textAnchor="middle"
+                                  fontSize={11}
+                                  fontWeight="600"
+                                  fill="#5b6470"
+                                  fontFamily="sans-serif"
+                                  transform={`rotate(-90 14 ${MT + H / 2})`}
+                                >
+                                  Trục Y (PCA 2)
+                                </text>
+                                <text
+                                  x={ML + W / 2}
+                                  y={MT - 10}
+                                  textAnchor="middle"
+                                  fontSize={10}
+                                  fill="#7b8794"
+                                  fontFamily="sans-serif"
+                                >
+                                  PCA 1: {formatAxisTick(minX)} → {formatAxisTick(maxX)} · PCA 2: {formatAxisTick(minY)} → {formatAxisTick(maxY)}
+                                </text>
 
                                 {/* Data points (chỉ inlier trên scatter chính) */}
                                 {inlierLocations.map((loc, i) => {
@@ -791,6 +879,7 @@ const AdminHome = () => {
                                 <span style={{ fontSize: '0.75rem' }}>{stripEmoji(cluster?.insight)}</span>
                               </div>
                               <div style={{ color: '#555', lineHeight: 1.7 }}>
+                                <span>Toạ độ X/Y: <b style={{ color: '#333' }}>{Number(kmeansHovered.pca_x || 0).toFixed(2)} / {Number(kmeansHovered.pca_y || 0).toFixed(2)}</b></span><br />
                                 <span>Lượt đặt (khách): <b style={{ color: '#333' }}>{kmeansHovered.count}</b></span><br />
                                 <span>Số đơn (BookingID): <b style={{ color: '#333' }}>{kmeansHovered.booking_count ?? 0}</b></span><br />
                                 <span>Tần suất: <b style={{ color: '#333' }}>{kmeansHovered.frequency?.toFixed(1)}/tour</b></span><br />
@@ -914,7 +1003,20 @@ const AdminHome = () => {
                               >
                                 <i className="bi bi-person-fill text-primary"></i>
                               </div>
-                              <span className="fw-semibold">{customer.name}</span>
+                              <div>
+                                <div className="fw-semibold">{customer.name}</div>
+                                {topCustomerSegments[customer.user_id]?.segment_name && (
+                                  <span
+                                    className="badge rounded-pill mt-1"
+                                    style={{
+                                      backgroundColor: CLUSTER_COLORS[(topCustomerSegments[customer.user_id]?.cluster_id || 0) % CLUSTER_COLORS.length],
+                                      fontSize: '0.7rem'
+                                    }}
+                                  >
+                                    {topCustomerSegments[customer.user_id].segment_name}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="align-middle text-muted">

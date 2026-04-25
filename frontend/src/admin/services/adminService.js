@@ -96,4 +96,46 @@ export const adminService = {
       throw error;
     }
   },
+
+  rebuildCustomerSegments: async (nClusters = 0) => {
+    try {
+      const response = await api.post('/segments/rebuild', null, {
+        ...liveConfig(),
+        params: {
+          n_clusters: nClusters,
+          _ts: Date.now(),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rebuilding customer segments:', error);
+      throw error;
+    }
+  },
+
+  rebuildTourClusters: async (nClusters = 0) => {
+    try {
+      const response = await api.post('/admin/kmeans/tours/rebuild', null, {
+        ...liveConfig(),
+        params: {
+          n_clusters: nClusters,
+          _ts: Date.now(),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rebuilding tour clusters:', error);
+      throw error;
+    }
+  },
+
+  getCustomerSegment: async (userId) => {
+    try {
+      const response = await api.get(`/segments/${userId}`, liveConfig());
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customer segment:', error);
+      throw error;
+    }
+  },
 };
