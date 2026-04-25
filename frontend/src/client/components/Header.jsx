@@ -99,10 +99,10 @@ export default function Header() {
 
 
               <li><NavLink to="/" className={navClass}>Home</NavLink></li>
-              <li><NavLink to="/?scroll=about" className="nav-link text-dark fw-semibold px-0 py-2">About Us</NavLink></li>
-              <li><NavLink to="/?scroll=tours" className="nav-link text-dark fw-semibold px-0 py-2">TOUR NỔI BẬT</NavLink></li>
+              <li><NavLink to="/?scroll=tours" className="nav-link text-dark fw-semibold px-0 py-2">Tour Nổi Bật</NavLink></li>
               <li><NavLink to="/?scroll=destinations" className="nav-link text-dark fw-semibold px-0 py-2">ĐIỂM ĐẾN</NavLink></li>
               <li><NavLink to="/?scroll=blog" className="nav-link text-dark fw-semibold px-0 py-2">Blog</NavLink></li>
+              <li><NavLink to="/?scroll=about" className="nav-link text-dark fw-semibold px-0 py-2">About Us</NavLink></li>
               <li><a href="/contact" className="nav-link text-dark fw-semibold px-0 py-2">Contact Us</a></li>
 
 

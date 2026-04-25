@@ -1,10 +1,7 @@
 // src/client/routes.jsx
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import ClientLayout from "./components/layout/ClientLayout";
-import Home from "./pages/Home";
-import Tours from "./pages/Tours";
-import TourDetail from "./pages/TourDetail";
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 import PaymentSuccess from "./pages/PaymentSuccess";  
@@ -14,17 +11,35 @@ import Contact from "./pages/Contact";
 import UserProfile from "./pages/UserProfile";
 import BookingHistory from "./pages/BookingHistory";  
 import BookingDetail from "./pages/BookingDetail";  
-import Recommendations from "./pages/Recommendations";
 import AuthPage from "./pages/Auth";
+
+const Home = lazy(() => import("./pages/Home"));
+const Tours = lazy(() => import("./pages/Tours"));
+const TourDetail = lazy(() => import("./pages/TourDetail"));
+const Recommendations = lazy(() => import("./pages/Recommendations"));
+
+const withSuspense = (node) => (
+  <Suspense
+    fallback={(
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "35vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    )}
+  >
+    {node}
+  </Suspense>
+);
 
 
 export default function ClientRoutes() {
   return (
     <Routes>
       <Route path="/" element={<ClientLayout />}>
-        <Route index element={<Home />} />
-        <Route path="tours" element={<Tours />} />
-        <Route path="tours/:id" element={<TourDetail />} />
+        <Route index element={withSuspense(<Home />)} />
+        <Route path="tours" element={withSuspense(<Tours />)} />
+        <Route path="tours/:id" element={withSuspense(<TourDetail />)} />
         <Route path="booking/:id" element={<Booking />} />
         <Route path="payment/:bookingId" element={<Payment />} />
         <Route path="payment/:bookingId/success" element={<PaymentSuccess />} /> {/* <-- THÊM */}
@@ -35,7 +50,7 @@ export default function ClientRoutes() {
         <Route path="bookings" element={<BookingHistory />} /> {/* <-- Booking History route */}
         <Route path="user/bookings" element={<BookingHistory />} /> {/* <-- Alias route */}
         <Route path="booking-details/:id" element={<BookingDetail />} /> {/* <-- Booking Detail route */}
-        <Route path="recommendations" element={<Recommendations />} />
+        <Route path="recommendations" element={withSuspense(<Recommendations />)} />
       </Route>
       <Route path="/auth" element={<AuthPage />} />
     </Routes>

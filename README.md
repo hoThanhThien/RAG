@@ -94,7 +94,7 @@ Khuyến nghị production ngắn gọn:
 Ví dụ chạy với Docker Compose có Redis:
 
 ```bash
-docker compose up --build nhom09_mysql nhom09_redis nhom09_backend nhom09_frontend
+
 ```
 
 ### Frontend Setup

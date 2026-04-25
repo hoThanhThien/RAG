@@ -11,6 +11,7 @@ from app.views.momo_view import MoMoView
 from app.utils.momo import MoMoService
 import json
 import os
+import time
 
 router = APIRouter(prefix="/payments/momo", tags=["MoMo Payment"])
 
@@ -80,7 +81,7 @@ async def create_momo_payment(
             )
             
             # 3. Tạo MoMo order ID và order info
-            order_id = MoMoService.format_order_id(booking["OrderCode"])
+            order_id = f"{MoMoService.format_order_id(booking['OrderCode'])}_{int(time.time())}"
             amount = int(booking["TotalAmount"])
             order_info = f"Thanh toan tour: {booking['TourName']}"
             

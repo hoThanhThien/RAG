@@ -43,7 +43,7 @@ export const login = async (data) => {
 export const logout = async () => {
   try {
     await api.post("/auth/logout");
-  } catch (err) {
+  } catch  {
     // Không cần xử lý lỗi logout
   }
   localStorage.removeItem("access_token");

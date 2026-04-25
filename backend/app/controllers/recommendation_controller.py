@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies.auth_dependencies import require_admin
 from app.services.destination_clustering_service import get_featured_destinations, get_kmeans_cluster_visualization
@@ -48,10 +48,12 @@ async def featured_destinations(
 
 @router.post("/segments/rebuild")
 async def rebuild_segments(
-    n_clusters: int = Query(0, ge=0, le=8, description="Số cụm (0 = tự động chọn)"),
+    n_clusters: int = Query(0, ge=0, le=5, description="Số cụm (0 = tự động chọn giữa 3 và 5 theo công thức)"),
     current_user: Dict[str, Any] = Depends(require_admin),
 ):
     _ = current_user
+    if n_clusters not in {0, 3, 5}:
+        raise HTTPException(status_code=400, detail="n_clusters chỉ được phép là 0, 3 hoặc 5")
     return rebuild_customer_segments(n_clusters=n_clusters)
 
 
