@@ -1,8 +1,7 @@
 services:
-
-  nhom09_mysql:
+  mysql:
     image: mysql:8.0
-    container_name: nhom09_mysql
+    container_name: mysql
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: tourbookingdb
@@ -13,28 +12,29 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - nhom09_network
+      - app_network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       retries: 5
       timeout: 5s
 
-  nhom09_backend:
+  backend:
     build: ./backend
-    container_name: nhom09_backend
+    image: rag-backend
+    container_name: backend
     ports:
       - "8000:8000"
     volumes:
       - uploads_data:/app/uploads
     environment:
-      DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@nhom09_mysql:3306/tourbookingdb
+      DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@mysql:3306/tourbookingdb
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
       RAG_REDIS_ENABLED: ${RAG_REDIS_ENABLED:-true}
-      RAG_REDIS_URL: ${RAG_REDIS_URL:-redis://nhom09_redis:6379/0}
+      RAG_REDIS_URL: ${RAG_REDIS_URL:-redis://redis:6379/0}
       MOMO_PARTNER_CODE: ${MOMO_PARTNER_CODE}
       MOMO_ACCESS_KEY: ${MOMO_ACCESS_KEY}
       MOMO_SECRET_KEY: ${MOMO_SECRET_KEY}
@@ -43,50 +43,51 @@ services:
       MOMO_API_ENDPOINT: ${MOMO_API_ENDPOINT:-https://test-payment.momo.vn/v2/gateway/api/create}
       MOMO_ENVIRONMENT: ${MOMO_ENVIRONMENT:-test}
     depends_on:
-      nhom09_mysql:
+      mysql:
         condition: service_healthy
-      nhom09_redis:
+      redis:
         condition: service_started
     networks:
-      - nhom09_network
+      - app_network
 
-  nhom09_redis:
+  redis:
     image: redis:7-alpine
-    container_name: nhom09_redis
+    container_name: redis
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
     networks:
-      - nhom09_network
+      - app_network
 
-  nhom09_frontend:
+  frontend:
     build: ./frontend
-    container_name: nhom09_frontend
+    image: rag-frontend
+    container_name: frontend
     ports:
-      - "3000:3000"       
+      - "3000:3000"
     environment:
-      - VITE_API_URL=http://nhom09_backend:8000
+      - VITE_API_URL=http://backend:8000
     depends_on:
-      - nhom09_backend
+      - backend
     networks:
-      - nhom09_network
+      - app_network
 
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: nhom09_phpmyadmin
+    container_name: phpmyadmin
     ports:
       - "8080:80"
     environment:
-      PMA_HOST: nhom09_mysql
+      PMA_HOST: mysql
       PMA_USER: root
       PMA_PASSWORD: root123
     depends_on:
-      - nhom09_mysql
+      - mysql
     networks:
-      - nhom09_network
+      - app_network
 
 networks:
-  nhom09_network:
+  app_network:
 
 volumes:
   mysql_data:

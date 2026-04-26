@@ -241,11 +241,6 @@ export default function ClusteringView({ mode = 'both', breadcrumb = '' }) {
     [customerSegmentData.clusters]
   );
 
-  const customerSpecialClusters = useMemo(
-    () => (customerSegmentData.clusters || []).filter((cluster) => cluster?.is_special_group),
-    [customerSegmentData.clusters]
-  );
-
   const tourModeledClusterOrder = useMemo(
     () => buildModeledClusterOrdinalMap(tourClusterData.clusters),
     [tourClusterData.clusters]
