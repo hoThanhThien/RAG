@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "./components/layout/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -18,7 +18,8 @@ const TourScheduleList = lazy(() => import("./views/TourScheduleList"));
 const SupportList = lazy(() => import("./views/SupportList"));
 const SupportChat = lazy(() => import("./views/SupportChat"));
 const CommentList = lazy(() => import("./views/CommentList"));
-const ClusteringView = lazy(() => import("./views/ClusteringView"));
+const CustomerClustering = lazy(() => import("./views/CustomerClustering"));
+const TourClustering = lazy(() => import("./views/TourClustering"));
 
 const withSuspense = (node) => (
   <Suspense
@@ -47,7 +48,9 @@ const AdminRoutes = () => {
         }
       >
         <Route index element={withSuspense(<Home />)} />
-        <Route path="clustering" element={withSuspense(<ClusteringView />)} />
+        <Route path="clustering" element={<Navigate to="/admin/clustering/customers" replace />} />
+        <Route path="clustering/customers" element={withSuspense(<CustomerClustering />)} />
+        <Route path="clustering/tours" element={withSuspense(<TourClustering />)} />
         <Route path="users" element={withSuspense(<UserList />)} />
         <Route path="tours" element={withSuspense(<TourList />)} />
         <Route path="bookings" element={withSuspense(<BookingList />)} />

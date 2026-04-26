@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Máy chủ: nhom09_mysql
--- Thời gian đã tạo: Th4 22, 2026 lúc 12:17 PM
+-- Thời gian đã tạo: Th4 26, 2026 lúc 03:47 PM
 -- Phiên bản máy phục vụ: 8.0.44
 -- Phiên bản PHP: 8.3.30
 
@@ -20,6 +20,23 @@ SET time_zone = "+00:00";
 --
 -- Cơ sở dữ liệu: `tourbookingdb`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `bank_txn`
+--
+
+CREATE TABLE `bank_txn` (
+  `BankTxnID` int NOT NULL,
+  `Provider` varchar(50) NOT NULL,
+  `ProviderRef` varchar(100) NOT NULL,
+  `Amount` decimal(18,2) NOT NULL,
+  `Description` varchar(255) DEFAULT NULL,
+  `PaidAt` datetime NOT NULL,
+  `RawPayload` longtext,
+  `CreatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -46,8 +63,6 @@ CREATE TABLE `booking` (
 
 INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOfPeople`, `TotalAmount`, `Status`, `DiscountID`, `OrderCode`, `UpdatedAt`) VALUES
 (9, 11, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-XE0MMF', '2026-04-18 16:35:46'),
-(10, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-OAAPUK', '2026-04-18 16:35:46'),
-(11, 12, 30, '2025-08-29', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20250829-HAFRPY', '2026-04-18 16:35:46'),
 (13, 11, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-79BF3X', '2026-04-19 09:57:36'),
 (14, 11, 31, '2026-04-19', 1, 4200000.00, 'Confirmed', NULL, 'ORDER20260419-5AY0YZ', '2026-04-19 06:53:52'),
 (15, 11, 43, '2026-04-19', 1, 38000000.00, 'Confirmed', NULL, 'ORDER20260419-I17DG3', '2026-04-19 07:31:18'),
@@ -114,7 +129,53 @@ INSERT INTO `booking` (`BookingID`, `UserID`, `TourID`, `BookingDate`, `NumberOf
 (76, 23, 31, '2026-04-19', 1, 4200000.00, 'Pending', 3, 'ORDER20260419-5NC2DU', '2026-04-19 13:12:27'),
 (77, 23, 31, '2026-04-21', 1, 4200000.00, 'Pending', NULL, 'ORDER20260421-T4T0PF', NULL),
 (78, 23, 30, '2026-04-21', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260421-ZYP9AW', '2026-04-21 14:01:34'),
-(79, 23, 30, '2026-04-21', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260421-MBJO45', '2026-04-21 14:04:56');
+(79, 23, 30, '2026-04-21', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260421-MBJO45', '2026-04-21 14:04:56'),
+(80, 23, 71, '2026-04-23', 1, 49990000.00, 'Confirmed', NULL, 'ORDER20260423-5P37TL', '2026-04-26 07:17:18'),
+(81, 23, 18, '2026-04-24', 1, 12000000.00, 'Pending', NULL, 'ORDER20260424-BI3ZUM', NULL),
+(82, 23, 58, '2026-04-24', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260424-4SX0UG', '2026-04-24 05:22:13'),
+(83, 64, 58, '2026-04-25', 1, 5000000.00, 'Pending', NULL, 'ORDER20260425-4EH6NH', NULL),
+(84, 64, 58, '2026-04-25', 1, 5000000.00, 'Pending', NULL, 'ORDER20260425-O7F8U9', NULL),
+(85, 1, 71, '2026-04-25', 1, 89990000.00, 'Pending', NULL, 'ORDER20260425-CYL5MT', NULL),
+(86, 23, 71, '2026-04-26', 1, 49990000.00, 'Pending', NULL, 'ORDER20260426-RAIWDM', NULL),
+(87, 23, 21, '2026-04-26', 1, 25000000.00, 'Pending', NULL, 'ORDER20260426-SR48CS', NULL),
+(88, 23, 21, '2026-04-26', 1, 25000000.00, 'Pending', NULL, 'ORDER20260426-JM4WD7', NULL),
+(89, 23, 21, '2026-04-26', 1, 25000000.00, 'Confirmed', NULL, 'ORDER20260426-G5JH4N', '2026-04-26 08:18:11'),
+(90, 64, 42, '2026-04-26', 1, 40000000.00, 'Confirmed', NULL, 'ORDER20260426-Q0X4NK', '2026-04-26 08:19:58'),
+(91, 23, 66, '2026-04-26', 1, 50999000.00, 'Pending', NULL, 'ORDER20260426-5I2SQP', NULL),
+(92, 23, 66, '2026-04-26', 1, 50999000.00, 'Confirmed', NULL, 'ORDER20260426-139W6U', '2026-04-26 09:43:03'),
+(93, 64, 50, '2026-04-26', 1, 5000000.00, 'Confirmed', NULL, 'ORDER20260426-J39AU2', '2026-04-26 10:33:34'),
+(94, 64, 45, '2026-04-26', 1, 3000000.00, 'Confirmed', NULL, 'ORDER20260426-XU8V0C', '2026-04-26 13:21:27'),
+(95, 64, 58, '2026-04-26', 1, 5000000.00, 'Pending', NULL, 'ORDER20260426-NZIZRF', NULL),
+(96, 64, 50, '2026-04-26', 1, 5000000.00, 'Pending', NULL, 'ORDER20260426-N9DD0S', NULL),
+(97, 14, NULL, '2026-04-20', 2, 8400000.00, 'Confirmed', NULL, 'BKD_DEMO_97', '2026-04-26 14:06:49'),
+(98, 15, NULL, '2026-04-21', 3, 12600000.00, 'Confirmed', NULL, 'BKD_DEMO_98', '2026-04-26 14:06:49'),
+(99, 16, NULL, '2026-04-22', 1, 4200000.00, 'Pending', NULL, 'BKD_DEMO_99', '2026-04-26 14:06:49'),
+(100, 17, NULL, '2026-04-20', 2, 13800000.00, 'Confirmed', NULL, 'BKD_DEMO_100', '2026-04-26 14:06:49'),
+(101, 18, NULL, '2026-04-21', 2, 13800000.00, 'Confirmed', NULL, 'BKD_DEMO_101', '2026-04-26 14:06:49'),
+(102, 19, NULL, '2026-04-23', 1, 6900000.00, 'Pending', NULL, 'BKD_DEMO_102', '2026-04-26 14:06:49'),
+(103, 20, NULL, '2026-04-20', 3, 10800000.00, 'Confirmed', NULL, 'BKD_DEMO_103', '2026-04-26 14:06:49'),
+(104, 21, NULL, '2026-04-22', 2, 7200000.00, 'Confirmed', NULL, 'BKD_DEMO_104', '2026-04-26 14:06:49'),
+(105, 22, NULL, '2026-04-22', 4, 10000000.00, 'Confirmed', NULL, 'BKD_DEMO_105', '2026-04-26 14:06:49'),
+(106, 23, NULL, '2026-04-23', 2, 5000000.00, 'Pending', NULL, 'BKD_DEMO_106', '2026-04-26 14:06:49'),
+(107, 24, NULL, '2026-04-19', 2, 33000000.00, 'Confirmed', NULL, 'BKD_DEMO_107', '2026-04-26 14:06:49'),
+(108, 25, NULL, '2026-04-21', 1, 16500000.00, 'Confirmed', NULL, 'BKD_DEMO_108', '2026-04-26 14:06:49'),
+(109, 26, NULL, '2026-04-20', 2, 39600000.00, 'Confirmed', NULL, 'BKD_DEMO_109', '2026-04-26 14:06:49'),
+(110, 27, NULL, '2026-04-21', 1, 19800000.00, 'Confirmed', NULL, 'BKD_DEMO_110', '2026-04-26 14:06:49'),
+(111, 14, NULL, '2026-04-20', 1, 36500000.00, 'Confirmed', NULL, 'BKD_DEMO_111', '2026-04-26 14:06:49'),
+(112, 15, NULL, '2026-04-22', 1, 36500000.00, 'Pending', NULL, 'BKD_DEMO_112', '2026-04-26 14:06:49'),
+(113, 16, NULL, '2026-04-20', 1, 33800000.00, 'Confirmed', NULL, 'BKD_DEMO_113', '2026-04-26 14:06:49'),
+(114, 17, NULL, '2026-04-22', 2, 67600000.00, 'Confirmed', NULL, 'BKD_DEMO_114', '2026-04-26 14:06:49'),
+(116, 66, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U66', NULL),
+(117, 67, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U67', NULL),
+(118, 68, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U68', NULL),
+(119, 69, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U69', NULL),
+(120, 70, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U70', NULL),
+(121, 71, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U71', NULL),
+(122, 72, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U72', NULL),
+(123, 73, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U73', NULL),
+(124, 74, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U74', NULL),
+(125, 75, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U75', NULL),
+(126, 75, 30, '2026-04-26', 1, 3500000.00, 'Confirmed', NULL, 'ORDER20260426-U76', NULL);
 
 -- --------------------------------------------------------
 
@@ -158,14 +219,21 @@ CREATE TABLE `comment` (
 
 INSERT INTO `comment` (`CommentID`, `UserID`, `TourID`, `BookingID`, `Content`, `Rating`, `CreatedAt`) VALUES
 (6, 11, 30, NULL, 'hi', 5, '2025-08-29 21:37:25'),
-(8, 12, 30, NULL, 'hi cho tui xin cảm nhận về chuyển đi', 5, '2025-08-29 21:48:41'),
-(9, 12, 29, NULL, 'cho tui xin cảm nhận về tour', 5, '2025-08-29 22:51:33'),
 (10, 11, 31, NULL, 'xuất sắc', 1, '2026-04-19 09:28:26'),
 (11, 11, 20, NULL, '123', 5, '2026-04-19 09:50:14'),
 (12, 23, 31, NULL, 'dd', 5, '2026-04-19 12:12:16'),
 (13, 23, 31, NULL, 'tttt', 5, '2026-04-19 12:12:48'),
 (14, 23, 31, NULL, 'ttt', 5, '2026-04-19 13:03:09'),
-(15, 23, 43, NULL, 'ggg', NULL, '2026-04-21 08:04:10');
+(16, 66, 30, NULL, 'Tour trải nghiệm rất tuyệt vời!', 5, '2026-04-26 15:34:23'),
+(17, 67, 30, NULL, 'Giá cả hợp lý, đáng tiền.', 5, '2026-04-26 15:34:23'),
+(18, 68, 30, NULL, 'Phong cảnh đẹp nhưng hơi đông đúc.', 4, '2026-04-26 15:34:23'),
+(19, 69, 30, NULL, 'Hướng dẫn viên nhiệt tình, chu đáo.', 5, '2026-04-26 15:34:23'),
+(20, 70, 30, NULL, 'Sẽ giới thiệu cho bạn bè.', 5, '2026-04-26 15:34:23'),
+(21, 71, 30, NULL, 'Mọi thứ đều hoàn hảo.', 5, '2026-04-26 15:34:23'),
+(22, 72, 30, NULL, 'Chuyến đi lưu lại nhiều kỷ niệm đẹp.', 5, '2026-04-26 15:34:23'),
+(23, 73, 30, NULL, 'Đồ ăn ngon nhưng lịch trình hơi mệt.', 4, '2026-04-26 15:34:23'),
+(24, 74, 30, NULL, 'Dịch vụ chuẩn như mong đợi.', 5, '2026-04-26 15:34:23'),
+(25, 75, 30, NULL, 'Gia đình tôi rất hài lòng với tour này.', 5, '2026-04-26 15:34:23');
 
 -- --------------------------------------------------------
 
@@ -181,6 +249,7 @@ CREATE TABLE `customer_segment` (
   `OrderCount` int DEFAULT '0',
   `DaysSinceLastPurchase` int DEFAULT '9999',
   `DiscountUsageRate` decimal(6,4) DEFAULT '0.0000',
+  `AvgOrderValue` decimal(15,2) DEFAULT '0.00',
   `FavoriteCategory` varchar(255) DEFAULT NULL,
   `UpdatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -189,63 +258,75 @@ CREATE TABLE `customer_segment` (
 -- Đang đổ dữ liệu cho bảng `customer_segment`
 --
 
-INSERT INTO `customer_segment` (`UserID`, `ClusterID`, `SegmentName`, `TotalSpending`, `OrderCount`, `DaysSinceLastPurchase`, `DiscountUsageRate`, `FavoriteCategory`, `UpdatedAt`) VALUES
-(1, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
-(6, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
-(7, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
-(11, 1, 'Khách mua nhiều', 107800000.00, 10, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(12, 0, 'Khách ít tương tác', 7000000.00, 2, 233, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(13, 2, 'Khách ít tương tác', 0.00, 0, 9999, 0.0000, 'General', '2026-04-19 16:09:20'),
-(14, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(15, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(16, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(17, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(18, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(19, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(20, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(21, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(22, 0, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(23, 0, 'Khách ít tương tác', 7700000.00, 2, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(24, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(25, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(26, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(27, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(28, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(29, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(30, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(31, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(32, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(33, 0, 'Khách ít tương tác', 4200000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(34, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(35, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(36, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(37, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(38, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(39, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(40, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(41, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(42, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(43, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(44, 0, 'Khách ít tương tác', 3100000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(45, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(46, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(47, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(48, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(49, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(50, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(51, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(52, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(53, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(54, 0, 'Khách ít tương tác', 5000000.00, 1, 0, 0.0000, 'Du lịch trong nước', '2026-04-19 16:09:20'),
-(55, 3, 'Khách mua nhiều', 45000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(56, 3, 'Khách mua nhiều', 40000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(57, 3, 'Khách mua nhiều', 38000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(58, 3, 'Khách mua nhiều', 32000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(59, 3, 'Khách mua nhiều', 25000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(60, 3, 'Khách mua nhiều', 20000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(61, 3, 'Khách mua nhiều', 20000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(62, 0, 'Khách ít tương tác', 12000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20'),
-(63, 0, 'Khách ít tương tác', 12000000.00, 1, 0, 0.0000, 'Du lịch ngoài nước', '2026-04-19 16:09:20');
+INSERT INTO `customer_segment` (`UserID`, `ClusterID`, `SegmentName`, `TotalSpending`, `OrderCount`, `DaysSinceLastPurchase`, `DiscountUsageRate`, `AvgOrderValue`, `FavoriteCategory`, `UpdatedAt`) VALUES
+(1, 0, 'Khách mới / Chưa tương tác', 0.00, 0, 7, 0.0000, 0.00, 'General', '2026-04-26 15:39:59'),
+(6, 0, 'Khách mới / Chưa tương tác', 0.00, 0, 7, 0.0000, 0.00, 'General', '2026-04-26 15:39:59'),
+(7, 0, 'Khách mới / Chưa tương tác', 0.00, 0, 7, 0.0000, 0.00, 'General', '2026-04-26 15:39:59'),
+(11, 5, 'VIP', 107800000.00, 10, 7, 0.0000, 10780000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(12, 4, 'Khách ít tương tác', 3500000.00, 1, 240, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 14:41:53'),
+(13, 0, 'Khách mới / Chưa tương tác', 0.00, 0, 7, 0.0000, 0.00, 'General', '2026-04-26 15:39:59'),
+(14, 3, 'Khách mua nhiều', 48400000.00, 3, 6, 0.0000, 16133333.33, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(15, 6, 'Khách ổn định', 16100000.00, 2, 5, 0.0000, 8050000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(16, 3, 'Khách mua nhiều', 37300000.00, 2, 6, 0.0000, 18650000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(17, 3, 'Khách mua nhiều', 84900000.00, 3, 4, 0.0000, 28300000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(18, 6, 'Khách ổn định', 17300000.00, 2, 5, 0.0000, 8650000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(19, 1, 'Khách mới', 3500000.00, 1, 7, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(20, 6, 'Khách ổn định', 14300000.00, 2, 6, 0.0000, 7150000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(21, 6, 'Khách ổn định', 10700000.00, 2, 4, 0.0000, 5350000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(22, 6, 'Khách ổn định', 13500000.00, 2, 4, 0.0000, 6750000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(23, 5, 'VIP', 145689000.00, 8, 0, 0.0000, 18211125.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(24, 3, 'Khách mua nhiều', 37200000.00, 2, 7, 0.0000, 18600000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(25, 6, 'Khách ổn định', 20700000.00, 2, 5, 0.0000, 10350000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(26, 3, 'Khách mua nhiều', 43800000.00, 2, 6, 0.0000, 21900000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(27, 6, 'Khách ổn định', 24000000.00, 2, 5, 0.0000, 12000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(28, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(29, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(30, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(31, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(32, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(33, 1, 'Khách mới', 4200000.00, 1, 7, 0.0000, 4200000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(34, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(35, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(36, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(37, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(38, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(39, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(40, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(41, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(42, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(43, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(44, 1, 'Khách mới', 3100000.00, 1, 7, 0.0000, 3100000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(45, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(46, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(47, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(48, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(49, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(50, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(51, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(52, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(53, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(54, 1, 'Khách mới', 5000000.00, 1, 7, 0.0000, 5000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(55, 2, 'Khách trung thành', 45000000.00, 1, 7, 0.0000, 45000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(56, 2, 'Khách trung thành', 40000000.00, 1, 7, 0.0000, 40000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(57, 2, 'Khách trung thành', 38000000.00, 1, 7, 0.0000, 38000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(58, 2, 'Khách trung thành', 32000000.00, 1, 7, 0.0000, 32000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(59, 2, 'Khách trung thành', 25000000.00, 1, 7, 0.0000, 25000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(60, 2, 'Khách trung thành', 20000000.00, 1, 7, 0.0000, 20000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(61, 2, 'Khách trung thành', 20000000.00, 1, 7, 0.0000, 20000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(62, 2, 'Khách trung thành', 12000000.00, 1, 7, 0.0000, 12000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(63, 2, 'Khách trung thành', 12000000.00, 1, 7, 0.0000, 12000000.00, 'Du lịch ngoài nước', '2026-04-26 15:39:59'),
+(64, 3, 'Khách mua nhiều', 48000000.00, 3, 0, 0.0000, 16000000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(66, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(67, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(68, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(69, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(70, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(71, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(72, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(73, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(74, 4, 'Khách ít tương tác', 3500000.00, 1, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(75, 4, 'Khách ít tương tác', 7000000.00, 2, 0, 0.0000, 3500000.00, 'Du lịch trong nước', '2026-04-26 15:39:59'),
+(76, 0, 'Khách mới / Chưa tương tác', 0.00, 0, 7, 0.0000, 0.00, 'General', '2026-04-26 15:39:59');
 
 -- --------------------------------------------------------
 
@@ -364,7 +445,53 @@ INSERT INTO `payment` (`PaymentID`, `BookingID`, `Provider`, `OrderCode`, `Payme
 (68, 76, 'manualqr', 'ORDER20260419-5NC2DU', NULL, NULL, NULL, NULL, '2026-04-19 10:40:51', -4200000.00, 'Pending', NULL, NULL),
 (69, 77, 'manualqr', 'ORDER20260421-T4T0PF', NULL, NULL, NULL, NULL, '2026-04-21 10:39:26', 4200000.00, 'Pending', NULL, NULL),
 (70, 78, 'paypal', 'ORDER20260421-ZYP9AW', NULL, '2026-04-21 14:01:35', '66N16730E94195108', '6G447709H30153904', '2026-04-21 14:01:34', 3500000.00, 'Paid', NULL, NULL),
-(71, 79, 'paypal', 'ORDER20260421-MBJO45', NULL, '2026-04-21 14:04:56', '1D5534114B973663D', '6WL75080XK428102W', '2026-04-21 14:04:56', 3500000.00, 'Paid', NULL, NULL);
+(71, 79, 'paypal', 'ORDER20260421-MBJO45', NULL, '2026-04-21 14:04:56', '1D5534114B973663D', '6WL75080XK428102W', '2026-04-21 14:04:56', 3500000.00, 'Paid', NULL, NULL),
+(72, 80, 'paypal', 'ORDER20260423-5P37TL', NULL, '2026-04-23 16:00:58', '9MP84970T9713912K', '55N01523M8172225Y', '2026-04-23 16:00:58', 89990000.00, 'Paid', NULL, NULL),
+(73, 81, 'manualqr', 'ORDER20260424-BI3ZUM', '2026-04-25', NULL, 'MOMOORDER20260424-BI3ZUM_1777138890', NULL, '2026-04-25 17:41:30', 12000000.00, 'Pending', NULL, NULL),
+(74, 82, 'paypal', 'ORDER20260424-4SX0UG', NULL, '2026-04-24 05:22:14', '5X21809742099540Y', '4NV929816P445523C', '2026-04-24 05:22:13', 5000000.00, 'Paid', NULL, NULL),
+(75, 83, 'manualqr', 'ORDER20260425-4EH6NH', NULL, NULL, NULL, NULL, '2026-04-25 07:24:02', 5000000.00, 'Pending', NULL, NULL),
+(76, 84, 'manualqr', 'ORDER20260425-O7F8U9', '2026-04-25', NULL, 'MOMOORDER20260425-O7F8U9_1777102670', NULL, '2026-04-25 07:37:50', 5000000.00, 'Pending', NULL, NULL),
+(77, 85, 'manualqr', 'ORDER20260425-CYL5MT', NULL, NULL, NULL, NULL, '2026-04-25 18:35:36', 89990000.00, 'Pending', NULL, NULL),
+(78, 86, 'manualqr', 'ORDER20260426-RAIWDM', '2026-04-26', NULL, 'MOMOORDER20260426-RAIWDM_1777187994', NULL, '2026-04-26 07:19:54', 49990000.00, 'Pending', NULL, NULL),
+(79, 87, 'manualqr', 'ORDER20260426-SR48CS', '2026-04-26', NULL, 'MOMOORDER20260426-SR48CS_1777189591', NULL, '2026-04-26 07:46:31', 25000000.00, 'Pending', NULL, NULL),
+(80, 88, 'manualqr', 'ORDER20260426-JM4WD7', '2026-04-26', NULL, 'MOMOORDER20260426-JM4WD7_1777189980', NULL, '2026-04-26 07:53:01', 25000000.00, 'Pending', NULL, NULL),
+(81, 89, 'paypal', 'ORDER20260426-G5JH4N', NULL, '2026-04-26 08:18:12', '11E71287P01393523', '0WL20107CS2408327', '2026-04-26 08:18:11', 25000000.00, 'Paid', NULL, NULL),
+(82, 90, 'paypal', 'ORDER20260426-Q0X4NK', NULL, '2026-04-26 08:19:59', '104994725D032394D', '3S708348K5687343Y', '2026-04-26 08:19:58', 40000000.00, 'Paid', NULL, NULL),
+(83, 91, 'manualqr', 'ORDER20260426-5I2SQP', NULL, NULL, NULL, NULL, '2026-04-26 09:06:03', 50999000.00, 'Pending', NULL, NULL),
+(84, 92, 'paypal', 'ORDER20260426-139W6U', NULL, '2026-04-26 09:43:03', '02V679526Y205261V', '04092146YG583783S', '2026-04-26 09:43:03', 50999000.00, 'Paid', NULL, NULL),
+(85, 93, 'momo', 'ORDER20260426-J39AU2', '2026-04-26', '2026-04-26 10:33:34', 'MOMOORDER20260426-J39AU2_1777199530', '4732051633', '2026-04-26 10:33:34', 5000000.00, 'Paid', NULL, NULL),
+(86, 94, 'manualqr', 'ORDER20260426-XU8V0C', '2026-04-26', NULL, 'MOMOORDER20260426-XU8V0C_1777198009', NULL, '2026-04-26 10:07:03', 3000000.00, 'Pending', NULL, NULL),
+(87, 95, 'manualqr', 'ORDER20260426-NZIZRF', '2026-04-26', NULL, 'MOMOORDER20260426-NZIZRF_1777198758', NULL, '2026-04-26 10:19:18', 5000000.00, 'Pending', NULL, NULL),
+(88, 96, 'manualqr', 'ORDER20260426-N9DD0S', '2026-04-26', NULL, 'MOMOORDER20260426-N9DD0S_1777199103', NULL, '2026-04-26 10:25:04', 5000000.00, 'Pending', NULL, NULL),
+(89, 97, 'paypal', 'ODR_DEMO_97', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_89', 'PP_TX_89', '2026-04-26 14:06:49', 8400000.00, 'Paid', NULL, NULL),
+(90, 98, 'paypal', 'ODR_DEMO_98', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_90', 'PP_TX_90', '2026-04-26 14:06:49', 12600000.00, 'Paid', NULL, NULL),
+(91, 99, 'paypal', 'ODR_DEMO_99', '2026-04-26', NULL, 'PP_OD_91', NULL, '2026-04-26 14:06:49', 4200000.00, 'Pending', NULL, NULL),
+(92, 100, 'paypal', 'ODR_DEMO_100', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_92', 'PP_TX_92', '2026-04-26 14:06:49', 13800000.00, 'Paid', NULL, NULL),
+(93, 101, 'paypal', 'ODR_DEMO_101', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_93', 'PP_TX_93', '2026-04-26 14:06:49', 13800000.00, 'Paid', NULL, NULL),
+(94, 102, 'paypal', 'ODR_DEMO_102', '2026-04-26', NULL, 'PP_OD_94', NULL, '2026-04-26 14:06:49', 6900000.00, 'Pending', NULL, NULL),
+(95, 103, 'paypal', 'ODR_DEMO_103', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_95', 'PP_TX_95', '2026-04-26 14:06:49', 10800000.00, 'Paid', NULL, NULL),
+(96, 104, 'paypal', 'ODR_DEMO_104', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_96', 'PP_TX_96', '2026-04-26 14:06:49', 7200000.00, 'Paid', NULL, NULL),
+(97, 105, 'paypal', 'ODR_DEMO_105', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_97', 'PP_TX_97', '2026-04-26 14:06:49', 10000000.00, 'Paid', NULL, NULL),
+(98, 106, 'paypal', 'ODR_DEMO_106', '2026-04-26', NULL, 'PP_OD_98', NULL, '2026-04-26 14:06:49', 5000000.00, 'Pending', NULL, NULL),
+(99, 107, 'paypal', 'ODR_DEMO_107', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_99', 'PP_TX_99', '2026-04-26 14:06:49', 33000000.00, 'Paid', NULL, NULL),
+(100, 108, 'paypal', 'ODR_DEMO_108', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_100', 'PP_TX_100', '2026-04-26 14:06:49', 16500000.00, 'Paid', NULL, NULL),
+(101, 109, 'paypal', 'ODR_DEMO_109', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_101', 'PP_TX_101', '2026-04-26 14:06:49', 39600000.00, 'Paid', NULL, NULL),
+(102, 110, 'paypal', 'ODR_DEMO_110', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_102', 'PP_TX_102', '2026-04-26 14:06:49', 19800000.00, 'Paid', NULL, NULL),
+(103, 111, 'paypal', 'ODR_DEMO_111', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_103', 'PP_TX_103', '2026-04-26 14:06:49', 36500000.00, 'Paid', NULL, NULL),
+(104, 112, 'paypal', 'ODR_DEMO_112', '2026-04-26', NULL, 'PP_OD_104', NULL, '2026-04-26 14:06:49', 36500000.00, 'Pending', NULL, NULL),
+(105, 113, 'paypal', 'ODR_DEMO_113', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_105', 'PP_TX_105', '2026-04-26 14:06:49', 33800000.00, 'Paid', NULL, NULL),
+(106, 114, 'paypal', 'ODR_DEMO_114', '2026-04-26', '2026-04-26 14:06:49', 'PP_OD_106', 'PP_TX_106', '2026-04-26 14:06:49', 67600000.00, 'Paid', NULL, NULL),
+(107, 116, 'paypal', 'ORDER20260426-U66', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(108, 117, 'paypal', 'ORDER20260426-U67', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(109, 118, 'paypal', 'ORDER20260426-U68', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(110, 119, 'paypal', 'ORDER20260426-U69', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(111, 120, 'paypal', 'ORDER20260426-U70', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(112, 121, 'paypal', 'ORDER20260426-U71', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(113, 122, 'paypal', 'ORDER20260426-U72', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(114, 123, 'paypal', 'ORDER20260426-U73', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(115, 124, 'paypal', 'ORDER20260426-U74', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(116, 125, 'paypal', 'ORDER20260426-U75', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:34:11', 3500000.00, 'Paid', NULL, NULL),
+(117, 126, 'paypal', 'ORDER20260426-U76', NULL, '2026-04-26 21:00:00', NULL, NULL, '2026-04-26 15:39:48', 3500000.00, 'Paid', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -414,11 +541,8 @@ INSERT INTO `photo` (`PhotoID`, `TourID`, `Caption`, `ImageURL`, `UploadDate`, `
 (59, 29, 'Paris – Versailles', 'https://upload.wikimedia.org/wikipedia/commons/e/e6/Paris_Night.jpg', '2025-08-30', 0),
 (60, 29, 'Paris – Versailles', 'https://upload.wikimedia.org/wikipedia/commons/7/76/Palace_of_Versailles_June_2010.jpg', '2025-08-30', 0),
 (61, 30, 'hehe', 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Halong_Bay_in_Vietnam.jpg', '2025-08-29', 1),
-(62, 30, 'Tour Hạ Long', 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Ha_Long_bay_The_Kissing_Rocks.jpg/1024px-Ha_Long_bay_The_Kissing_Rocks.jpg?20070930062110', '2025-08-29', 0),
 (64, 31, 'huhu', 'https://upload.wikimedia.org/wikipedia/commons/f/f8/Thacbac3.jpg', '2025-08-29', 1),
 (92, 40, 'lolo', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Trang_An%2C_Ninh_Binh.jpg/960px-Trang_An%2C_Ninh_Binh.jpg?20241012165724', '2025-08-29', 1),
-(93, 40, 'Tour Ninh Bình', 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Tam_Coc_Ninh_Binh_%2880286%29.jpg/1024px-Tam_Coc_Ninh_Binh_%2880286%29.jpg?20250330102045', '2025-08-29', 0),
-(94, 40, 'Tour Ninh Bình', 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Ninh_Binh_Hoa_Lu_%2839891%29.jpg/1024px-Ninh_Binh_Hoa_Lu_%2839891%29.jpg?20250402231255', '2025-08-29', 0),
 (99, 42, 'khohoh', 'https://upload.wikimedia.org/wikipedia/commons/c/cd/Sydneyoperahouse_at_night.jpg', '2025-08-29', 1),
 (100, 42, 'Sydney – Blue Mountains', 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Blue_Mountains%2C_Sydney%2C_Australia.png', '2025-08-29', 0),
 (101, 42, 'Sydney – Blue Mountains', 'https://upload.wikimedia.org/wikipedia/commons/7/72/Jamison_Valley%2C_Blue_Mountains%2C_Australia_-_Nov_2008.jpg', '2025-08-29', 0),
@@ -830,25 +954,34 @@ INSERT INTO `support_message` (`id`, `thread_id`, `sender_id`, `is_admin`, `cont
 (431, 29, 63, 0, 'ngoài', '2026-04-21 14:10:52'),
 (432, 29, 63, 0, 'nước ngoài', '2026-04-21 14:11:02'),
 (433, 29, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách ít tương tác):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Tokyo – Núi Phú Sĩ ở Nhật Bản, giá khoảng 32,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:11:02'),
-(455, 37, 23, 0, 'hi', '2026-04-21 14:31:45'),
-(456, 37, NULL, 1, 'Chào Ngô Thị Bích 👋 Mình là trợ lý AI hỗ trợ du lịch. Bạn có thể hỏi ngay như: gợi ý tour gia đình, tour biển, tour giá rẻ hoặc tour nghỉ dưỡng.', '2026-04-21 14:31:45'),
-(457, 37, 23, 0, 'tiền ít nên đi đâu', '2026-04-21 14:31:57'),
-(458, 37, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:31:57'),
-(459, 37, 23, 0, 'tiền nhiều', '2026-04-21 14:32:17'),
-(460, 37, 23, 0, 'tiền nhiều nên đi đâu', '2026-04-21 14:32:30'),
-(461, 37, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 14:32:30'),
-(493, 36, 23, 0, 'nóng quá đi đau', '2026-04-21 20:28:54'),
-(494, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nNếu đang nóng, bạn có thể cân nhắc các tour mát mẻ sau (Khách ít tương tác):\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: phù hợp để tránh nóng.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:28:54'),
-(495, 36, 23, 0, 'đà lạt\\', '2026-04-21 20:29:01'),
-(496, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:29:01'),
-(497, 36, 23, 0, 'đà lạt', '2026-04-21 20:29:13'),
-(498, 36, NULL, 1, '🤖 Gợi ý cho bạn:\nGợi ý phù hợp cho bạn (Khách ít tương tác):\n- Gia đình haha ở Vĩnh Long, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước.\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 20:29:13'),
 (499, 45, 11, 0, 'giá rẻ', '2026-04-21 22:29:31'),
 (500, 45, NULL, 1, ' Gợi ý cho bạn:\nTour giá rẻ nhất hiện có cho bạn (Khách mua nhiều):\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:32'),
 (501, 45, 11, 0, 'nước ngoài', '2026-04-21 22:29:43'),
 (502, 45, NULL, 1, ' Gợi ý cho bạn:\nGợi ý tour nước ngoài cho bạn (Khách mua nhiều):\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\n- Paris – Versailles ở Pháp, giá khoảng 45,000,000 VND, danh mục Du lịch ngoài nước.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:44'),
 (503, 45, 11, 0, 'tui đi biển', '2026-04-21 22:29:57'),
-(504, 45, NULL, 1, ' Gợi ý cho bạn:\nGợi ý tour biển cho bạn (Khách mua nhiều):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\n- Hong Kong – Ma Cao ở Hong Kong – Macau, giá khoảng 20,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\n- Tour Singapore – Kuala Lumpur ở Singapore – Malaysia, giá khoảng 15,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:57');
+(504, 45, NULL, 1, ' Gợi ý cho bạn:\nGợi ý tour biển cho bạn (Khách mua nhiều):\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\n- Hong Kong – Ma Cao ở Hong Kong – Macau, giá khoảng 20,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\n- Tour Singapore – Kuala Lumpur ở Singapore – Malaysia, giá khoảng 15,000,000 VND, danh mục Du lịch ngoài nước; lý do: hợp nhu cầu đi biển.\nNếu bạn muốn, nhân viên vẫn có thể hỗ trợ thêm ngay trong cuộc trò chuyện này.', '2026-04-21 22:29:57'),
+(739, 73, 23, 0, 'hàn quốc', '2026-04-24 19:41:23'),
+(740, 73, NULL, 1, '{\"mode\": \"suggest_tour\", \"message\": \"Gợi ý tour nước ngoài cho bạn (Khách ít tương tác):\\n- Tour Bangkok – Pattaya ở Thái Lan, giá khoảng 12,000,000 VND, danh mục Du lịch ngoài nước.\\n- Seoul – Nami – Everland ở Hàn Quốc, giá khoảng 25,000,000 VND, danh mục Du lịch ngoài nước.\\n- Anh Quốc - Scotland ở Anh Quốc, giá khoảng 89,990,000 VND, danh mục Du lịch ngoài nước.\", \"tours\": [{\"id\": \"21\", \"name\": \"Seoul – Nami – Everland\", \"price\": \"25,000,000 VND\", \"image\": \"https://upload.wikimedia.org/wikipedia/commons/3/3f/Everland_Magic_tree.jpg\", \"description\": \"Trải nghiệm Hàn Quốc qua Seoul, đảo Nami và công viên Everland.\", \"url\": \"/tours/21\"}, {\"id\": \"71\", \"name\": \"Anh Quốc - Scotland\", \"price\": \"89,990,000 VND\", \"image\": \"http://localhost:8000/uploads/20260422121639049911.jpg\", \"description\": \"Vòng tròn đá Stonehenge – Công trình từ thời cổ đại chưa nhiều điều bí ẩn. Dạo bước ở Cotswolds – một quần thể tập trung các thị trấn nhỏ...\", \"url\": \"/tours/71\"}]}', '2026-04-24 19:41:23'),
+(741, 73, 23, 0, 'anh', '2026-04-24 19:42:01'),
+(742, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Mình chưa chắc bạn đang muốn hỏi về địa điểm nào. Bạn nói rõ hơn giúp mình, ví dụ tên điểm đến đầy đủ hoặc nhu cầu như đi đâu, lịch trình hay chi phí nhé.\"}', '2026-04-24 19:42:01'),
+(743, 73, 23, 0, 'trung quốc', '2026-04-24 19:42:18'),
+(744, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Gợi ý phù hợp cho bạn (Khách ít tương tác):\\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước.\"}', '2026-04-24 19:42:18'),
+(745, 73, 23, 0, 'trung quốc', '2026-04-24 19:42:44'),
+(746, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Gợi ý phù hợp cho bạn (Khách ít tương tác):\\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\\n- Tour Ninh Bình ở Ninh Bình, giá khoảng 3,100,000 VND, danh mục Du lịch trong nước.\\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước.\"}', '2026-04-24 19:42:44'),
+(747, 73, 23, 0, 'vạn lý tường thành', '2026-04-24 19:43:13'),
+(748, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Thông tin tham khảo cho bạn (Khách ít tương tác):\\n- Sa Pa: Ruộng bậc thang và văn hóa dân tộc: hãy thưởng thức ly rượu táo mèo, một loại rượu đặc sản địa phương, để cảm nhận trọn vẹn hương vị của núi rừng Tây Bắc. Những trải nghiệm ẩm thực này chắc chắn sẽ làm phong phú thêm chuyến hành trình khám phá Sa Pa của bạ....\\n- Du lịch một mình an toàn: dân địa phương thân thiện. Khi hoàng hôn buông xuống, hãy ngồi lại bên ly rượu vang, để cho những suy tư về hành trình của bạn chảy tràn. Du lịch một mình an toàn không chỉ là khám phá thế giới bên ngoài mà còn là cuộc h....\"}', '2026-04-24 19:43:13'),
+(761, 73, 23, 0, 'giá rẻ', '2026-04-25 06:40:21'),
+(762, 73, NULL, 1, '{\"mode\": \"suggest_tour\", \"message\": \"Thông tin tham khảo cho bạn (VIP):\\n- Sa Pa: Ruộng bậc thang và văn hóa dân tộc: hãy thưởng thức ly rượu táo mèo, một loại rượu đặc sản địa phương, để cảm nhận trọn vẹn hương vị của núi rừng Tây Bắc. Những trải nghiệm ẩm thực này chắc chắn sẽ làm phong phú thêm chuyến hành trình khám phá Sa Pa của bạ....\\n- Sa Pa: Ruộng bậc thang và văn hóa dân tộc: léo và sáng tạo trong ẩm thực của các dân tộc thiểu số. Đừng quên trải nghiệm \\\"nướng thịt trên than hồng\\\" tại các quán ăn ven đường. Thịt lợn bản, thịt gà hoặc cá tầm Sa Pa được tẩm ướp gia vị đặc trưng, nướng trên lửa t....\", \"tours\": []}', '2026-04-25 06:40:23'),
+(763, 76, 64, 0, 'giá rẻ', '2026-04-25 06:41:37'),
+(764, 76, NULL, 1, '{\"mode\": \"suggest_tour\", \"message\": \"Tour giá rẻ nhất hiện có cho bạn (Khách mới / Chưa tương tác):\\n- Thác Voi ở Thác Voi là thác trên dòng suối Đa Mlo tại vùng đất Thôn 8, Huyện Bù Đăng, Bình Phước, giá khoảng 1,000,000 VND, danh mục Du lịch trong nước.\\n- Khu di tích đền Hùng ở Thành phố Việt Trì, Phú Thọ, giá khoảng 3,000,000 VND, danh mục Du lịch trong nước.\\n- Sông Gianh ở địa phận các huyện Minh Hóa, Tuyên Hóa, Bố Trạch, Quảng Trạch và thị xã Ba Đồn., Quảng Trị, giá khoảng 3,000,000 VND, danh mục Du lịch trong nước.\", \"tours\": [{\"id\": \"48\", \"name\": \"Khu di tích đền Hùng\", \"price\": \"3,000,000 VND\", \"image\": \"http://localhost:8000/uploads/20260421225155844265.jpg\", \"description\": \"Khu di tích đền Hùng là một quần thể kiến trúc thâm nghiêm trên núi Nghĩa Lĩnh. Từ Hà Nội theo quốc lộ số 2 đến thành phố Việt Trì (84km)...\", \"url\": \"/tours/48\"}, {\"id\": \"47\", \"name\": \"Làng hoa Sa Đéc\", \"price\": \"3,000,000 VND\", \"image\": \"http://localhost:8000/uploads/20260421224848504789.jpg\", \"description\": \"Du khách đến với Đồng bằng Sông Cửu Long không thể không nhớ tới làng hoa Sa Đéc, một địa chỉ du lịch nổi tiếng của tỉnh Đồng Tháp, nơi n...\", \"url\": \"/tours/47\"}]}', '2026-04-25 06:41:38'),
+(765, 73, 23, 0, 'jack và sơn tùng ai nổi tiếng hơn', '2026-04-25 18:22:48'),
+(766, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Thông tin tham khảo cho bạn (VIP):\\n- Hồ Hoàn Kiếm và Đền Ngọc Sơn: đại của Việt Nam. Để đến được đền, du khách phải băng qua cầu Thê Húc, chiếc cầu gỗ sơn đỏ nổi bật giữa màu xanh của hồ. Đền Ngọc Sơn không chỉ thu hút du khách bởi kiến trúc độc đáo mà còn bởi không gian tĩnh lặng, tạo....\\n- Hồ Hoàn Kiếm và Đền Ngọc Sơn: Hưng Đạo và là nơi để tưởng nhớ những giá trị văn hóa truyền thống. Cây cầu Thê Húc đỏ rực dẫn vào đền như một dải lụa mềm mại, gợi nhớ đến những câu chuyện huyền thoại của đất Việt. Hồ Hoàn Kiếm và Đền Ngọc Sơn không ch....\"}', '2026-04-25 18:22:48'),
+(767, 73, 23, 0, 'anh', '2026-04-25 18:23:19'),
+(768, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Mình chưa chắc bạn đang muốn hỏi về địa điểm nào. Bạn nói rõ hơn giúp mình, ví dụ tên điểm đến đầy đủ hoặc nhu cầu như đi đâu, lịch trình hay chi phí nhé.\"}', '2026-04-25 18:23:19'),
+(769, 73, 23, 0, 'anh quốc', '2026-04-25 18:23:25'),
+(770, 73, NULL, 1, '{\"mode\": \"consulting\", \"message\": \"Gợi ý phù hợp cho bạn (VIP):\\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước.\\n- Anh Quốc - Scotland ở Anh Quốc, giá khoảng 89,990,000 VND, danh mục Du lịch ngoài nước.\\n- Tour Sa Pa – Phan Xi Păng ở Lào Cai, giá khoảng 4,200,000 VND, danh mục Du lịch trong nước.\"}', '2026-04-25 18:23:25'),
+(771, 73, 23, 0, 'đi biển', '2026-04-25 18:23:41'),
+(772, 73, NULL, 1, '{\"mode\": \"suggest_tour\", \"message\": \"Gợi ý tour biển cho bạn (VIP):\\n- Tour Hạ Long ở Quảng Ninh, giá khoảng 3,500,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\\n- Bãi tắm Long Hải ở Long Hải, Huyện Long Điền, Bà Rịa - Vũng Tàu, giá khoảng 5,000,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\\n- Bãi biển Sa Huỳnh ở Biển Sa Huỳnh, Quốc lộ 1A, Sa Huỳnh, Huyện Đức Phổ, Quảng Ngãi, giá khoảng 15,000,000 VND, danh mục Du lịch trong nước; lý do: hợp nhu cầu đi biển.\\n- Thông tin thêm: Các loại hình lưu trú tại Việt Nam - và tiện nghi hiện đại, cho đến những homestay ấm cúng nằm giữa lòng những cánh đồng xanh tươi của Mộc Châu hay Sapa, nơi bạn có thể giao lưu văn hóa với người dân địa phương. Nếu b....\", \"tours\": [{\"id\": \"61\", \"name\": \"Bãi biển Sa Huỳnh\", \"price\": \"15,000,000 VND\", \"image\": \"http://localhost:8000/uploads/20260422085530572208.jpg\", \"description\": \"Bãi biển nằm sát quốc lộ 1A, ở cây số 985, thuộc Phổ Thạnh, huyện Đức Phổ, tỉnh Quảng Ngãi. Đặc điểm: Bãi biển rất thuận tiện cho du khác...\", \"url\": \"/tours/61\"}, {\"id\": \"58\", \"name\": \"Bãi tắm Long Hải\", \"price\": \"5,000,000 VND\", \"image\": \"http://localhost:8000/uploads/20260422084128048681.jpg\", \"description\": \"ãi Long Hải thuộc thị trấn Long Hải, huyện Long Điền, cách thành phố Vũng Tàu 30km về hướng đông bắc. Đặc điểm: Chạy dài, uốn lượn phía n...\", \"url\": \"/tours/58\"}]}', '2026-04-25 18:23:41');
 
 -- --------------------------------------------------------
 
@@ -880,10 +1013,20 @@ INSERT INTO `support_thread` (`id`, `user_id`, `status`, `created_at`) VALUES
 (27, 63, 'open', '2026-04-21 14:09:05'),
 (28, 63, 'open', '2026-04-21 14:09:54'),
 (29, 63, 'open', '2026-04-21 14:10:11'),
-(36, 23, 'open', '2026-04-21 14:31:39'),
-(37, 23, 'open', '2026-04-21 14:31:42'),
 (44, 11, 'open', '2026-04-21 22:29:20'),
-(45, 11, 'open', '2026-04-21 22:29:21');
+(45, 11, 'open', '2026-04-21 22:29:21'),
+(73, 23, 'open', '2026-04-24 19:06:45'),
+(76, 64, 'open', '2026-04-25 06:41:28'),
+(77, 66, 'open', '2026-04-26 15:34:46'),
+(78, 67, 'open', '2026-04-26 15:34:46'),
+(79, 68, 'open', '2026-04-26 15:34:46'),
+(80, 69, 'open', '2026-04-26 15:34:46'),
+(81, 70, 'open', '2026-04-26 15:34:46'),
+(82, 71, 'open', '2026-04-26 15:34:46'),
+(83, 72, 'open', '2026-04-26 15:34:46'),
+(84, 73, 'open', '2026-04-26 15:34:46'),
+(85, 74, 'open', '2026-04-26 15:34:46'),
+(86, 75, 'open', '2026-04-26 15:34:46');
 
 -- --------------------------------------------------------
 
@@ -921,7 +1064,7 @@ INSERT INTO `tour` (`TourID`, `Title`, `Location`, `Description`, `Capacity`, `P
 (40, 'Tour Ninh Bình', 'Ninh Bình', 'Tràng An và Tam Cốc – Bích Động.', 32, 3100000.00, '2026-06-01', '2026-06-03', 'Available', 7),
 (42, 'Sydney – Blue Mountains', 'Úc', 'Tham quan Sydney và dãy núi Blue Mountains hùng vĩ.', 25, 40000000.00, '2026-10-10', '2026-10-17', 'Available', 10),
 (43, 'Dubai – Abu Dhabi', 'UAE', 'Khám phá Dubai hiện đại và Abu Dhabi xa hoa.', 35, 38000000.00, '2026-11-05', '2026-11-10', 'Available', 10),
-(44, 'Chợ nổi cái răng', 'Vĩnh Long', 'Du lịch sông nước mát mẻ giá cả phù hợp, phong cảnh thơ mộng hữu tình', 100, 5000000.00, '2026-05-25', '2026-05-26', 'Available', 7),
+(44, 'Chợ nổi', 'Vĩnh Long', 'Du lịch sông nước mát mẻ giá cả phù hợp, phong cảnh thơ mộng hữu tình', 100, 5000000.00, '2026-05-25', '2026-05-26', 'Available', 7),
 (45, 'Chợ Bến Thành ', 'Cửa Nam – Chợ Bến Thành, Phường Bến Thành, Quận 1, Bến Thành, Quận 1, Thành phố Hồ Chí Minh', 'Tọa lạc tại Quận 1, TP. Hồ Chí Minh, tiếp giáp với đường Lê Lợi ở phía nam, đường Phan Bội Châu ở phía đông, Phan Chu Trinh ở phía tây và Lê Thánh Tôn ở phía bắc, chợ Bến Thành là chợ bán lẻ quy mô lớn nhất thành phố với đầy đủ các mặt hàng từ bình dân đến cao cấp và là điểm đến hấp dẫn không thể bỏ qua của du khách khi đến TP. Hồ Chí Minh.', 50, 3000000.00, '2026-08-05', '2026-08-06', 'Available', 7),
 (46, 'Thắng cảnh Hà Tiên', 'Thị xã Hà Tiên, An Giang', 'Hà Tiên là một thị xã biên giới, tỉnh Kiên Giang, cách thành phố Rạch Giá 90km đường bộ. Đặc điểm:Hà Tiên là nơi hội tụ của nhiều danh lam thắng cảnh, thiên nhiên hoang sơ đầy quyến rũ: có hang sâu, động hiểm, nhiều đảo đá trên biển; có sông, hồ, chùa, lăng tẩm và nhiều bãi tắm đẹp.', 50, 10000000.00, '2026-09-01', '2026-09-01', 'Available', 7),
 (47, 'Làng hoa Sa Đéc', 'Cách trung tâm thành phố Sa Đéc 03km, Thành phố Sa Đéc', 'Du khách đến với Đồng bằng Sông Cửu Long không thể không nhớ tới làng hoa Sa Đéc, một địa chỉ du lịch nổi tiếng của tỉnh Đồng Tháp, nơi nằm giữa sông Hậu và sông Tiền.\n\nTương truyền khi chúa Nguyễn thành lập Tỉnh lỵ Sa Đéc, lúc bấy giờ có mang theo nhiều gia nhân và để lại nhằm giúp truyền nghề cho người dân địa phương như dệt, làm bánh, làm nem, và hơn hết là nghề trồng hoa. ', 30, 3000000.00, '2026-09-02', '2026-09-03', 'Available', 7),
@@ -943,12 +1086,91 @@ INSERT INTO `tour` (`TourID`, `Title`, `Location`, `Description`, `Capacity`, `P
 (63, 'Hồng Kông Tặng trải nghiệm xe Ding Ding', 'Hồng Kông', 'Chợ Quý Bà (Ladies Market) thiên đường mua sắm của Hongkong\nVườn Nam Liên ốc đảo xanh kiến trúc cổ xưa thời nhà Đường (618–907 SCN)\nNúi Thái Bình Victoria Peak ngắm nhìn toàn cảnh Hongkong.\nĐại Lộ Ngôi Sao Avenue of Star nơi tôn vinh những ngôi sao điện ảnh Hongkong\nTrải nghiệm ferry tham quan Vịnh biển Victory và vịnh Loan Tể Wan Chai ngắm toàn cảnh Hongkong\nVịnh Nước Cạn (Repulse Bay) được đánh giá là vịnh biển đẹp bậc nhất xứ Cảng Thơm\nLàng Văn Hóa Dân Tộc Trung Hoa bảo tàng thu nhỏ những thắng cảnh thế giới\nOCT Loft Công viên Văn Hóa Sáng Tạo công nghệ và kiến trúc\nPhố cổ Vĩnh Khánh Phường nơi lưu giữ nhiều kỷ vật của huyền thoại Lý Tiểu Long\nCheck-in Tháp Truyền Hình Quảng Châu Canton Tower\nKhám phá các khu chợ sỉ lớn nhất thế giới : Hoa Cường Bắc, Đông Môn, Bạch Mã.', 50, 20990000.00, '2026-10-10', '2026-10-15', 'Available', 10),
 (64, 'BALI - TIRTA GANGA - TAMPAK SIRING - UBUD', 'Indonesia', 'Đến với Đảo Bali, Quý khách sẽ cảm nhận được một không gian thanh bình, một vẻ đẹp quyến rũ khó cưỡng, luôn mời gọi du khách quốc tế. Thiên đường nhiệt đới này là sự kết hợp tuyệt vời giữa mua sắm, giải trí và du lịch là liều thuốc giải toả căng thẳng hữu hiệu nhất.\n\n- Chinh phục \"cổng trời\" Lempuyang, chiêm ngưỡng núi Agung hùng vĩ.\n\n- Khám phá cung điện nước Tirta Gangga huyền thoại.\n\n- Tham quan các làng văn hóa và trải nghiệm trang phục truyền thống Bali\n\n- Tự do khám phá các đảo nổi tiếng của Bali như Nusa Dua, Nusa Penida,...', 50, 14590000.00, '2027-02-20', '2027-02-20', 'Available', 10),
 (65, 'Bắc Kinh - Vạn Lý Trường Thành - Hàng Châu - Thượng Hải - Ô Trấn', 'Trung Quốc', 'i Hòa Viên cung điện mùa hè của Từ Hy Thái Hậu\nCố cung Tử Cấm Thành bảo tàng cung điện lớn nhất thế giới.\nVạn Lý Trường Thành – Cư Dung Quan thành trì kiên cố và còn trọn vẹn nhất.\nThập Tam Lăng - Định Lăng địa cung dưới lòng đất của quần thể Thập Tam Lăng.\nPhố cổ Tiền Môn, phố Vương Phủ Tỉnh nổi tiếng sầm uất và có niên đại hơn 500 năm lịch sử.\nNgoạn cảnh Tây Hồ bằng du thuyền, thắng cảnh UNESCO.\nÔ Trấn – Đông Sách thủy trấn được ví như mỹ cảnh Giang Nam.\nChùa Phật Ngọc ngôi chùa nổi tiếng và thiêng liêng nhất ở Thượng Hải kiến trúc độc đáo và bức tượng Phật bằng ngọc bích quý giá.\nBến Thượng Hải vị trí ngắm cảnh đẹp nhất Thượng Hải.\nCheck in các điểm thu hút nhất Thượng Hải: tháp Lục Gia Chủy, phố Tân Thiên Địa, đường Wukang, phố Nam Kinh.', 50, 22990000.00, '2026-10-20', '2026-10-28', 'Available', 10),
-(66, 'Hòa Mình Vào Thiên Đường Nghỉ Dưỡng', 'Maldives', 'Maldives không chỉ là một điểm đến – mà là nơi thời gian chậm lại, để mỗi khoảnh khắc trở thành ký ức. Giữa đại dương Ấn Độ xanh thẳm, nơi những dải san hô vẽ nên bảng màu thiên nhiên tuyệt mỹ, hành trình đưa Quý khách chạm đến một chuẩn mực sống khác – tinh tế, riêng tư và trọn vẹn. Tại Siyam World Maldives 5*, mỗi trải nghiệm không đơn thuần là nghỉ dưỡng, mà là hành trình kết nối – với thiên nhiên, với cảm xúc và với những người thân yêu bên cạnh.', 50, 109.99, '2027-01-01', '2027-01-01', 'Available', 10),
+(66, 'Hòa Mình Vào Thiên Đường Nghỉ Dưỡng', 'Maldives', 'Maldives không chỉ là một điểm đến – mà là nơi thời gian chậm lại, để mỗi khoảnh khắc trở thành ký ức. Giữa đại dương Ấn Độ xanh thẳm, nơi những dải san hô vẽ nên bảng màu thiên nhiên tuyệt mỹ, hành trình đưa Quý khách chạm đến một chuẩn mực sống khác – tinh tế, riêng tư và trọn vẹn. Tại Siyam World Maldives 5*, mỗi trải nghiệm không đơn thuần là nghỉ dưỡng, mà là hành trình kết nối – với thiên nhiên, với cảm xúc và với những người thân yêu bên cạnh.', 50, 50999000.00, '2027-01-01', '2027-01-01', 'Available', 10),
 (67, 'Thưởng thức Colloseum Show', 'Bangkok - Pattaya', 'Bangkok - Pattaya - Chợ nổi Bốn Miền – Wat Phra Yai – Khu du lịch Suan Thai Pattaya – Thưởng thức Colloseum Show', 50, 8490000.00, '2026-11-10', '2026-11-15', 'Available', 10),
 (68, 'Garden By The Bay - Botanic Garden', 'Singapore', 'Singapore, viên ngọc quý của Đông Nam Á, quốc đảo nhỏ bé nhưng lại là điểm đến du lịch đầy mê hoặc, nơi sự hòa quyện giữa kiến trúc hiện đại và văn hóa truyền thống tạo nên một sức hút khó cưỡng. Hãy cùng Vietravel khám phá những điều kỳ diệu tại Đảo quốc Sư tử và lưu lại những kỷ niệm khó quên:\n\n- Vịnh Marina tráng lệ với những công trình kiến trúc độc đáo và sang trọng, biểu tượng cho sự phát triển vượt bậc của Singapore.', 50, 15990000.00, '2026-12-10', '2026-12-15', 'Available', 10),
 (69, 'Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành', 'Đài Trung', 'Đài Trung - Đầm Cao Mỹ - Đài Trung - Đài Bắc - Thác nước Thập Phần - Phố cổ Đại Đạo Thành - Tặng trà sữa & bánh bao Khách Gia', 20, 10990000.00, '2026-07-30', '2026-08-05', 'Available', 10),
 (70, ' Siem Reap - Phnom Penh', 'Campuchia', 'Campuchia, được mệnh danh là Xứ sở chùa tháp với vẻ đẹp huyền bí, không chỉ thu hút du khách bởi những ngôi đền cổ kính như Angkor Wat, mà còn bởi những câu chuyện lịch sử và văn hóa phong phú.\n\nHành trình tham quan Campuchia hứa hẹn mang lại những trải nghiệm bất ngờ cho Quý khách:\n\n- Khám phá Siem Reap với quần thể Angkor ký bí nổi tiếng: Angkor Thom, đền Ta Prohm, Angkor Wat, ...', 50, 7490000.00, '2026-07-27', '2026-08-01', 'Available', 10),
-(71, 'Anh Quốc - Scotland', 'Anh Quốc', 'Vòng tròn đá Stonehenge – Công trình từ thời cổ đại chưa nhiều điều bí ẩn.\nDạo bước ở Cotswolds – một quần thể tập trung các thị trấn nhỏ nhắn xinh đẹp và những ngôi làng thoáng mát dễ chịu cùng với các ngôi nhà bằng đá vô cùng lạ mắt và độc đáo\nQuê hương William Shakespeare – ngôi làng nhỏ xinh Stratford-upon-Avon\nDu thuyền trên Windermere – hồ tự nhiên lớn nhất tại Anh Quốc\nLâu đài Windsor cổ kính – biểu tượng của Hoàng gia Anh, và là lâu đài lớn nhất thế giới còn có người ở. Lâu đài có sự pha trộn nhiều phong cách khác nhau. Windsor được xem là công trình đại diện cho phong cách kiến trúc Baroque, Gothic, Tudor và Georgian.\nChiêm ngưỡng Lâu đài Edinburgh (cung điện mùa hè của Hoàng Gia Anh)\nĐi dạo trên Phố Shambles – được bình chọn là con phố đẹp nhất ở Anh, đồng thời là con phố Trung cổ được bảo tồn tốt nhất ở châu Âu\nTìm hiểu về Tháp đồng hồ Big Ben và Cầu Tower Bridge, 2 biểu tượng của Thủ đô London', 50, 89990000.00, '2026-09-10', '2026-09-20', 'Available', 10);
+(71, 'Anh Quốc - Scotland', 'Anh Quốc', 'Vòng tròn đá Stonehenge – Công trình từ thời cổ đại chưa nhiều điều bí ẩn.\nDạo bước ở Cotswolds – một quần thể tập trung các thị trấn nhỏ nhắn xinh đẹp và những ngôi làng thoáng mát dễ chịu cùng với các ngôi nhà bằng đá vô cùng lạ mắt và độc đáo\nQuê hương William Shakespeare – ngôi làng nhỏ xinh Stratford-upon-Avon\nDu thuyền trên Windermere – hồ tự nhiên lớn nhất tại Anh Quốc\nLâu đài Windsor cổ kính – biểu tượng của Hoàng gia Anh, và là lâu đài lớn nhất thế giới còn có người ở. Lâu đài có sự pha trộn nhiều phong cách khác nhau. Windsor được xem là công trình đại diện cho phong cách kiến trúc Baroque, Gothic, Tudor và Georgian.\nChiêm ngưỡng Lâu đài Edinburgh (cung điện mùa hè của Hoàng Gia Anh)\nĐi dạo trên Phố Shambles – được bình chọn là con phố đẹp nhất ở Anh, đồng thời là con phố Trung cổ được bảo tồn tốt nhất ở châu Âu\nTìm hiểu về Tháp đồng hồ Big Ben và Cầu Tower Bridge, 2 biểu tượng của Thủ đô London', 50, 49990000.00, '2026-09-10', '2026-09-20', 'Available', 10),
+(80, 'Huế - Đà Nẵng Premium 3N2D', 'Đà Nẵng', 'Tour miền Trung cao cấp, trải nghiệm nghỉ dưỡng và ẩm thực.', 30, 4200000.00, '2026-05-10', '2026-05-12', 'Available', 7),
+(81, 'Phú Quốc Sunset Resort 4N3D', 'Phú Quốc', 'Nghỉ dưỡng biển cao cấp tại Phú Quốc.', 24, 6900000.00, '2026-05-18', '2026-05-21', 'Available', 7),
+(82, 'Sapa Trekking Fansipan 3N2D', 'Lào Cai', 'Khám phá núi rừng Tây Bắc và văn hóa bản địa.', 28, 3600000.00, '2026-06-03', '2026-06-05', 'Available', 7),
+(83, 'Mekong Cần Thơ - Châu Đốc 2N1D', 'Cần Thơ', 'Trải nghiệm chợ nổi và ẩm thực miền Tây.', 35, 2500000.00, '2026-06-12', '2026-06-13', 'Available', 7),
+(84, 'Seoul - Nami Signature 5N4D', 'Hàn Quốc', 'Tour Hàn Quốc mùa hoa, lịch trình signature.', 20, 16500000.00, '2026-07-02', '2026-07-06', 'Available', 10),
+(85, 'Tokyo - Fuji Premium 5N4D', 'Nhật Bản', 'Khám phá Tokyo và núi Phú Sĩ theo tiêu chuẩn premium.', 18, 19800000.00, '2026-07-10', '2026-07-14', 'Available', 10),
+(86, 'Paris - Switzerland Scenic 7N6D', 'Pháp', 'Hành trình châu Âu lãng mạn và cảnh quan đặc sắc.', 16, 36500000.00, '2026-08-04', '2026-08-10', 'Available', 10),
+(87, 'Sydney - Melbourne Discovery 6N5D', 'Úc', 'Tour Úc kết hợp hai thành phố nổi bật.', 18, 33800000.00, '2026-08-20', '2026-08-25', 'Available', 10);
+
+-- --------------------------------------------------------
+
+--
+-- Cấu trúc bảng cho bảng `tour_cluster`
+--
+
+CREATE TABLE `tour_cluster` (
+  `TourID` int NOT NULL,
+  `ClusterID` int NOT NULL,
+  `ClusterLabel` varchar(120) NOT NULL,
+  `BookingCount` int DEFAULT '0',
+  `TotalRevenue` decimal(15,2) DEFAULT '0.00',
+  `FillRate` decimal(8,4) DEFAULT '0.0000',
+  `VIPRate` decimal(8,4) DEFAULT '0.0000',
+  `UpdatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Đang đổ dữ liệu cho bảng `tour_cluster`
+--
+
+INSERT INTO `tour_cluster` (`TourID`, `ClusterID`, `ClusterLabel`, `BookingCount`, `TotalRevenue`, `FillRate`, `VIPRate`, `UpdatedAt`) VALUES
+(18, 1, '💎 Tour Cao Cấp', 3, 36000000.00, 0.0857, 0.3333, '2026-04-26 15:37:53'),
+(19, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(20, 1, '💎 Tour Cao Cấp', 2, 64000000.00, 0.0444, 0.5000, '2026-04-26 15:37:53'),
+(21, 1, '💎 Tour Cao Cấp', 2, 50000000.00, 0.0444, 0.5000, '2026-04-26 15:37:53'),
+(22, 1, '💎 Tour Cao Cấp', 2, 40000000.00, 0.0667, 0.0000, '2026-04-26 15:37:53'),
+(23, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(29, 1, '💎 Tour Cao Cấp', 1, 45000000.00, 0.0400, 0.0000, '2026-04-26 15:37:53'),
+(30, 2, '🔥 Tour Hot', 24, 84000000.00, 0.8000, 0.3333, '2026-04-26 15:37:53'),
+(31, 2, '🔥 Tour Hot', 14, 58800000.00, 0.5600, 0.4286, '2026-04-26 15:37:53'),
+(40, 2, '🔥 Tour Hot', 13, 40300000.00, 0.4062, 0.1538, '2026-04-26 15:37:53'),
+(42, 1, '💎 Tour Cao Cấp', 2, 80000000.00, 0.0800, 0.5000, '2026-04-26 15:37:53'),
+(43, 1, '💎 Tour Cao Cấp', 2, 76000000.00, 0.0571, 0.5000, '2026-04-26 15:37:53'),
+(44, 1, '💎 Tour Cao Cấp', 10, 50000000.00, 0.1000, 0.0000, '2026-04-26 15:37:53'),
+(45, 1, '💎 Tour Cao Cấp', 1, 3000000.00, 0.0200, 1.0000, '2026-04-26 15:37:53'),
+(46, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(47, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(48, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(49, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(50, 1, '💎 Tour Cao Cấp', 1, 5000000.00, 0.0200, 1.0000, '2026-04-26 15:37:53'),
+(51, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(52, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(53, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(54, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(55, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(56, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(57, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(58, 1, '💎 Tour Cao Cấp', 1, 5000000.00, 0.0200, 1.0000, '2026-04-26 15:37:53'),
+(59, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(60, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(61, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(62, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(63, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(64, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(65, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(66, 1, '💎 Tour Cao Cấp', 1, 50999000.00, 0.0200, 1.0000, '2026-04-26 15:37:53'),
+(67, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(68, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(69, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(70, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(71, 1, '💎 Tour Cao Cấp', 1, 49990000.00, 0.0200, 1.0000, '2026-04-26 15:37:53'),
+(80, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(81, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(82, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(83, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(84, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(85, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(86, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53'),
+(87, 0, '📉 Tour Ít Khách', 0, 0.00, 0.0000, 0.0000, '2026-04-26 15:37:53');
 
 -- --------------------------------------------------------
 
@@ -976,7 +1198,6 @@ INSERT INTO `user` (`UserID`, `FirstName`, `LastName`, `FullName`, `Password`, `
 (6, 'Admin', '2', 'Admin2', '$2y$10$3Ygpg279hGbflO1mLCUXi.6dXwz0M9ZejKZ1.ZtjoZt9QyqCZRn/y', '0122243434', 'admin3@gmail.com', 1),
 (7, 'Thanh', 'Thien', 'Thanh Thien', '$2b$12$TL1tZjaaguIujfukSge3FeCYUK7D9GiiSVNwemjC377yWQgKjmS8m', '0222222222', 'thanhthien@gmail.com', 3),
 (11, 'User', '2', 'User2', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121212', 'user2@gmail.com', 3),
-(12, 'Hồ ', 'Thiện', 'Hồ  Thiện', '$2b$12$73KIL1M57ISRadbpvdUDfeuBAy/rGExxki4RCvU3t4aGQI2mn4ary', '0375227764', 'thien@gmail.com', 3),
 (13, 'A', 'I', 'A I', '$2b$12$VSvWphaPxrCBThx3AliH1.jMd5uy5uLeeqeqxPFyuLnd0us80n/5a', '0123455667', 'ai@gmail.com', 3),
 (14, 'Đăng', 'Nguyễn Hải', 'Nguyễn Hải Đăng', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000001', 'nguyenhaidang@gmail.com', 3),
 (15, 'Ngọc', 'Trần Bảo', 'Trần Bảo Ngọc', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000002', 'tranbaongoc@gmail.com', 3),
@@ -1027,11 +1248,30 @@ INSERT INTO `user` (`UserID`, `FirstName`, `LastName`, `FullName`, `Password`, `
 (60, 'Christopher', 'Anderson', 'Christopher Anderson', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000047', 'chrisanderson@gmail.com', 3),
 (61, 'Ashley', 'Thomas', 'Ashley Thomas', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000048', 'ashleythomas@gmail.com', 3),
 (62, 'Matthew', 'Martinez', 'Matthew Martinez', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000049', 'mattmartinez@gmail.com', 3),
-(63, 'Olivia', 'White', 'Olivia White', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000050', 'oliviawhite@gmail.com', 3);
+(63, 'Olivia', 'White', 'Olivia White', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0981000050', 'oliviawhite@gmail.com', 3),
+(64, 'v', 'f', 'v f', '$2b$12$jRHM7fJ3Lh4oa0oC/2OpION/AkU4iNuKzmdMkPK92GZCJueMt8Lzu', '0375227766', 'vf9@gmail.com', 3),
+(66, 'User', '4', 'User 4', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121214', 'user4@gmail.com', 3),
+(67, 'User', '5', 'User 5', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121215', 'user5@gmail.com', 3),
+(68, 'User', '6', 'User 6', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121216', 'user6@gmail.com', 3),
+(69, 'User', '7', 'User 7', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121217', 'user7@gmail.com', 3),
+(70, 'User', '8', 'User 8', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121218', 'user8@gmail.com', 3),
+(71, 'User', '9', 'User 9', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121219', 'user9@gmail.com', 3),
+(72, 'User', '10', 'User 10', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121220', 'user10@gmail.com', 3),
+(73, 'User', '11', 'User 11', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121221', 'user11@gmail.com', 3),
+(74, 'User', '12', 'User 12', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121222', 'user12@gmail.com', 3),
+(75, 'User', '13', 'User 13', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121223', 'user13@gmail.com', 3),
+(76, 'User', '104', 'User 104', '$2b$12$chaCVa.5aUSFfuhABKw.oelG6R49N4pgK5zLmLyrwS9iwXk3g/tD.', '0222121224', 'user104@gmail.com', 3);
 
 --
 -- Chỉ mục cho các bảng đã đổ
 --
+
+--
+-- Chỉ mục cho bảng `bank_txn`
+--
+ALTER TABLE `bank_txn`
+  ADD PRIMARY KEY (`BankTxnID`),
+  ADD UNIQUE KEY `ProviderRef` (`ProviderRef`);
 
 --
 -- Chỉ mục cho bảng `booking`
@@ -1111,6 +1351,12 @@ ALTER TABLE `tour`
   ADD KEY `CategoryID` (`CategoryID`);
 
 --
+-- Chỉ mục cho bảng `tour_cluster`
+--
+ALTER TABLE `tour_cluster`
+  ADD PRIMARY KEY (`TourID`);
+
+--
 -- Chỉ mục cho bảng `user`
 --
 ALTER TABLE `user`
@@ -1123,10 +1369,16 @@ ALTER TABLE `user`
 --
 
 --
+-- AUTO_INCREMENT cho bảng `bank_txn`
+--
+ALTER TABLE `bank_txn`
+  MODIFY `BankTxnID` int NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT cho bảng `booking`
 --
 ALTER TABLE `booking`
-  MODIFY `BookingID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=80;
+  MODIFY `BookingID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=127;
 
 --
 -- AUTO_INCREMENT cho bảng `category`
@@ -1138,7 +1390,7 @@ ALTER TABLE `category`
 -- AUTO_INCREMENT cho bảng `comment`
 --
 ALTER TABLE `comment`
-  MODIFY `CommentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `CommentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT cho bảng `discount`
@@ -1150,7 +1402,7 @@ ALTER TABLE `discount`
 -- AUTO_INCREMENT cho bảng `payment`
 --
 ALTER TABLE `payment`
-  MODIFY `PaymentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
+  MODIFY `PaymentID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=118;
 
 --
 -- AUTO_INCREMENT cho bảng `photo`
@@ -1168,25 +1420,25 @@ ALTER TABLE `role`
 -- AUTO_INCREMENT cho bảng `support_message`
 --
 ALTER TABLE `support_message`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=505;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=773;
 
 --
 -- AUTO_INCREMENT cho bảng `support_thread`
 --
 ALTER TABLE `support_thread`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=87;
 
 --
 -- AUTO_INCREMENT cho bảng `tour`
 --
 ALTER TABLE `tour`
-  MODIFY `TourID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
+  MODIFY `TourID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
 
 --
 -- AUTO_INCREMENT cho bảng `user`
 --
 ALTER TABLE `user`
-  MODIFY `UserID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `UserID` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=77;
 
 --
 -- Ràng buộc đối với các bảng kết xuất
@@ -1196,7 +1448,7 @@ ALTER TABLE `user`
 -- Ràng buộc cho bảng `booking`
 --
 ALTER TABLE `booking`
-  ADD CONSTRAINT `booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`),
+  ADD CONSTRAINT `booking_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
   ADD CONSTRAINT `booking_ibfk_2` FOREIGN KEY (`TourID`) REFERENCES `tour` (`TourID`),
   ADD CONSTRAINT `booking_ibfk_3` FOREIGN KEY (`DiscountID`) REFERENCES `discount` (`DiscountID`);
 
@@ -1204,7 +1456,7 @@ ALTER TABLE `booking`
 -- Ràng buộc cho bảng `comment`
 --
 ALTER TABLE `comment`
-  ADD CONSTRAINT `comment_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`),
+  ADD CONSTRAINT `comment_ibfk_1` FOREIGN KEY (`UserID`) REFERENCES `user` (`UserID`) ON DELETE CASCADE,
   ADD CONSTRAINT `comment_ibfk_2` FOREIGN KEY (`TourID`) REFERENCES `tour` (`TourID`);
 
 --

@@ -56,7 +56,7 @@ const AdminHome = () => {
   });
   const [topCustomers, setTopCustomers] = useState([]);
   const [bookingStatus, setBookingStatus] = useState([]);
-  const [locationRevenue, setLocationRevenue] = useState([]);
+  const [categoryRevenue, setCategoryRevenue] = useState([]);
   const [kmeansData, setKmeansData] = useState({ locations: [], clusters: [], total: 0, n_clusters: 0 });
   const [topCustomerSegments, setTopCustomerSegments] = useState({});
   const [kmeansLoading, setKmeansLoading] = useState(false);
@@ -120,7 +120,7 @@ const AdminHome = () => {
   const [isAdmin, setIsAdmin] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [locationFilter, setLocationFilter] = useState('all'); // 'all', 'domestic', 'international'
+  const [locationFilter, setLocationFilter] = useState('all');
   const wsRef = useRef(null);
   const hasLoadedRef = useRef(false);
 
@@ -139,9 +139,9 @@ const AdminHome = () => {
       
       // Thử gọi API admin mới trước
       try {
-        const [statsData, locationData, customers, statusData] = await Promise.all([
+        const [statsData, categoryData, customers, statusData] = await Promise.all([
           adminService.getDashboardStats(),
-          adminService.getRevenueByLocation(locationFilter !== 'all' ? locationFilter : null),
+          adminService.getRevenueByCategory(locationFilter !== 'all' ? locationFilter : null),
           adminService.getTopCustomers(),
           adminService.getBookingStatus()
         ]);
@@ -149,7 +149,7 @@ const AdminHome = () => {
         setIsAdmin(true);
         setErrorMessage('');
         setStats(statsData);
-        setLocationRevenue(locationData);
+        setCategoryRevenue(categoryData);
         setTopCustomers(customers);
         setBookingStatus(statusData);
         setLastUpdate(new Date());
@@ -193,7 +193,7 @@ const AdminHome = () => {
         setLastUpdate(new Date());
         
         // Empty arrays for charts since we don't have data
-        setLocationRevenue([]);
+        setCategoryRevenue([]);
         setTopCustomers([]);
         setBookingStatus([]);
         setTopCustomerSegments({});
@@ -493,8 +493,8 @@ const AdminHome = () => {
             <div className="card-header bg-white border-0 py-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="mb-0 fw-bold">
-                  <i className="bi bi-geo-alt-fill me-2 text-primary"></i>
-                  Doanh thu theo địa điểm
+                  <i className="bi bi-map me-2 text-primary"></i>
+                  Doanh thu theo từng tour
                 </h5>
                 <div className="btn-group btn-group-sm" role="group">
                   <button 
@@ -525,12 +525,12 @@ const AdminHome = () => {
               </div>
             </div>
             <div className="card-body">
-              {locationRevenue.length > 0 ? (
+              {categoryRevenue.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={locationRevenue} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                  <BarChart data={categoryRevenue} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
-                      dataKey="location" 
+                      dataKey="category" 
                       angle={-45}
                       textAnchor="end"
                       height={80}
@@ -543,7 +543,7 @@ const AdminHome = () => {
                         if (name === 'total_bookings') return [value, 'Số lần booking'];
                         return [value, name];
                       }}
-                      labelFormatter={(label) => `Địa điểm: ${label}`}
+                      labelFormatter={(label) => `Tour: ${label}`}
                     />
                     <Legend 
                       formatter={(value) => {
@@ -559,7 +559,7 @@ const AdminHome = () => {
               ) : (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-inbox fs-1 d-block mb-2"></i>
-                  <p>Chưa có dữ liệu doanh thu theo địa điểm</p>
+                  <p>Chưa có dữ liệu doanh thu theo tour</p>
                 </div>
               )}
             </div>
@@ -639,7 +639,7 @@ const AdminHome = () => {
                   </small>
                 </div>
                 <div className="mt-3 d-flex justify-content-end">
-                  <Link to="/admin/clustering" className="btn btn-sm btn-outline-primary">
+                  <Link to="/admin/clustering/customers" className="btn btn-sm btn-outline-primary">
                     <i className="bi bi-box-arrow-up-right me-1"></i>
                     Xem trang phân cụm khách hàng / tour
                   </Link>

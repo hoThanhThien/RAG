@@ -1,9 +1,19 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
+import { api, toAbsoluteUrl } from "../services/api";
 import { commentService } from "../services/commentService";
 import "../../styles/BookingHistory.css";
+
+function resolveBookingImageUrl(rawUrl) {
+  const url = String(rawUrl || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/uploads/")) return toAbsoluteUrl(url);
+  if (url.startsWith("uploads/")) return toAbsoluteUrl(`/${url}`);
+  if (url.startsWith("/")) return toAbsoluteUrl(url);
+  return toAbsoluteUrl(`/uploads/${url}`);
+}
 
 function Stars({ value = 0 }) {
   const safe = Math.max(0, Math.min(5, Number(value) || 0));
@@ -261,6 +271,8 @@ export default function BookingHistory() {
               const canReview = booking.Status === "Paid" || booking.Status === "Confirmed";
               const isEditingThisBooking = activeReview?.bookingId === booking.BookingID;
 
+              const tourImageUrl = resolveBookingImageUrl(booking.TourImage);
+
               return (
               <div key={booking.BookingID} className="col-12">
                 <div className="card booking-card shadow-sm h-100">
@@ -268,12 +280,16 @@ export default function BookingHistory() {
                     <div className="row">
                       {/* Tour Image */}
                       <div className="col-md-3">
-                        {booking.TourImage ? (
+                        {tourImageUrl ? (
                           <img
-                            src={booking.TourImage}
+                            src={tourImageUrl}
                             alt={booking.TourTitle}
                             className="img-fluid rounded"
                             style={{ objectFit: "cover", height: "150px", width: "100%" }}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "/no-image.png";
+                            }}
                           />
                         ) : (
                           <div

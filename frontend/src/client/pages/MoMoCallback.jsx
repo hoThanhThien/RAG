@@ -1,28 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { handleMoMoCallback, formatCurrency } from '../services/momoService.js';
+import { confirmMoMoCallback, handleMoMoCallback, formatCurrency } from '../services/momoService.js';
 import './MoMoCallback.css';
 
 const MoMoCallback = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [result, setResult] = useState(null);
+    const [syncMessage, setSyncMessage] = useState('Đang đồng bộ trạng thái thanh toán...');
 
     useEffect(() => {
-        // Xử lý callback từ MoMo
-        const paymentResult = handleMoMoCallback(searchParams);
-        setResult(paymentResult);
+        let alive = true;
+        let timer;
 
-        // Tự động redirect sau 5 giây
-        const timer = setTimeout(() => {
-            if (paymentResult.success) {
-                navigate('/bookings'); // Redirect đến trang danh sách booking
-            } else {
-                navigate('/'); // Redirect về trang chủ
+        const process = async () => {
+            const paymentResult = handleMoMoCallback(searchParams);
+            if (!alive) return;
+            setResult(paymentResult);
+
+            try {
+                const confirmRes = await confirmMoMoCallback(searchParams);
+                if (!alive) return;
+
+                if (confirmRes?.status === 'success') {
+                    setSyncMessage('Đồng bộ thành công. Trạng thái booking đã được cập nhật.');
+                } else {
+                    setSyncMessage(confirmRes?.message || 'Chưa thể đồng bộ tự động. Vui lòng kiểm tra lại sau.');
+                }
+            } catch (err) {
+                if (!alive) return;
+                setSyncMessage(
+                    err?.response?.data?.message ||
+                    err?.response?.data?.detail ||
+                    'Chưa thể đồng bộ với hệ thống. Vui lòng kiểm tra lại trang thanh toán.'
+                );
             }
-        }, 5000);
 
-        return () => clearTimeout(timer);
+            timer = setTimeout(() => {
+                if (paymentResult.success) {
+                    navigate('/bookings');
+                } else {
+                    navigate('/');
+                }
+            }, 5000);
+        };
+
+        process();
+        return () => {
+            alive = false;
+            if (timer) clearTimeout(timer);
+        };
     }, [searchParams, navigate]);
 
     if (!result) {
@@ -121,6 +148,10 @@ const MoMoCallback = () => {
                         </>
                     )}
                 </div>
+
+                <p className="auto-redirect" style={{ marginBottom: 4 }}>
+                    {syncMessage}
+                </p>
 
                 <p className="auto-redirect">
                     Bạn sẽ được chuyển hướng tự động sau 5 giây...

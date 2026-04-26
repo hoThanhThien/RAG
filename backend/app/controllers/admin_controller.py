@@ -160,7 +160,7 @@ async def get_revenue_by_location(
     location_type: Optional[str] = Query(None, description="Filter: 'domestic' (trong nước) or 'international' (ngoài nước)"),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Thống kê doanh thu theo địa điểm với filter trong/ngoài nước"""
+    """Thống kê doanh thu theo địa điểm với filter trong/ngoài nước."""
     print(f"[DEBUG] Revenue by location - User: {current_user.get('Username')} Role: {current_user.get('RoleName')} Filter: {location_type}")
     
     if current_user.get("RoleName", "").lower() != "admin":
@@ -182,20 +182,19 @@ async def get_revenue_by_location(
                 ORDER BY revenue DESC
             """)
             results = cur.fetchall()
-            
-            # Filter theo trong/ngoài nước
+
             filtered_results = []
             for row in results:
                 location = row['location']
                 is_domestic = is_vietnam_location(location)
-                
+
                 if location_type == 'domestic' and not is_domestic:
                     continue
                 if location_type == 'international' and is_domestic:
                     continue
-                
+
                 filtered_results.append(row)
-            
+
             print(f"[DEBUG] Found {len(results)} total locations, {len(filtered_results)} after filter")
             for row in filtered_results:
                 print(f"  - {row['location']}: {row['revenue']} VND ({row['total_tours']} tours, {row['total_bookings']} bookings)")
@@ -211,6 +210,72 @@ async def get_revenue_by_location(
             ]
             
             print(f"[DEBUG] Returning {len(response_data)} locations")
+            return response_data
+    finally:
+        conn.close()
+
+@router.get("/dashboard/revenue-by-category")
+async def get_revenue_by_category(
+    location_type: Optional[str] = Query(None, description="Filter: 'domestic' (trong nước) or 'international' (ngoài nước)"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Thống kê doanh thu theo từng tour từ payment thành công, có filter trong/ngoài nước theo categoryId."""
+    print(f"[DEBUG] Revenue by tour (payment-based) - User: {current_user.get('Username')} Role: {current_user.get('RoleName')} Filter: {location_type}")
+    
+    if current_user.get("RoleName", "").lower() != "admin":
+        raise HTTPException(403, "Admin only")
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            normalized_filter = (location_type or '').strip().lower()
+
+            where_clauses = [
+                "(UPPER(TRIM(COALESCE(p.Status, ''))) IN ('PAID', 'SUCCESS') OR UPPER(TRIM(COALESCE(p.PaymentStatus, ''))) IN ('PAID', 'SUCCESS'))"
+            ]
+
+            if normalized_filter == 'domestic':
+                where_clauses.append("t.CategoryID = 7")
+            elif normalized_filter == 'international':
+                where_clauses.append("t.CategoryID = 10")
+
+            where_sql = " AND ".join(where_clauses)
+
+            cur.execute("""
+                SELECT 
+                    t.TourID,
+                    t.Title as category,
+                    COUNT(DISTINCT b.BookingID) as total_bookings,
+                    COALESCE(SUM(p.Amount), 0) as revenue,
+                    t.Location,
+                    t.CategoryID
+                FROM payment p
+                INNER JOIN booking b ON b.BookingID = p.BookingID
+                INNER JOIN tour t ON t.TourID = b.TourID
+                WHERE {where_sql}
+                GROUP BY t.TourID, t.Title, t.Location, t.CategoryID
+                ORDER BY revenue DESC
+            """.format(where_sql=where_sql))
+            results = cur.fetchall()
+
+            print(f"[DEBUG] Found {len(results)} tours after payment/category filter")
+            for row in results:
+                print(f"  - {row['category']}: {row['revenue']} VND ({row['total_bookings']} bookings, categoryId={row['CategoryID']})")
+            
+            response_data = [
+                {
+                    "tourId": row["TourID"],
+                    "tourName": row["category"],
+                    "category": row["category"],
+                    "total_tours": 1,
+                    "totalBookings": row["total_bookings"],
+                    "total_bookings": row["total_bookings"],
+                    "revenue": float(row["revenue"])
+                }
+                for row in results
+            ]
+            
+            print(f"[DEBUG] Returning {len(response_data)} tours")
             return response_data
     finally:
         conn.close()
