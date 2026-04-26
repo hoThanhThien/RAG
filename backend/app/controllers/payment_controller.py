@@ -70,7 +70,7 @@ def create_paypal_order(amount_usd, currency, description, order_code):
     access_token = get_paypal_access_token()
     mode = os.getenv("PAYPAL_MODE", "sandbox")
     base_url = "https://api.sandbox.paypal.com" if mode == "sandbox" else "https://api.paypal.com"
-    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
     
     headers = {
         "Content-Type": "application/json",

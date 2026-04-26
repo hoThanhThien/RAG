@@ -48,12 +48,12 @@ async def featured_destinations(
 
 @router.post("/segments/rebuild")
 async def rebuild_segments(
-    n_clusters: int = Query(0, ge=0, le=5, description="Số cụm (0 = tự động chọn giữa 3 và 5 theo công thức)"),
+    n_clusters: int = Query(0, ge=0, le=10, description="Số cụm (0 = tự động chọn K theo heuristic + silhouette)"),
     current_user: Dict[str, Any] = Depends(require_admin),
 ):
     _ = current_user
-    if n_clusters not in {0, 3, 5}:
-        raise HTTPException(status_code=400, detail="n_clusters chỉ được phép là 0, 3 hoặc 5")
+    if n_clusters not in {0} and n_clusters < 2:
+        raise HTTPException(status_code=400, detail="n_clusters phải là 0 hoặc >= 2")
     return rebuild_customer_segments(n_clusters=n_clusters)
 
 

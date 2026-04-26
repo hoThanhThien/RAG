@@ -13,11 +13,13 @@ const DEFAULT_CUSTOMER_SEGMENT_DATA = {
   pca_centroids: [],
   total_users: 0,
   n_clusters: 0,
+  modeled_group_count: 0,
+  special_group_count: 0,
   total_groups: 0,
   optimal_k: 0,
   formula_suggested_k: 0,
   auto_selected: true,
-  allowed_k_values: [3, 5],
+  allowed_k_values: [],
   zero_group_users: 0,
   modeled_users: 0,
   recency_cap_days: 0,
@@ -31,27 +33,17 @@ const DEFAULT_TOUR_CLUSTER_DATA = {
   tours: [],
   total_tours: 0,
   n_clusters: 0,
+  modeled_group_count: 0,
+  special_group_count: 0,
   total_groups: 0,
   optimal_k: 0,
   auto_selected: true,
   silhouette_score: 0,
+  k_candidates: [],
   elbow_data: [],
   inertia_data: [],
   silhouette_data: [],
 };
-
-const CUSTOMER_CLUSTER_OPTIONS = [
-  { label: 'Auto', value: 0 },
-  { label: 'K = 3', value: 3 },
-  { label: 'K = 5', value: 5 },
-];
-
-const TOUR_CLUSTER_OPTIONS = [
-  { label: 'Auto', value: 0 },
-  { label: 'K = 3', value: 3 },
-  { label: 'K = 5', value: 5 },
-  { label: 'K = 7', value: 7 },
-];
 
 const formatCompactMoney = (value) => `${new Intl.NumberFormat('vi-VN').format(Math.round(value || 0))}đ`;
 const formatPercent = (value, digits = 0) => `${((value || 0) * 100).toFixed(digits)}%`;
@@ -113,7 +105,59 @@ function getCustomerClusterAction(cluster) {
   return 'Nuôi dưỡng bằng remarketing nhẹ và nội dung theo danh mục yêu thích.';
 }
 
-export default function ClusteringView() {
+function buildModeledClusterOrdinalMap(clusters) {
+  const modeledIds = (clusters || [])
+    .filter((cluster) => !cluster?.is_special_group)
+    .map((cluster) => Number(cluster.cluster_id))
+    .filter((clusterId) => Number.isInteger(clusterId))
+    .sort((a, b) => a - b);
+
+  return modeledIds.reduce((accumulator, clusterId, index) => {
+    accumulator[clusterId] = index + 1;
+    return accumulator;
+  }, {});
+}
+
+function getCustomerClusterDisplayName(cluster, modeledClusterOrder) {
+  if (cluster?.is_special_group) {
+    return 'Nhóm cold-start';
+  }
+
+  const clusterId = Number(cluster?.cluster_id);
+  const ordinal = modeledClusterOrder?.[clusterId];
+  return ordinal ? `Cụm K${ordinal}` : `Cụm ${clusterId}`;
+}
+
+function getTourClusterDisplayName(cluster, modeledClusterOrder) {
+  if (cluster?.is_special_group) {
+    return 'Nhóm ngủ đông';
+  }
+
+  const clusterId = Number(cluster?.cluster_id);
+  const ordinal = modeledClusterOrder?.[clusterId];
+  return ordinal ? `Cụm K${ordinal}` : `Cụm ${clusterId}`;
+}
+
+function formatGroupSummary(modeledGroupCount, specialGroupCount, entityCount, entityLabel) {
+  const parts = [];
+
+  if (modeledGroupCount > 0) {
+    parts.push(`K-Means ${modeledGroupCount} cụm`);
+  }
+  if (specialGroupCount > 0) {
+    parts.push(`+ ${specialGroupCount} nhóm đặc biệt`);
+  }
+  if (entityCount > 0) {
+    parts.push(`${entityCount} ${entityLabel}`);
+  }
+
+  return parts.join(' · ');
+}
+
+export default function ClusteringView({ mode = 'both', breadcrumb = '' }) {
+  const showCustomerSection = mode !== 'tours';
+  const showTourSection = mode !== 'customers';
+
   const [customerSegmentData, setCustomerSegmentData] = useState(DEFAULT_CUSTOMER_SEGMENT_DATA);
   const [customerSegmentLoading, setCustomerSegmentLoading] = useState(true);
   const [customerSegmentError, setCustomerSegmentError] = useState('');
@@ -167,9 +211,13 @@ export default function ClusteringView() {
   }, []);
 
   useEffect(() => {
-    loadCustomerSegments({ nClusters: 0, source: 'initial' });
-    loadTourClusters({ nClusters: 0, source: 'initial' });
-  }, [loadCustomerSegments, loadTourClusters]);
+    if (showCustomerSection) {
+      loadCustomerSegments({ nClusters: 0, source: 'initial' });
+    }
+    if (showTourSection) {
+      loadTourClusters({ nClusters: 0, source: 'initial' });
+    }
+  }, [loadCustomerSegments, loadTourClusters, showCustomerSection, showTourSection]);
 
   const filteredTours = useMemo(() => {
     return tourClusterData.tours || [];
@@ -182,6 +230,26 @@ export default function ClusteringView() {
   const visibleClusters = useMemo(() => {
     return (tourClusterData.clusters || []).filter((cluster) => filteredClusterIds.has(cluster.cluster_id));
   }, [filteredClusterIds, tourClusterData.clusters]);
+
+  const customerModeledClusterOrder = useMemo(
+    () => buildModeledClusterOrdinalMap(customerSegmentData.clusters),
+    [customerSegmentData.clusters]
+  );
+
+  const customerModeledClusters = useMemo(
+    () => (customerSegmentData.clusters || []).filter((cluster) => !cluster?.is_special_group),
+    [customerSegmentData.clusters]
+  );
+
+  const customerSpecialClusters = useMemo(
+    () => (customerSegmentData.clusters || []).filter((cluster) => cluster?.is_special_group),
+    [customerSegmentData.clusters]
+  );
+
+  const tourModeledClusterOrder = useMemo(
+    () => buildModeledClusterOrdinalMap(tourClusterData.clusters),
+    [tourClusterData.clusters]
+  );
 
   const customerElbowData = useMemo(() => {
     const raw = customerSegmentData.inertia_data?.length
@@ -236,22 +304,44 @@ export default function ClusteringView() {
     };
   }, [filteredTours]);
 
+  const customerClusterOptions = useMemo(() => {
+    const ks = [...new Set([2, 5, 7, ...(customerSegmentData.allowed_k_values || [])])]
+      .map((k) => Number(k))
+      .filter((k) => Number.isInteger(k) && k >= 2)
+      .sort((a, b) => a - b);
+    return [{ label: 'Auto', value: 0 }, ...ks.map((k) => ({ label: `K = ${k}`, value: k }))];
+  }, [customerSegmentData.allowed_k_values]);
+
+  const tourClusterOptions = useMemo(() => {
+    const ks = [...new Set([2, 3, 4, ...(tourClusterData.k_candidates || [])])]
+      .map((k) => Number(k))
+      .filter((k) => Number.isInteger(k) && k >= 2)
+      .sort((a, b) => a - b);
+    return [{ label: 'Auto', value: 0 }, ...ks.map((k) => ({ label: `K = ${k}`, value: k }))];
+  }, [tourClusterData.k_candidates]);
+
   return (
     <div className="container-fluid mt-4 px-4">
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
+          {breadcrumb && <div className="small text-muted mb-1">{breadcrumb}</div>}
           <h2 className="fw-bold text-primary mb-1">
             <i className="bi bi-diagram-3-fill me-2"></i>
-            Phân cụm khách hàng và tour
+            {showCustomerSection && showTourSection && 'Phân cụm khách hàng và tour'}
+            {showCustomerSection && !showTourSection && 'Phân cụm khách hàng'}
+            {!showCustomerSection && showTourSection && 'Phân cụm tour'}
           </h2>
           <p className="text-muted mb-0">
-            Tách riêng khỏi dashboard để quản trị rebuild, so sánh K và đọc insight nhanh hơn.
+            {showCustomerSection && showTourSection && 'Tách riêng khỏi dashboard để quản trị rebuild, so sánh K và đọc insight nhanh hơn.'}
+            {showCustomerSection && !showTourSection && 'Nhóm khách theo hành vi để phục vụ phân khúc, chăm sóc và win-back chính xác hơn.'}
+            {!showCustomerSection && showTourSection && 'Nhóm tour theo hiệu suất để tối ưu vận hành, giá và kế hoạch truyền thông.'}
           </p>
         </div>
       </div>
 
       <div className="row g-4 mb-4">
-        <div className="col-lg-6">
+        {showCustomerSection && (
+        <div className={showTourSection ? 'col-lg-6' : 'col-12'}>
           <div className="card border-0 shadow-sm h-100">
             <div className="card-header bg-white border-0 py-3">
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -261,16 +351,21 @@ export default function ClusteringView() {
                     Phân cụm khách hàng
                     {customerSegmentData.n_clusters > 0 && (
                       <span className="badge bg-primary ms-2" style={{ fontSize: '0.7rem' }}>
-                        K={customerSegmentData.n_clusters} · {customerSegmentData.total_groups || customerSegmentData.n_clusters} nhóm / {customerSegmentData.total_users} khách
+                        {formatGroupSummary(
+                          customerSegmentData.modeled_group_count || customerSegmentData.n_clusters,
+                          0,
+                          customerSegmentData.total_users,
+                          'khách'
+                        )}
                       </span>
                     )}
                   </h5>
-                  <small className="text-muted">Auto chỉ chọn giữa K=3 và K=5 theo heuristic mới.</small>
+                  <small className="text-muted">Auto chọn K theo heuristic + silhouette. Nhóm cold-start không tính vào K.</small>
                 </div>
 
                 <div className="d-flex flex-wrap align-items-center gap-2">
                   <div className="btn-group btn-group-sm" role="group">
-                    {CUSTOMER_CLUSTER_OPTIONS.map((option) => (
+                    {customerClusterOptions.map((option) => (
                       <button
                         key={option.value}
                         type="button"
@@ -317,8 +412,12 @@ export default function ClusteringView() {
                     <div className="col-md-4">
                       <div className="rounded-3 border bg-light h-100 p-3">
                         <div className="text-muted small mb-1">K đang dùng</div>
-                        <div className="fw-bold fs-4">{customerSegmentData.optimal_k || '—'}</div>
-                        <div className="small text-muted">Heuristic gợi ý {customerSegmentData.formula_suggested_k || '—'}</div>
+                        <div className="fw-bold fs-4">{customerSegmentData.n_clusters || '—'}</div>
+                        <div className="small text-muted">
+                          {customerSegmentData.auto_selected
+                            ? `Auto chọn, heuristic gợi ý ${customerSegmentData.formula_suggested_k || '—'}`
+                            : `Đang dùng K thủ công, optimal auto = ${customerSegmentData.optimal_k || '—'}`}
+                        </div>
                       </div>
                     </div>
                     <div className="col-md-4">
@@ -337,12 +436,14 @@ export default function ClusteringView() {
                     </div>
                   </div>
 
+
+
                   {customerChartBounds && customerChartPoints.length > 0 && (
                     <div className="row g-3 mb-3">
                       <div className="col-lg-8">
                         <div className="rounded-3 border bg-light p-3 position-relative">
                           <div className="d-flex justify-content-end small text-muted mb-2">
-                            Mỗi khách = 1 điểm · Màu/vùng = nhóm cluster · ★ = centroid cụm
+                            Biểu đồ chỉ gồm khách đã vào K-Means · Mỗi điểm = 1 khách · ★ = tâm cụm
                           </div>
                           <svg
                             viewBox="0 0 560 340"
@@ -361,7 +462,7 @@ export default function ClusteringView() {
                               const toY = (value) => MT + H - ((value - minY) / (maxY - minY)) * H;
                               const xTicks = Array.from({ length: 5 }, (_, index) => minX + ((maxX - minX) * index) / 4);
                               const yTicks = Array.from({ length: 5 }, (_, index) => minY + ((maxY - minY) * index) / 4);
-                              const legendClusters = customerSegmentData.clusters.filter((cluster) => cluster.cluster_id !== 0);
+                              const legendClusters = customerModeledClusters;
 
                               return (
                                 <>
@@ -456,7 +557,7 @@ export default function ClusteringView() {
                                     return (
                                       <g key={`customer-legend-${cluster.cluster_id}`}>
                                         <circle cx={legendX + 7} cy={ly} r={6} fill={color} fillOpacity={0.85} />
-                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">Nhóm {cluster.cluster_id}</text>
+                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">{getCustomerClusterDisplayName(cluster, customerModeledClusterOrder)}</text>
                                       </g>
                                     );
                                   })}
@@ -465,7 +566,7 @@ export default function ClusteringView() {
                                     return (
                                       <g>
                                         <path d={starPath(legendX + 7, ly, 7, 2.8)} fill="#e53e3e" />
-                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">centroids</text>
+                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">Tâm cụm (centroid)</text>
                                       </g>
                                     );
                                   })()}
@@ -493,7 +594,7 @@ export default function ClusteringView() {
                               <div className="small text-muted mb-2">{hoveredCustomer.segment_name}</div>
                               <div className="small">
                                 <div>Toạ độ X/Y: <span className="fw-semibold">{Number(hoveredCustomer.pca_x || 0).toFixed(2)} / {Number(hoveredCustomer.pca_y || 0).toFixed(2)}</span></div>
-                                <div>Nhóm: <span className="fw-semibold">Nhóm {hoveredCustomer.cluster_id}</span></div>
+                                <div>Nhóm: <span className="fw-semibold">{getCustomerClusterDisplayName(hoveredCustomer, customerModeledClusterOrder)}</span></div>
                               </div>
                             </div>
                           )}
@@ -501,33 +602,38 @@ export default function ClusteringView() {
                       </div>
 
                       <div className="col-lg-4">
-                        <div className="table-responsive" style={{ maxHeight: 340, overflowY: 'auto' }}>
-                          <table className="table table-sm table-hover mb-0">
-                            <thead className="table-light sticky-top">
-                              <tr>
-                                <th>Nhóm</th>
-                                <th>Phân khúc</th>
-                                <th className="text-center">SL</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {customerSegmentData.clusters.map((cluster) => (
-                                <tr key={`customer-cluster-${cluster.cluster_id}`}>
-                                  <td style={{ whiteSpace: 'nowrap' }}>
-                                    <span
-                                      className="badge rounded-pill"
-                                      style={{ backgroundColor: CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length] }}
-                                    >
-                                      Nhóm {cluster.cluster_id}
-                                    </span>
-                                  </td>
-                                  <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{cluster.segment_name}</td>
-                                  <td className="text-center">{cluster.users}</td>
+                        <div className="rounded-3 border bg-white p-3 mb-3">
+                          <div className="small text-muted mb-2">Các cụm K-Means đang hiển thị</div>
+                          <div className="table-responsive" style={{ maxHeight: 220, overflowY: 'auto' }}>
+                            <table className="table table-sm table-hover mb-0">
+                              <thead className="table-light sticky-top">
+                                <tr>
+                                  <th>Cụm</th>
+                                  <th>Phân khúc</th>
+                                  <th className="text-center">SL</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody>
+                                {customerModeledClusters.map((cluster) => (
+                                  <tr key={`customer-cluster-${cluster.cluster_id}`}>
+                                    <td style={{ whiteSpace: 'nowrap' }}>
+                                      <span
+                                        className="badge rounded-pill"
+                                        style={{ backgroundColor: CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length] }}
+                                      >
+                                        {getCustomerClusterDisplayName(cluster, customerModeledClusterOrder)}
+                                      </span>
+                                    </td>
+                                    <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{cluster.segment_name}</td>
+                                    <td className="text-center">{cluster.users}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
+
+
                       </div>
                     </div>
                   )}
@@ -547,14 +653,14 @@ export default function ClusteringView() {
                         </tr>
                       </thead>
                       <tbody>
-                        {customerSegmentData.clusters.map((cluster) => (
+                        {customerModeledClusters.map((cluster) => (
                           <tr key={cluster.cluster_id}>
                             <td>
                               <span
                                 className="badge rounded-pill"
                                 style={{ backgroundColor: CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length] }}
                               >
-                                Nhóm {cluster.cluster_id}
+                                {getCustomerClusterDisplayName(cluster, customerModeledClusterOrder)}
                               </span>
                             </td>
                             <td>
@@ -575,6 +681,8 @@ export default function ClusteringView() {
                       </tbody>
                     </table>
                   </div>
+
+
 
                   {customerSegmentData.silhouette_data?.length > 0 && (
                     <div className="mt-3 rounded-3 border p-3 bg-light">
@@ -623,8 +731,10 @@ export default function ClusteringView() {
             </div>
           </div>
         </div>
+        )}
 
-        <div className="col-lg-6">
+        {showTourSection && (
+        <div className={showCustomerSection ? 'col-lg-6' : 'col-12'}>
           <div className="card border-0 shadow-sm h-100">
             <div className="card-header bg-white border-0 py-3">
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -634,7 +744,12 @@ export default function ClusteringView() {
                     Phân cụm tour
                     {tourClusterData.n_clusters > 0 && (
                       <span className="badge bg-success ms-2" style={{ fontSize: '0.7rem' }}>
-                        K={tourClusterData.n_clusters} · {tourClusterData.total_groups || tourClusterData.n_clusters} nhóm / {tourClusterData.total_tours} tour
+                        {formatGroupSummary(
+                          tourClusterData.modeled_group_count || tourClusterData.n_clusters,
+                          0,
+                          tourClusterData.total_tours,
+                          'tour'
+                        )}
                       </span>
                     )}
                     {tourClusterData.silhouette_score > 0 && (
@@ -643,12 +758,12 @@ export default function ClusteringView() {
                       </span>
                     )}
                   </h5>
-                  <small className="text-muted">Phân cụm theo booking, revenue, fill rate, VIP rate và recency.</small>
+                  <small className="text-muted">Phân cụm theo booking, revenue, fill rate, VIP rate và recency. Tất cả tour đều được đưa vào K-Means.</small>
                 </div>
 
                 <div className="d-flex flex-wrap align-items-center gap-2">
                   <div className="btn-group btn-group-sm" role="group">
-                    {TOUR_CLUSTER_OPTIONS.map((option) => (
+                    {tourClusterOptions.map((option) => (
                       <button
                         key={option.value}
                         type="button"
@@ -691,9 +806,10 @@ export default function ClusteringView() {
                 </div>
               ) : (
                 <>
+
                   <div className="d-flex justify-content-end small text-muted mb-3">
                     <i className="bi bi-info-circle me-1"></i>
-                    Mỗi điểm = 1 tour · Màu/vùng = nhóm cluster · ★ = đại diện nhóm
+                    Mỗi điểm = 1 tour · Màu/vùng = nhóm cluster · ★ = tâm cụm
                   </div>
 
                   {tourChartBounds && filteredTours.length > 0 && (
@@ -813,7 +929,7 @@ export default function ClusteringView() {
                                     return (
                                       <g key={`legend-${cluster.cluster_id}`}>
                                         <circle cx={legendX + 7} cy={ly} r={6} fill={color} fillOpacity={0.85} />
-                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">Nhóm {cluster.cluster_id + 1}</text>
+                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">{getTourClusterDisplayName(cluster, tourModeledClusterOrder)}</text>
                                       </g>
                                     );
                                   })}
@@ -822,7 +938,7 @@ export default function ClusteringView() {
                                     return (
                                       <g>
                                         <path d={starPath(legendX + 7, ly, 7, 2.8)} fill="#e53e3e" />
-                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">centroids</text>
+                                        <text x={legendX + 18} y={ly + 4} fontSize={11} fill="#444">Tâm cụm (centroid)</text>
                                       </g>
                                     );
                                   })()}
@@ -881,7 +997,7 @@ export default function ClusteringView() {
                                       className="badge rounded-pill"
                                       style={{ backgroundColor: CLUSTER_COLORS[cluster.cluster_id % CLUSTER_COLORS.length] }}
                                     >
-                                      Nhóm {cluster.cluster_id + 1}
+                                      {getTourClusterDisplayName(cluster, tourModeledClusterOrder)}
                                     </span>
                                   </td>
                                   <td style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{cluster.label}</td>
@@ -889,7 +1005,7 @@ export default function ClusteringView() {
                                     style={{ fontSize: '0.78rem', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                     title={cluster.representative_title}
                                   >
-                                    <i className="bi bi-star-fill text-warning me-1" style={{ fontSize: '0.65rem' }} />
+                                    <i className="bi bi-pin-angle-fill text-secondary me-1" style={{ fontSize: '0.65rem' }} />
                                     {cluster.representative_title}
                                   </td>
                                   <td className="text-center">
@@ -920,6 +1036,7 @@ export default function ClusteringView() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

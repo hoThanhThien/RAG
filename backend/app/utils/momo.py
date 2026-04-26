@@ -62,11 +62,7 @@ class MoMoService:
         ipn_url = os.getenv("MOMO_IPN_URL")
         api_endpoint = os.getenv("MOMO_API_ENDPOINT")
         environment = os.getenv("MOMO_ENVIRONMENT", "test")
-        
-        # Kiểm tra: Nếu test mode và dùng ATM/CC → force về captureWallet
-        if environment == "test" and request_type in ["payWithATM", "payWithCC"]:
-            print(f"[MoMo Warning] {request_type} không khả dụng trong test mode. Chuyển về captureWallet.")
-            request_type = "captureWallet"
+        print(f"[MoMo Debug] Environment={environment}, request_type={request_type}")
         
         # Tạo request ID unique
         request_id = f"{order_id}_{int(time.time())}"

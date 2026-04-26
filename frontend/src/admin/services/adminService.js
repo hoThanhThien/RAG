@@ -80,6 +80,23 @@ export const adminService = {
     }
   },
 
+  // Lấy doanh thu theo danh mục tour
+  getRevenueByCategory: async (locationType = null) => {
+    try {
+      const response = await api.get('/admin/dashboard/revenue-by-category', {
+        ...liveConfig(),
+        params: {
+          ...(locationType ? { location_type: locationType } : {}),
+          _ts: Date.now(),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching revenue by category:', error);
+      throw error;
+    }
+  },
+
   // Lấy dữ liệu K-Means phân cụm điểm đến để hiển thị biểu đồ admin
   getKmeansDestinations: async (nClusters = 0) => {
     try {

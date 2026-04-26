@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { createMoMoPayment, formatCurrency } from '../services/momoService.js';
+import React, { useEffect, useState } from 'react';
+import { createMoMoPayment, formatCurrency, getAvailableMethods } from '../services/momoService.js';
 import './MoMoPayment.css';
 import './MoMoPaymentMethod.css';
 
@@ -7,6 +7,40 @@ const MoMoPayment = ({ bookingID, amount, onCancel }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('captureWallet');
+    const [availableMethods, setAvailableMethods] = useState(['captureWallet']);
+    const [environment, setEnvironment] = useState('test');
+
+    useEffect(() => {
+        let mounted = true;
+
+        const loadAvailableMethods = async () => {
+            try {
+                const data = await getAvailableMethods();
+                if (!mounted) return;
+
+                const methods = Array.isArray(data?.available_methods) && data.available_methods.length
+                    ? data.available_methods
+                    : ['captureWallet'];
+
+                setAvailableMethods(methods);
+                setEnvironment(data?.environment || 'test');
+
+                if (!methods.includes(paymentMethod)) {
+                    setPaymentMethod('captureWallet');
+                }
+            } catch (_err) {
+                if (!mounted) return;
+                setAvailableMethods(['captureWallet']);
+                setEnvironment('test');
+                setPaymentMethod('captureWallet');
+            }
+        };
+
+        loadAvailableMethods();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const handleMoMoPayment = async () => {
         try {
@@ -24,10 +58,14 @@ const MoMoPayment = ({ bookingID, amount, onCancel }) => {
             }
         } catch (err) {
             console.error('MoMo payment error:', err);
-            setError(err.detail || 'Có lỗi xảy ra khi tạo thanh toán');
+            setError(typeof err === 'string' ? err : (err?.detail || 'Có lỗi xảy ra khi tạo thanh toán'));
             setLoading(false);
         }
     };
+
+    const isWalletAvailable = availableMethods.includes('captureWallet');
+    const isAtmAvailable = availableMethods.includes('payWithATM');
+    const isCcAvailable = availableMethods.includes('payWithCC');
 
     return (
         <div className="momo-payment-container">
@@ -62,6 +100,7 @@ const MoMoPayment = ({ bookingID, amount, onCancel }) => {
                                 name="momoMethod"
                                 value="captureWallet"
                                 checked={paymentMethod === 'captureWallet'}
+                                disabled={!isWalletAvailable}
                                 onChange={(e) => setPaymentMethod(e.target.value)}
                             />
                             <div className="method-content">
@@ -73,23 +112,55 @@ const MoMoPayment = ({ bookingID, amount, onCancel }) => {
                             </div>
                         </label>
 
-                        <label className={`method-option ${paymentMethod === 'payWithATM' ? 'active' : ''}`}>
+                        <label className={`method-option ${paymentMethod === 'payWithATM' ? 'active' : ''} ${!isAtmAvailable ? 'disabled' : ''}`}>
                             <input
                                 type="radio"
                                 name="momoMethod"
                                 value="payWithATM"
                                 checked={paymentMethod === 'payWithATM'}
+                                disabled={!isAtmAvailable}
                                 onChange={(e) => setPaymentMethod(e.target.value)}
                             />
                             <div className="method-content">
                                 <i className="bi bi-credit-card fs-3 text-success"></i>
                                 <div className="method-text">
                                     <strong>Thẻ ATM/Internet Banking</strong>
-                                    <small>Liên kết thẻ ngân hàng để thanh toán</small>
+                                    <small>
+                                        {isAtmAvailable
+                                            ? 'Liên kết thẻ ngân hàng để thanh toán'
+                                            : 'Phương thức hiện không khả dụng'}
+                                    </small>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label className={`method-option ${paymentMethod === 'payWithCC' ? 'active' : ''} ${!isCcAvailable ? 'disabled' : ''}`}>
+                            <input
+                                type="radio"
+                                name="momoMethod"
+                                value="payWithCC"
+                                checked={paymentMethod === 'payWithCC'}
+                                disabled={!isCcAvailable}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                            />
+                            <div className="method-content">
+                                <i className="bi bi-credit-card-2-front fs-3 text-warning"></i>
+                                <div className="method-text">
+                                    <strong>Thẻ tín dụng/ghi nợ quốc tế</strong>
+                                    <small>
+                                        {isCcAvailable
+                                            ? 'Thanh toán bằng Visa/Mastercard (thẻ test trên sandbox)'
+                                            : 'Phương thức hiện không khả dụng'}
+                                    </small>
                                 </div>
                             </div>
                         </label>
                     </div>
+                    {environment === 'test' && (
+                        <div className="small text-muted mt-2">
+                            Môi trường hiện tại: <strong>{environment}</strong>. Bạn có thể dùng bộ thẻ test MoMo để thử ATM/Credit Card.
+                        </div>
+                    )}
                 </div>
 
                 {error && (

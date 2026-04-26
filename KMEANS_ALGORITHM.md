@@ -135,15 +135,26 @@ Cach giam thieu trong he thong:
 - Tach cold-start: nguoi dung chua co booking duoc dua vao nhom rieng `Khach moi / Chua tuong tac`.
 - Khong dua nhom nay vao K-Means chinh de tranh lam lech centroid.
 - Chuan hoa bang `StandardScaler`.
+- Log transform cho feature lech (skew lon):
+   - Ap dung `log1p` cho `total_spending`, `order_count`, `avg_order_value` neu skew > 1.0.
+   - Muc tieu: giam anh huong tail qua dai, giup centroid on dinh hon.
 
 ### 7.4 Chon K
-- Candidate: `{3, 5}`
-- Heuristic: `target_k = sqrt(n/2)` roi chon gia tri gan nhat trong `{3, 5}`
+- Candidate dong: sinh tu dong theo `n` (khong fix cung bo `{3,5}` nua).
+- Candidate thuong la tap co chua `k_min`, heuristic `round(sqrt(n/2))`, va `k_max` kha dung.
+- Heuristic: `target_k = sqrt(n/2)` roi chon gia tri gan nhat trong tap candidate dong.
 - Chay thu silhouette cho tung K candidate
 - Dung tolerance:
   - `0.03` neu n <= 25
   - `0.02` neu n > 25
 - Neu silhouette cua K khac vuot qua tolerance thi doi K.
+
+### 7.4.1 Stability check
+- Voi K da chon, chay lai nhieu seed (vi du 42, 52, 62, 72, 82).
+- Theo doi:
+   - `silhouette_mean`, `silhouette_std`
+   - `ari_mean` (Adjusted Rand Index trung binh giua cac lan chay)
+- Neu `silhouette_std` lon hoac `ari_mean` thap thi canh bao cum chua on dinh.
 
 ### 7.5 Rule gan nhan segment
 Rule theo quantile:
@@ -157,6 +168,16 @@ Rule theo quantile:
 ### 7.6 Rang buoc unique label
 He thong da bo sung rang buoc: cac nhan quan trong chi xuat hien toi da 1 lan (VIP, Khach mua nhieu, Khach san sale, Khach it tuong tac, Khach moi). Cac cum con lai fallback ve `Khach trung thanh`.
 
+Canh bao bias:
+- Unique label giup dashboard de doc, nhung co the gay thien lech dien giai.
+- Trong mot so du lieu, nhieu cum deu "xung dang" nhan VIP/Hot, nhung rule unique se buoc chon 1 cum "thang".
+- Vi vay nen doi chieu them metric so (mean spending/orders/recency) thay vi chi nhin label.
+
+### 7.6.1 Label gan theo cluster hay theo point?
+- Trong he thong nay, label business (`segment_name`) gan theo cluster-level.
+- Nghia la toan bo user trong cung cluster se dung chung 1 label.
+- Khong co label rieng theo tung point/user tai thoi diem rebuild.
+
 ### 7.7 Output chinh
 API rebuild tra ve:
 - `n_clusters`: so cum K-Means thuc
@@ -164,6 +185,8 @@ API rebuild tra ve:
 - `clusters`: thong ke tung nhom
 - `silhouette_data`, `inertia_data`
 - `pca_points`, `pca_centroids` (de ve chart)
+- `feature_transforms.log1p_applied`
+- `stability` (silhouette_mean/std, ari_mean, n_runs)
 
 ---
 
@@ -183,11 +206,25 @@ API rebuild tra ve:
 ### 8.3 Tien xu ly
 - Tach dead tours (het han / khong mo ban / qua lau khong booking) thanh nhom rieng de khong lam nhiu K-Means chinh.
 - Chuan hoa du lieu truoc khi fit.
+- Log transform cho feature lech:
+   - `booking_count`, `avg_revenue`, `price` (neu skew > 1.0)
+
+### 8.3.1 Fix recency_score
+- Truoc day recency co the bi keo lech neu max_days qua lon.
+- Hien tai recency duoc chuan hoa robust:
+   - Dung moc `p95` cua `recency_days` (thay vi max thuong).
+   - `recency_score = 1 - clip(recency_days, 0, p95) / p95`
+   - Sau do clip ve [0, 1].
+- Cach nay giam anh huong outlier va giup truc PCA on dinh hon.
 
 ### 8.4 Chon K
-- Candidate: `{3, 5, 7}`
+- Candidate dong theo `n` (khong fix cung bo `{3,5,7}` nua)
 - Heuristic: K gan `sqrt(n/2)`
 - Danh gia bang silhouette + inertia
+
+### 8.4.1 Stability check
+- Tuong tu customer, tour clustering cung tinh stability tren nhieu seed.
+- Response tra ve `stability` de admin/BE theo doi do on dinh cua phan cum.
 
 ### 8.5 Rule gan nhan tour cluster
 Theo global mean:
@@ -207,6 +244,8 @@ Theo global mean:
 - `n_clusters`, `total_groups`
 - `silhouette_score`, `silhouette_data`, `inertia_data`
 - `pca_x`, `pca_y`, `centroid_x`, `centroid_y`
+- `feature_transforms` (log1p_applied, recency_ref_days_p95)
+- `stability` (silhouette_mean/std, ari_mean, n_runs)
 
 ---
 

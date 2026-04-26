@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
@@ -15,15 +16,47 @@ from app.database import get_db_connection
 
 
 ZERO_SEGMENT_NAME = "Khách mới / Chưa tương tác"
-ALLOWED_CUSTOMER_CLUSTER_COUNTS = (3, 5)
+
+
+def _generate_k_candidates(sample_count: int, k_min: int = 2, k_max: int = 10) -> List[int]:
+    if sample_count < max(k_min, 2):
+        return []
+
+    # Guard against over-segmentation on small datasets:
+    # keep at least ~4 points/cluster and cap by sqrt(n).
+    density_cap = max(k_min, sample_count // 4)
+    scale_cap = max(k_min, int(round(math.sqrt(max(sample_count, 1)))))
+    upper = min(k_max, sample_count - 1, density_cap, scale_cap)
+    if upper < k_min:
+        return []
+
+    candidates = sorted(set([k_min, upper, int(round(math.sqrt(max(sample_count, 1) / 2.0)))]))
+    candidates = [k for k in candidates if k_min <= k <= upper]
+    if len(candidates) < 3:
+        candidates = sorted(set(candidates + list(range(k_min, upper + 1))))
+    return candidates
+
+
+def _apply_log_transform_for_skew(
+    frame: pd.DataFrame,
+    columns: List[str],
+    skew_threshold: float = 1.0,
+) -> Tuple[pd.DataFrame, List[str]]:
+    transformed = frame.copy()
+    applied: List[str] = []
+    for col in columns:
+        if col not in transformed:
+            continue
+        series = pd.to_numeric(transformed[col], errors="coerce").fillna(0.0)
+        if float(series.skew()) > skew_threshold:
+            transformed[col] = np.log1p(series.clip(lower=0.0))
+            applied.append(col)
+    return transformed, applied
 
 
 def _formula_target_k(sample_count: int) -> int:
-    """Chọn K mục tiêu theo heuristic sqrt(n/2), sau đó làm tròn về tập {3, 5}."""
-    if sample_count < ALLOWED_CUSTOMER_CLUSTER_COUNTS[0]:
-        return 1
-
-    feasible = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k <= sample_count]
+    """Chọn K mục tiêu theo heuristic sqrt(n/2), sau đó làm tròn về tập K candidates động."""
+    feasible = _generate_k_candidates(sample_count)
     if not feasible:
         return 1
 
@@ -34,18 +67,20 @@ def _formula_target_k(sample_count: int) -> int:
 def _auto_select_k(
     scaled: "np.ndarray",
     k_min: int = 2,
-    k_max: int = 8,
-) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]]]:
-    """Chọn K cho customer segmentation, chỉ trong tập {3, 5}."""
+    k_max: int = 10,
+) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]], Dict[str, Any]]:
+    """Chọn K cho customer segmentation với tập K candidates động."""
     n = scaled.shape[0]
+    ks = [k for k in _generate_k_candidates(n, k_min=k_min, k_max=k_max) if k <= n - 1]
     target_k = _formula_target_k(n)
-    ks = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k_min <= k <= min(k_max, n - 1)]
     if not ks:
-        return target_k, [], []
+        return target_k, [], [], {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
 
     inertias: List[float] = []
     silhouettes: List[float] = []
     for k in ks:
+        # KMeans với nhiều lần khởi tạo để ổn định hơn, đặc biệt trên tập nhỏ.
+        # Có thể chọn ngẫu nhiên khi tập dữ liệu đủ lớn 
         m = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = m.fit_predict(scaled)
         inertias.append(round(float(m.inertia_), 2))
@@ -56,14 +91,41 @@ def _auto_select_k(
     best_k = target_k if target_k in score_by_k else ks[0]
 
     silhouette_best_k = max(score_by_k.keys(), key=lambda k: score_by_k[k])
-    tolerance = 0.03 if scaled.shape[0] <= 25 else 0.02
+    tolerance = 0.05 if scaled.shape[0] <= 80 else 0.03
     if score_by_k[silhouette_best_k] > score_by_k[best_k] + tolerance:
         best_k = silhouette_best_k
+
+    # Stability check at selected K via multiple seeds.
+    stability: Dict[str, Any] = {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
+    if best_k >= 2:
+        seeds = [42, 52, 62, 72, 82]
+        label_runs: List[np.ndarray] = []
+        sil_runs: List[float] = []
+        for seed in seeds:
+            model = KMeans(n_clusters=best_k, random_state=seed, n_init=10)
+            labels = model.fit_predict(scaled)
+            label_runs.append(labels)
+            sil = float(silhouette_score(scaled, labels)) if len(set(labels)) > 1 else 0.0
+            sil_runs.append(sil)
+
+        ari_scores: List[float] = []
+        if label_runs:
+            base = label_runs[0]
+            for labels in label_runs[1:]:
+                ari_scores.append(float(adjusted_rand_score(base, labels)))
+
+        stability = {
+            "silhouette_mean": round(float(np.mean(sil_runs)) if sil_runs else 0.0, 4),
+            "silhouette_std": round(float(np.std(sil_runs)) if sil_runs else 0.0, 4),
+            "ari_mean": round(float(np.mean(ari_scores)) if ari_scores else 1.0, 4),
+            "n_runs": len(seeds),
+        }
 
     return (
         best_k,
         [(k, v) for k, v in zip(ks, inertias)],
         [(k, v) for k, v in zip(ks, silhouettes)],
+        stability,
     )
 
 
@@ -308,7 +370,12 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         "avg_order_value",          # Average spending per order
         "discount_usage_rate",      # Sale-hunting behavior
     ]
-    X = modeled_df[feature_columns].fillna(0.0)
+    raw_X = modeled_df[feature_columns].fillna(0.0)
+    X, log_transformed_features = _apply_log_transform_for_skew(
+        raw_X,
+        columns=["total_spending", "order_count", "avg_order_value"],
+        skew_threshold=1.0,
+    )
 
     spend_threshold     = float(modeled_df["total_spending"].quantile(0.75))      if not modeled_df.empty else 0.0
     order_threshold     = float(modeled_df["order_count"].quantile(0.75))         if not modeled_df.empty else 1.0
@@ -329,19 +396,21 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         cluster_count = 1
         best_k = 1
         elbow_data, silhouette_data = [], []
+        stability = {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
     elif int(n_clusters or 0) == 0:
-        best_k, elbow_data, silhouette_data = _auto_select_k(
-            X_scaled, k_min=2, k_max=min(5, len(modeled_df) - 1)
+        best_k, elbow_data, silhouette_data, stability = _auto_select_k(
+            X_scaled, k_min=2, k_max=min(10, len(modeled_df) - 1)
         )
         cluster_count = best_k
     else:
         requested_clusters = int(n_clusters)
-        if requested_clusters not in ALLOWED_CUSTOMER_CLUSTER_COUNTS:
-            raise ValueError("n_clusters chỉ được phép là 3 hoặc 5 cho customer segmentation")
-        feasible_requested = [k for k in ALLOWED_CUSTOMER_CLUSTER_COUNTS if k <= len(modeled_df.index)]
+        feasible_requested = _generate_k_candidates(len(modeled_df.index), k_min=2, k_max=10)
+        if requested_clusters not in feasible_requested:
+            raise ValueError(f"n_clusters phải nằm trong tập cho phép: {feasible_requested}")
         cluster_count = requested_clusters if requested_clusters <= len(modeled_df.index) else max(feasible_requested, default=1)
         best_k = cluster_count
         elbow_data, silhouette_data = [], []
+        stability = {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
 
     if cluster_count <= 1:
         modeled_df["cluster_id"] = 0
@@ -424,8 +493,15 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         lambda s: (-s["mean_orders"], -s["mean_recency"], s["users"]),
     )
 
-    for cid in sorted(remaining_clusters):
-        segment_names[cid] = "Khách trung thành"
+    fallback_labels = [
+        "Khách trung thành",
+        "Khách ổn định",
+        "Khách tiềm năng",
+        "Khách phổ thông",
+        "Khách cân nhắc",
+    ]
+    for idx, cid in enumerate(sorted(remaining_clusters)):
+        segment_names[cid] = fallback_labels[idx] if idx < len(fallback_labels) else f"Nhóm hành vi {idx + 1}"
 
     modeled_df["segment_name"] = modeled_df["cluster_id"].map(segment_names)
 
@@ -516,6 +592,7 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
             {
                 "cluster_id": 0,
                 "segment_name": ZERO_SEGMENT_NAME,
+                "is_special_group": True,
                 "users": int(len(zero_df.index)),
                 "mean_spending": 0,
                 "mean_orders": 0.0,
@@ -528,6 +605,7 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         {
             "cluster_id": int(cluster_id),
             "segment_name": segment_names[int(cluster_id)],
+            "is_special_group": False,
             "users": int(stats["users"]),
             "mean_spending": round(float(stats["mean_spending"]), 0),
             "mean_orders": round(float(stats["mean_orders"]), 2),
@@ -542,11 +620,17 @@ def rebuild_customer_segments(n_clusters: int = 0) -> Dict[str, Any]:
         "message": "Phân cụm khách hàng thành công bằng K-Means",
         "total_users": int(len(df.index)),
         "n_clusters": int(cluster_count),
+        "modeled_group_count": int(modeled_df["cluster_id"].nunique()) if not modeled_df.empty else 0,
+        "special_group_count": 1 if not zero_df.empty else 0,
         "total_groups": int(df["cluster_id"].nunique()),
         "optimal_k": int(best_k),
         "formula_suggested_k": int(formula_suggested_k),
-        "allowed_k_values": list(ALLOWED_CUSTOMER_CLUSTER_COUNTS),
+        "allowed_k_values": _generate_k_candidates(len(modeled_df.index), k_min=2, k_max=10),
         "auto_selected": int(n_clusters or 0) == 0,
+        "feature_transforms": {
+            "log1p_applied": log_transformed_features,
+        },
+        "stability": stability,
         "clusters": summary,
         "elbow_data": [{"k": k, "inertia": v} for k, v in elbow_data],
         "inertia_data": [{"k": k, "inertia": v} for k, v in elbow_data],

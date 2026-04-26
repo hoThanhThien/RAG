@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import adjusted_rand_score
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
@@ -37,7 +38,6 @@ _TOUR_FEATURES: List[str] = [
 
 # Segment names treated as "high-value" when computing vip_rate
 _VIP_SEGMENT_NAMES = ("VIP", "Khách VIP", "Khách mua nhiều")
-_TOUR_K_CANDIDATES = (3, 5, 7)
 _DORMANT_TOUR_LABEL = " Tour Chết / Ngủ Đông"
 
 
@@ -58,20 +58,56 @@ def _days_since(value: Any) -> int:
         return 9999
 
 
+def _generate_k_candidates(sample_count: int, k_min: int = 2, k_max: int = 10) -> List[int]:
+    if sample_count < max(k_min, 2):
+        return []
+
+    # Guard against over-segmentation on small datasets:
+    # keep at least ~4 points/cluster and cap by sqrt(n).
+    density_cap = max(k_min, sample_count // 4)
+    scale_cap = max(k_min, int(round(math.sqrt(max(sample_count, 1)))))
+    upper = min(k_max, sample_count - 1, density_cap, scale_cap)
+    if upper < k_min:
+        return []
+
+    heuristic = int(round(math.sqrt(max(sample_count, 1) / 2.0)))
+    anchors = sorted(set([k_min, heuristic, upper]))
+    anchors = [k for k in anchors if k_min <= k <= upper]
+    if len(anchors) < 4:
+        anchors = sorted(set(anchors + list(range(k_min, upper + 1))))
+    return anchors
+
+
+def _apply_log_transform_for_skew(
+    frame: pd.DataFrame,
+    columns: List[str],
+    skew_threshold: float = 1.0,
+) -> Tuple[pd.DataFrame, List[str]]:
+    transformed = frame.copy()
+    applied: List[str] = []
+    for col in columns:
+        if col not in transformed:
+            continue
+        series = pd.to_numeric(transformed[col], errors="coerce").fillna(0.0)
+        if float(series.skew()) > skew_threshold:
+            transformed[col] = np.log1p(series.clip(lower=0.0))
+            applied.append(col)
+    return transformed, applied
+
+
 def _auto_select_k(
     scaled: "np.ndarray",
     k_min: int = 2,
-    k_max: int = 8,
-) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]]]:
+    k_max: int = 10,
+) -> Tuple[int, List[Tuple[int, float]], List[Tuple[int, float]], Dict[str, Any]]:
     n = scaled.shape[0]
     if n < 3:
-        return 1, [], []
+        return 1, [], [], {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
 
-    k_cap = min(k_max, n - 1)
-    ks = [k for k in _TOUR_K_CANDIDATES if k_min <= k <= k_cap]
+    ks = _generate_k_candidates(n, k_min=k_min, k_max=k_max)
     if not ks:
-        fallback = min(max(k_min, 2), k_cap) if k_cap >= 2 else 1
-        return fallback, [], []
+        fallback = min(max(k_min, 2), max(2, n - 1)) if n >= 3 else 1
+        return fallback, [], [], {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
 
     inertias: List[float] = []
     silhouettes: List[float] = []
@@ -86,14 +122,40 @@ def _auto_select_k(
     heuristic_value = math.sqrt(max(n, 1) / 2.0)
     best_k = min(ks, key=lambda k: (abs(k - heuristic_value), -k))
     silhouette_best_k = max(score_by_k.keys(), key=lambda k: score_by_k[k])
-    tolerance = 0.03 if n <= 30 else 0.02
+    tolerance = 0.05 if n <= 80 else 0.03
     if score_by_k[silhouette_best_k] > score_by_k[best_k] + tolerance:
         best_k = silhouette_best_k
+
+    stability: Dict[str, Any] = {"silhouette_mean": 0.0, "silhouette_std": 0.0, "ari_mean": 1.0, "n_runs": 0}
+    if best_k >= 2:
+        seeds = [42, 52, 62, 72, 82]
+        label_runs: List[np.ndarray] = []
+        sil_runs: List[float] = []
+        for seed in seeds:
+            model = KMeans(n_clusters=best_k, random_state=seed, n_init=10)
+            labels = model.fit_predict(scaled)
+            label_runs.append(labels)
+            sil = float(silhouette_score(scaled, labels)) if len(set(labels)) > 1 else 0.0
+            sil_runs.append(sil)
+
+        ari_scores: List[float] = []
+        if label_runs:
+            base = label_runs[0]
+            for labels in label_runs[1:]:
+                ari_scores.append(float(adjusted_rand_score(base, labels)))
+
+        stability = {
+            "silhouette_mean": round(float(np.mean(sil_runs)) if sil_runs else 0.0, 4),
+            "silhouette_std": round(float(np.std(sil_runs)) if sil_runs else 0.0, 4),
+            "ari_mean": round(float(np.mean(ari_scores)) if ari_scores else 1.0, 4),
+            "n_runs": len(seeds),
+        }
 
     return (
         best_k,
         [(k, v) for k, v in zip(ks, inertias)],
         [(k, v) for k, v in zip(ks, silhouettes)],
+        stability,
     )
 
 
@@ -334,8 +396,9 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
 
     df = pd.DataFrame(records)
 
-    dead_df = df[df["is_dead_tour"]].copy().reset_index(drop=True)
-    modeled_df = df[~df["is_dead_tour"]].copy().reset_index(drop=True)
+    # Do not separate special groups: include all tours in K-Means.
+    dead_df = df.iloc[0:0].copy().reset_index(drop=True)
+    modeled_df = df.copy().reset_index(drop=True)
 
     if modeled_df.empty:
         dead_df["cluster_id"] = 0
@@ -347,12 +410,15 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
             "message": "Phân cụm tour thành công bằng K-Means",
             "total_tours": int(len(dead_df.index)),
             "n_clusters": 1,
+            "modeled_group_count": 0,
+            "special_group_count": 1 if not dead_df.empty else 0,
             "optimal_k": 1,
             "auto_selected": True,
             "silhouette_score": 0.0,
             "clusters": [{
                 "cluster_id": 0,
                 "label": _DORMANT_TOUR_LABEL,
+                "is_special_group": True,
                 "action": "Tạm ngưng đẩy quảng cáo, xem lại lịch chạy hoặc cân nhắc ẩn tour khỏi kênh bán.",
                 "priority": "sunset",
                 "representative_title": str(dead_df.iloc[0]["title"]) if not dead_df.empty else "",
@@ -394,19 +460,27 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
             "active_tour_count": 0,
         }
 
-    # recency_days → recency_score [0,1]: lower days = higher score
-    max_days = max(float(modeled_df["recency_days"].max()), 1.0)
-    modeled_df["recency_score"] = 1.0 - (modeled_df["recency_days"].clip(upper=max_days) / max_days)
+    # recency_days -> recency_score [0,1] robust: clip theo p95 để tránh outlier kéo lệch toàn bộ trục.
+    recency_series = modeled_df["recency_days"].clip(lower=0)
+    recency_ref_days = max(float(recency_series.quantile(0.95)), 1.0)
+    modeled_df["recency_score"] = 1.0 - (recency_series.clip(upper=recency_ref_days) / recency_ref_days)
+    modeled_df["recency_score"] = modeled_df["recency_score"].clip(lower=0.0, upper=1.0)
 
-    X = modeled_df[_TOUR_FEATURES].fillna(0.0)
+    raw_X = modeled_df[_TOUR_FEATURES].fillna(0.0)
+    X, log_transformed_features = _apply_log_transform_for_skew(
+        raw_X,
+        columns=["booking_count", "avg_revenue", "price"],
+        skew_threshold=1.0,
+    )
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
     # Auto or manual K selection
-    best_k, elbow_data, silhouette_data = _auto_select_k(
-        X_scaled, k_min=2, k_max=min(7, len(modeled_df) - 1)
+    best_k, elbow_data, silhouette_data, stability = _auto_select_k(
+        X_scaled, k_min=2, k_max=min(10, len(modeled_df) - 1)
     )
     best_silhouette = max((s for _, s in silhouette_data), default=0.0)
+    allowed_k_values = _generate_k_candidates(len(modeled_df.index), k_min=2, k_max=10)
     n = best_k if n_clusters == 0 else max(1, min(int(n_clusters), len(modeled_df)))
 
     if n <= 1:
@@ -450,6 +524,7 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
         cluster_labels[0] = {
             "cluster_id": 0,
             "label": _DORMANT_TOUR_LABEL,
+            "is_special_group": True,
             "action": "Tạm ngưng đẩy quảng cáo, xem lại lịch chạy hoặc cân nhắc ẩn tour khỏi kênh bán.",
             "priority": "sunset",
             "representative_title": str(dead_df.iloc[0]["title"]),
@@ -498,6 +573,7 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
         cluster_labels[cluster_id] = {
             "cluster_id":           cluster_id,
             "label":                strategy["label"],
+            "is_special_group":     False,
             "action":               strategy["action"],
             "priority":             strategy["priority"],
             "representative_title": str(rep["title"]),
@@ -578,10 +654,18 @@ def rebuild_tour_clusters(n_clusters: int = 0) -> Dict[str, Any]:
         "message":          "Phân cụm tour thành công bằng K-Means",
         "total_tours":      len(tours_out),
         "n_clusters":       int(n),
+        "modeled_group_count": int(modeled_df["cluster_id"].nunique()) if not modeled_df.empty else 0,
+        "special_group_count": 1 if not dead_df.empty else 0,
         "total_groups":     len(cluster_labels),
         "optimal_k":        best_k,
+        "k_candidates":     allowed_k_values,
         "auto_selected":    n_clusters == 0,
         "silhouette_score": round(best_silhouette, 4),
+        "stability":        stability,
+        "feature_transforms": {
+            "log1p_applied": log_transformed_features,
+            "recency_ref_days_p95": round(float(recency_ref_days), 2),
+        },
         "clusters":         [cluster_labels[key] for key in sorted(cluster_labels.keys())],
         "tours":            tours_out,
         "elbow_data":       [{"k": k, "inertia": v} for k, v in elbow_data],

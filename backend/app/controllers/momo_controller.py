@@ -12,8 +12,57 @@ from app.utils.momo import MoMoService
 import json
 import os
 import time
+from typing import Any, Dict
 
 router = APIRouter(prefix="/payments/momo", tags=["MoMo Payment"])
+
+
+def _process_momo_payment_result(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Xử lý kết quả thanh toán MoMo và cập nhật DB theo orderId."""
+    order_id = payload.get("orderId")
+    trans_id = payload.get("transId")
+    result_code_raw = payload.get("resultCode", 1)
+    message = payload.get("message")
+
+    try:
+        result_code = int(result_code_raw)
+    except Exception:
+        result_code = 1
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            payment = MoMoView.find_payment_by_order_id(cur, order_id)
+
+            if not payment:
+                return {"status": "error", "message": f"Payment not found for orderId: {order_id}"}
+
+            if result_code == 0:
+                MoMoView.update_payment_success(
+                    cur,
+                    payment["PaymentID"],
+                    trans_id,
+                    payment["BookingID"]
+                )
+                conn.commit()
+                return {
+                    "status": "success",
+                    "message": "Payment confirmed",
+                    "booking_id": payment["BookingID"],
+                    "payment_id": payment["PaymentID"],
+                }
+
+            MoMoView.update_payment_failed(cur, payment["PaymentID"])
+            conn.commit()
+            return {
+                "status": "failed",
+                "message": message or "MoMo payment failed",
+                "booking_id": payment["BookingID"],
+                "payment_id": payment["PaymentID"],
+                "resultCode": result_code,
+            }
+    finally:
+        conn.close()
 
 
 @router.get("/available-methods")
@@ -27,9 +76,9 @@ async def get_available_payment_methods():
     if environment == "test":
         return {
             "environment": "test",
-            "available_methods": ["captureWallet"],
-            "unavailable_methods": ["payWithATM", "payWithCC"],
-            "message": "Tài khoản test chỉ hỗ trợ thanh toán qua Ví MoMo (QR code)"
+            "available_methods": ["captureWallet", "payWithATM", "payWithCC"],
+            "unavailable_methods": [],
+            "message": "Sandbox hỗ trợ Ví MoMo, ATM/Internet Banking và Credit Card bằng bộ thẻ test của MoMo"
         }
     else:
         return {
@@ -159,46 +208,34 @@ async def momo_ipn_handler(request: Request):
         
         print("✅ MoMo signature verified")
         
-        # 2. Extract thông tin từ IPN
-        order_id = body.get("orderId")
-        trans_id = body.get("transId")
-        result_code = body.get("resultCode")
-        message = body.get("message")
-        
-        # 3. Xử lý kết quả thanh toán
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                # Tìm payment theo orderId
-                payment = MoMoView.find_payment_by_order_id(cur, order_id)
-                
-                if not payment:
-                    print(f"❌ Payment not found for orderId: {order_id}")
-                    return {"status": "error", "message": "Payment not found"}
-                
-                # result_code = 0 nghĩa là thành công
-                if result_code == 0:
-                    MoMoView.update_payment_success(
-                        cur,
-                        payment["PaymentID"],
-                        trans_id,
-                        payment["BookingID"]
-                    )
-                    conn.commit()
-                    print(f"✅ Payment confirmed for booking {payment['BookingID']}")
-                else:
-                    MoMoView.update_payment_failed(cur, payment["PaymentID"])
-                    conn.commit()
-                    print(f"❌ Payment failed for booking {payment['BookingID']}: {message}")
-                
-                return {"status": "success", "message": "IPN processed"}
-                
-        finally:
-            conn.close()
+        processed = _process_momo_payment_result(body)
+        print(f"[MoMo IPN] Processed result: {processed}")
+        return processed
             
     except Exception as e:
         print(f"❌ MoMo IPN error: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+
+@router.post("/confirm")
+async def momo_confirm_from_callback(
+    payload: Dict[str, Any],
+    current_user: dict = Depends(get_current_user),
+):
+    """Xác nhận thanh toán MoMo từ callback phía frontend khi IPN chưa về kịp."""
+    _ = current_user
+
+    is_valid, expected_signature = MoMoService.verify_ipn_signature(payload)
+    if not is_valid:
+        return {
+            "status": "error",
+            "message": "Invalid signature",
+            "expected_signature": expected_signature,
+        }
+
+    processed = _process_momo_payment_result(payload)
+    print(f"[MoMo Confirm] Processed result: {processed}")
+    return processed
 
 
 @router.get("/callback", response_model=MoMoCallbackResponse)

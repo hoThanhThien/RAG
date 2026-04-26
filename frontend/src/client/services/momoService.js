@@ -42,6 +42,32 @@ export const handleMoMoCallback = (searchParams) => {
 };
 
 /**
+ * Xác nhận callback MoMo với backend để cập nhật trạng thái payment.
+ * @param {URLSearchParams} searchParams - Query params từ callback URL
+ * @returns {Promise<Object>}
+ */
+export const confirmMoMoCallback = async (searchParams) => {
+    const payload = {
+        partnerCode: searchParams.get('partnerCode') || '',
+        orderId: searchParams.get('orderId') || '',
+        requestId: searchParams.get('requestId') || '',
+        amount: Number(searchParams.get('amount') || 0),
+        orderInfo: searchParams.get('orderInfo') || '',
+        orderType: searchParams.get('orderType') || '',
+        transId: Number(searchParams.get('transId') || 0),
+        resultCode: Number(searchParams.get('resultCode') || -1),
+        message: searchParams.get('message') || '',
+        payType: searchParams.get('payType') || '',
+        responseTime: Number(searchParams.get('responseTime') || 0),
+        extraData: searchParams.get('extraData') || '',
+        signature: searchParams.get('signature') || '',
+    };
+
+    const response = await api.post('/payments/momo/confirm', payload);
+    return response.data;
+};
+
+/**
  * Format số tiền VND
  * @param {number} amount - Số tiền cần format
  * @returns {string} - Chuỗi đã format (ví dụ: "1.000.000 ₫")

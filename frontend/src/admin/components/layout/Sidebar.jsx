@@ -23,8 +23,11 @@ const Sidebar = () => {
           <li className={isActive("/admin/tours") ? "active" : ""}>
             <Link to="/admin/tours"><i className="bi bi-globe2 me-2" /> Tours</Link>
           </li>
-          <li className={isActive("/admin/clustering") ? "active" : ""}>
-            <Link to="/admin/clustering"><i className="bi bi-diagram-3-fill me-2" /> Phân cụm</Link>
+          <li className={isActive("/admin/clustering/customers") ? "active" : ""}>
+            <Link to="/admin/clustering/customers"><i className="bi bi-people-fill me-2" /> Phân cụm khách hàng</Link>
+          </li>
+          <li className={isActive("/admin/clustering/tours") ? "active" : ""}>
+            <Link to="/admin/clustering/tours"><i className="bi bi-diagram-3-fill me-2" /> Phân cụm tour</Link>
           </li>
           <li className={isActive("/admin/bookings") ? "active" : ""}>
             <Link to="/admin/bookings"><i className="bi bi-journal-check me-2" /> Đặt tours</Link>
