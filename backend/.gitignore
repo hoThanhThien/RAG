@@ -30,3 +30,6 @@ Thumbs.db
 # Generated RAG store
 rag_store/
 
+venv/
+
+.env/
