@@ -38,12 +38,22 @@ export default function UserTable({ users, onDelete, onEdit, loading = false }) 
               <td>{u.email}</td>
               <td>{u.phone || "—"}</td>
               <td>
-                <button className="btn btn-sm btn-primary me-2" onClick={() => onEdit(u)}>
-                  Sửa
-                </button>
-                <button className="btn btn-sm btn-danger" onClick={() => onDelete(u.user_id)}>
-                  Xoá
-                </button>
+                <div className="d-flex flex-column gap-1" style={{ minWidth: "70px" }}>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    style={{ width: "100%" }}
+                    onClick={() => onEdit(u)}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    style={{ width: "100%" }}
+                    onClick={() => onDelete(u.user_id)}
+                  >
+                    Xoá
+                  </button>
+                </div>
               </td>
             </tr>
           ))

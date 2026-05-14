@@ -502,10 +502,6 @@ export default function ClusteringView({ mode = 'both', breadcrumb = '' }) {
                                   >
                                     Trục Y (PCA 2)
                                   </text>
-                                  <text x={ML + W / 2} y={MT - 10} textAnchor="middle" fontSize={10} fill="#7b8794">
-                                    PCA 1: {formatAxisTick(minX)} → {formatAxisTick(maxX)} · PCA 2: {formatAxisTick(minY)} → {formatAxisTick(maxY)}
-                                  </text>
-
                                   {customerChartPoints.map((point) => {
                                     const cx = toX(Number(point.pca_x || 0));
                                     const cy = toY(Number(point.pca_y || 0));
@@ -873,10 +869,6 @@ export default function ClusteringView({ mode = 'both', breadcrumb = '' }) {
                                   >
                                     Trục Y (PCA 2)
                                   </text>
-                                  <text x={ML + W / 2} y={MT - 10} textAnchor="middle" fontSize={10} fill="#7b8794">
-                                    PCA 1: {formatAxisTick(minX)} → {formatAxisTick(maxX)} · PCA 2: {formatAxisTick(minY)} → {formatAxisTick(maxY)}
-                                  </text>
-
                                   {filteredTours.map((tour) => {
                                     const cx = toX(Number(tour.pca_x || 0));
                                     const cy = toY(Number(tour.pca_y || 0));

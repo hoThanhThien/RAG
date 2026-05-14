@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import timezone
+import requests
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from typing import Any, Dict, List
 from app.dependencies.auth_dependencies import get_current_user, require_admin
@@ -391,6 +392,71 @@ def _matches_support_card_intent(prompt: str, row: Dict[str, Any], source: Dict[
     return True
 
 
+def _keyword_fallback_tour_cards(conn, prompt: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    """Fallback: tìm tour trực tiếp từ DB bằng keyword khi RAG không trả về kết quả."""
+    # Dùng cả từ gốc (có dấu) và từ đã normalize (không dấu) để match DB
+    raw_words = prompt.strip().split()
+    norm_text = normalize_text(prompt)
+    norm_words = norm_text.split()
+
+    stop_raw = {"di", "đi", "đến", "den", "tới", "toi", "muốn", "muon", "cần", "can",
+                "tìm", "tim", "du", "lịch", "lich", "gợi", "goi", "ý", "y", "cho",
+                "mình", "minh", "bạn", "ban", "tour", "và", "va", "or", "hoặc"}
+    stop_norm = {"di", "den", "toi", "muon", "can", "tim", "du", "lich", "goi", "y",
+                 "cho", "minh", "ban", "tour", "va", "hoac"}
+
+    # Keywords có dấu (dài >= 3 ký tự)
+    raw_keys = [w for w in raw_words if len(w) >= 3 and w.lower() not in stop_raw]
+    # Keywords không dấu (dài >= 3 ký tự)
+    norm_keys = [w for w in norm_words if len(w) >= 3 and w not in stop_norm]
+
+    all_keys = list(dict.fromkeys(raw_keys + norm_keys))  # dedup, giữ thứ tự
+    if not all_keys:
+        return []
+
+    # Mỗi keyword tạo OR condition cho Title và Description
+    like_parts = " OR ".join(["(t.Title LIKE %s OR t.Description LIKE %s OR t.Location LIKE %s)"] * len(all_keys))
+    params = []
+    for tok in all_keys:
+        like = f"%{tok}%"
+        params += [like, like, like]
+    params.append(top_k)
+
+    query = f"""
+        SELECT
+            t.TourID AS tour_id,
+            t.Title AS title,
+            t.Price AS price,
+            t.Description AS description,
+            COALESCE(
+                (SELECT p.ImageURL FROM photo p WHERE p.TourID = t.TourID
+                 ORDER BY p.IsPrimary DESC, p.PhotoID DESC LIMIT 1),
+                ''
+            ) AS image_url
+        FROM tour t
+        WHERE t.Status = 'Available'
+          AND ({like_parts})
+        ORDER BY t.TourID DESC
+        LIMIT %s
+    """
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall() or []
+
+    cards: List[Dict[str, Any]] = []
+    for row in rows:
+        price_value = float(row.get("price") or 0.0)
+        cards.append({
+            "id": str(row["tour_id"]),
+            "name": str(row.get("title") or "Tour"),
+            "price": f"{price_value:,.0f} VND" if price_value > 0 else "Liên hệ",
+            "image": _absolute_image_url(str(row.get("image_url") or "")),
+            "description": _truncate_support_description(str(row.get("description") or "")),
+            "url": f"/tours/{row['tour_id']}",
+        })
+    return cards
+
+
 def _fetch_support_tour_cards(conn, sources: List[Dict[str, Any]], prompt: str, top_k: int = 3) -> List[Dict[str, Any]]:
     ordered_ids: List[int] = []
     source_map: Dict[int, Dict[str, Any]] = {}
@@ -468,6 +534,90 @@ def should_use_ai_support(content: str) -> bool:
     return any(char.isalnum() for char in text)
 
 
+def _is_no_data_answer(answer: str) -> bool:
+    text = normalize_text(answer)
+    return "hien chua co du lieu phu hop" in text
+
+
+def _is_quantity_question(prompt: str) -> bool:
+    text = normalize_text(prompt)
+    quantity_phrases = [
+        "bao nhieu tour",
+        "co bao nhieu tour",
+        "tong so tour",
+        "so luong tour",
+        "bao nhieu tour co",
+        "co may tour",
+        "tong cong bao nhieu tour",
+        # colloquial / no-tone variants
+        "bao nhiu tour",
+        "co bao nhiu tour",
+        "bao nhiu cai tour",
+        "may tour",
+        "co may cai tour",
+        "he thong co bao nhieu",
+        "he thong co bao nhiu",
+        "he thong co may",
+        "trong he thong co bao",
+    ]
+    return any(phrase in text for phrase in quantity_phrases)
+
+
+def _get_tour_count_answer(prompt: str) -> str:
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) as total FROM tour WHERE Status = 'Available'")
+        row = cur.fetchone()
+        conn.close()
+        total = int(row.get("total") or 0) if row else 0
+        return f"Hiện có {total} tour trong hệ thống."
+    except Exception:
+        return ""
+
+
+def _llm_general_support_answer(prompt: str) -> str:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return ""
+
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Bạn là trợ lý tư vấn du lịch Việt Nam. "
+                    "Nếu câu hỏi là kiến thức phổ thông (ví dụ địa lý như Hà Nội thuộc miền nào), "
+                    "hãy trả lời trực tiếp, ngắn gọn, rõ ràng bằng tiếng Việt."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 220,
+    }
+
+    try:
+        response = requests.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return str(data["choices"][0]["message"]["content"] or "").strip()
+    except Exception:
+        return ""
+
+
 def build_ai_support_reply(user_id: int, prompt: str, thread_id: int | None = None) -> str:
     try:
         # 1. Block ambiguous single-char queries
@@ -483,6 +633,12 @@ def build_ai_support_reply(user_id: int, prompt: str, thread_id: int | None = No
             reply = _build_conversational_support_reply(prompt)
             if reply:
                 return _serialize_support_payload("chitchat", reply)
+
+        # 2.5 Quantity question — direct database answer
+        if _is_quantity_question(prompt):
+            answer = _get_tour_count_answer(prompt)
+            if answer:
+                return _serialize_support_payload("consulting", answer)
 
         # 3. Build effective query (enriched with thread context for follow-ups)
         recent_messages = _load_recent_thread_context(thread_id, prompt) if thread_id else []
@@ -501,14 +657,21 @@ def build_ai_support_reply(user_id: int, prompt: str, thread_id: int | None = No
             conn = get_db_connection()
             try:
                 tours = _fetch_support_tour_cards(conn, sources, prompt, top_k=3)
+                # Fallback: nếu RAG không trả về tour, tìm trực tiếp từ DB bằng keyword
+                if not tours:
+                    tours = _keyword_fallback_tour_cards(conn, prompt, top_k=3)
             finally:
                 conn.close()
+            if (not answer or _is_no_data_answer(answer)) and not tours:
+                answer = _llm_general_support_answer(prompt)
             message = answer if answer else (
                 "Hiện chưa có tour phù hợp, bạn muốn mình gợi ý theo ngân sách hoặc địa điểm khác không?"
             )
             return _serialize_support_payload("suggest_tour", message, tours)
 
         # 6. consulting — return RAG answer as-is, no rewriting
+        if not answer or _is_no_data_answer(answer):
+            answer = _llm_general_support_answer(prompt)
         if not answer:
             answer = "Hiện chưa có dữ liệu phù hợp với câu hỏi của bạn."
         return _serialize_support_payload("consulting", answer)

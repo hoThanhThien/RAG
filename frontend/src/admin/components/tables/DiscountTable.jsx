@@ -26,12 +26,22 @@ export default function DiscountTable({ discounts, onEdit, onDelete }) {
             <td>{d.start_date}</td>
             <td>{d.end_date}</td>
             <td>
-              <button className="btn btn-sm btn-primary me-2" onClick={() => onEdit(d)}>
-                Sửa
-              </button>
-              <button className="btn btn-sm btn-danger" onClick={() => onDelete(d.discount_id)}>
-                Xoá
-              </button>
+              <div className="d-flex flex-column gap-1" style={{ minWidth: "70px" }}>
+                <button
+                  className="btn btn-sm btn-primary"
+                  style={{ width: "100%" }}
+                  onClick={() => onEdit(d)}
+                >
+                  Sửa
+                </button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  style={{ width: "100%" }}
+                  onClick={() => onDelete(d.discount_id)}
+                >
+                  Xoá
+                </button>
+              </div>
             </td>
           </tr>
         ))}

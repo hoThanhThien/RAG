@@ -19,18 +19,22 @@ export default function CategoryTable({ categories, onEdit, onDelete }) {
             <td>{cat.name}</td>
             <td>{cat.description}</td>
             <td>
-              <button
-                className="btn btn-sm btn-primary me-2"
-                onClick={() => onEdit(cat)}
-              >
-                Sửa
-              </button>
-              <button
-                className="btn btn-sm btn-danger"
-                onClick={() => onDelete(cat.category_id)}
-              >
-                Xoá
-              </button>
+              <div className="d-flex flex-column gap-1" style={{ minWidth: "70px" }}>
+                <button
+                  className="btn btn-sm btn-primary"
+                  style={{ width: "100%" }}
+                  onClick={() => onEdit(cat)}
+                >
+                  Sửa
+                </button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  style={{ width: "100%" }}
+                  onClick={() => onDelete(cat.category_id)}
+                >
+                  Xoá
+                </button>
+              </div>
             </td>
           </tr>
         ))}

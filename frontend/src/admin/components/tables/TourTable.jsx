@@ -64,18 +64,22 @@ export default function TourTable({ tours, onEdit, onDelete }) {
                   <td>{safeTour.status || "—"}</td>
                   <td>{safeTour.category_name || safeTour.category_id || "—"}</td>
                   <td>
-                    <button
-                      className="btn btn-sm btn-primary me-2"
-                      onClick={() => onEdit(safeTour)}
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => onDelete(safeTour.tour_id)}
-                    >
-                      Xoá
-                    </button>
+                    <div className="d-flex flex-column gap-1" style={{ minWidth: "70px" }}>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        style={{ width: "100%" }}
+                        onClick={() => onEdit(safeTour)}
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        style={{ width: "100%" }}
+                        onClick={() => onDelete(safeTour.tour_id)}
+                      >
+                        Xoá
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

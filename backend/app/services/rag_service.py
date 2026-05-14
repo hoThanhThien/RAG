@@ -50,7 +50,11 @@ except Exception:
 # independently; a cross-encoder attends to both simultaneously giving far
 # more accurate relevance judgements on the shortlisted candidates.
 # ---------------------------------------------------------------------------
+_DISABLE_SBERT = os.getenv("DISABLE_SBERT", "0").strip().lower() in ("1", "true", "yes")
+
 try:
+    if _DISABLE_SBERT:
+        raise ImportError("SBERT disabled via DISABLE_SBERT env var")
     from sentence_transformers import SentenceTransformer as _SentenceTransformer  # type: ignore
     _SBERT_AVAILABLE = True
 except ImportError:
@@ -58,6 +62,8 @@ except ImportError:
     _SBERT_AVAILABLE = False
 
 try:
+    if _DISABLE_SBERT:
+        raise ImportError("CrossEncoder disabled via DISABLE_SBERT env var")
     from sentence_transformers.cross_encoder import CrossEncoder as _CrossEncoder  # type: ignore
     _CROSS_ENCODER_AVAILABLE = True
 except ImportError:
@@ -188,6 +194,17 @@ def _safe_int(value: Any) -> int:
 
 def _normalize_whitespace(text: Any) -> str:
     return " ".join(str(text or "").split())
+
+
+def _truncate_at_word(text: str, max_chars: int) -> str:
+    """Cắt text tại word boundary gần nhất, không cắt giữa từ."""
+    if len(text) <= max_chars:
+        return text.rstrip(" .,;:")
+    truncated = text[:max_chars]
+    last_space = truncated.rfind(" ")
+    if last_space > max_chars // 2:
+        truncated = truncated[:last_space]
+    return truncated.rstrip(" .,;:") + "..."
 
 
 def _normalize_vectors(vectors: np.ndarray) -> np.ndarray:
@@ -608,7 +625,10 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         raise RuntimeError("No tour data found to build the RAG index")
 
     vectorizer = None
-    if os.getenv("OPENAI_API_KEY"):
+    _openai_key = os.getenv("OPENAI_API_KEY", "")
+    _openai_base = os.getenv("OPENAI_BASE_URL", "")
+    _use_openai_embeddings = bool(_openai_key) and "groq.com" not in _openai_base
+    if _use_openai_embeddings:
         vectors = _call_openai_embeddings(texts)
         embedding_provider = "openai"
     elif _get_sbert_model() is not None:
@@ -1314,9 +1334,8 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
             text = _normalize_whitespace(source.get("text") or "")
             if text.lower().startswith(f"{title.lower()}:"):
                 text = text[len(title) + 1 :].strip()
-            snippet = text[:220].rstrip(" .,;:")
-            suffix = "..." if len(text) > len(snippet) else ""
-            lines.append(f"- {title}: {snippet}{suffix}.")
+            snippet = _truncate_at_word(text, 280)
+            lines.append(f"- {title}: {snippet}")
         return "\n".join(lines)
 
     lines = [intro]
@@ -1341,9 +1360,8 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
         tip_text = _normalize_whitespace(tip.get("text") or "")
         if tip_text.lower().startswith(f"{tip_title.lower()}:"):
             tip_text = tip_text[len(tip_title) + 1 :].strip()
-        tip_snippet = tip_text[:180].rstrip(" .,;:")
-        tip_suffix = "..." if len(tip_text) > len(tip_snippet) else ""
-        lines.append(f"- Thông tin thêm: {tip_title} - {tip_snippet}{tip_suffix}.")
+        tip_snippet = _truncate_at_word(tip_text, 260)
+        lines.append(f"- Thông tin thêm: {tip_title} - {tip_snippet}")
 
     return "\n".join(lines)
 

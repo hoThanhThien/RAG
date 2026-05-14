@@ -1,7 +1,7 @@
 # app/controllers/tour_controller.py
 from app.schemas.tour_schema import CreateTourSchema, UpdateTourSchema
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 from app.dependencies.auth_dependencies import require_admin, require_guide
 from app.database import get_db_connection
 from pydantic import BaseModel
@@ -12,7 +12,16 @@ import decimal
 import traceback
 import pymysql
 from app.controllers.websocket_controller import dashboard_broadcast_safe
-from app.services.rag_service import invalidate_rag_response_cache
+from app.services.rag_service import invalidate_rag_response_cache, build_vector_store
+
+
+def _rebuild_rag_index_background():
+    """Rebuild RAG vector store in background after tour changes."""
+    try:
+        build_vector_store(force=True)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("RAG rebuild failed: %s", e)
 
 router = APIRouter(prefix="/tours", tags=["Tours"])
 
@@ -475,6 +484,7 @@ async def get_tour_bookings(
 # ---------- 7) Tạo tour (admin) ----------
 @router.post("/")
 async def create_tour(
+    background_tasks: BackgroundTasks,
     tour_data: CreateTourSchema,
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
@@ -504,6 +514,7 @@ async def create_tour(
             conn.commit()
             dashboard_broadcast_safe("tour_created")
             invalidate_rag_response_cache(reason="tour_created")
+        background_tasks.add_task(_rebuild_rag_index_background)
         return {"message": "Tour created successfully", "tour_id": tour_id}
     except Exception as e:
         conn.rollback()
@@ -516,6 +527,7 @@ async def create_tour(
 @router.put("/{tour_id}")
 async def update_tour(
     tour_id: int,
+    background_tasks: BackgroundTasks,
     tour_data: UpdateTourSchema,
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
@@ -553,6 +565,7 @@ async def update_tour(
             conn.commit()
             dashboard_broadcast_safe("tour_updated")
             invalidate_rag_response_cache(reason="tour_updated")
+        background_tasks.add_task(_rebuild_rag_index_background)
         return {"message": "Tour updated successfully"}
     except Exception as e:
         conn.rollback()
@@ -565,6 +578,7 @@ async def update_tour(
 @router.delete("/{tour_id}")
 async def delete_tour(
     tour_id: int,
+    background_tasks: BackgroundTasks,
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
     import traceback
@@ -598,6 +612,7 @@ async def delete_tour(
             conn.commit()
             dashboard_broadcast_safe("tour_deleted")
             invalidate_rag_response_cache(reason="tour_deleted")
+        background_tasks.add_task(_rebuild_rag_index_background)
         return {"message": "Xoá tour thành công"}
     except Exception as e:
         conn.rollback()

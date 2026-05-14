@@ -101,7 +101,16 @@ export default function SupportList() {
                 <td className="text-center fw-semibold">{t.thread_id}</td>
                 <td className="text-center">{t.user_id}</td>
                 <td className="text-center text-muted">
-                  {t.last_content || "--"}
+                  {(() => {
+                    const raw = t.last_content;
+                    if (!raw) return "--";
+                    try {
+                      const parsed = JSON.parse(raw);
+                      return parsed.message || raw;
+                    } catch {
+                      return raw;
+                    }
+                  })()}
                 </td>
                 <td className="text-center text-nowrap">
                   {t.last_time

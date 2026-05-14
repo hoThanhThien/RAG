@@ -741,16 +741,6 @@ const AdminHome = () => {
                                 >
                                   Trục Y (PCA 2)
                                 </text>
-                                <text
-                                  x={ML + W / 2}
-                                  y={MT - 10}
-                                  textAnchor="middle"
-                                  fontSize={10}
-                                  fill="#7b8794"
-                                  fontFamily="sans-serif"
-                                >
-                                  PCA 1: {formatAxisTick(minX)} → {formatAxisTick(maxX)} · PCA 2: {formatAxisTick(minY)} → {formatAxisTick(maxY)}
-                                </text>
 
                                 {/* Data points (chỉ inlier trên scatter chính) */}
                                 {inlierLocations.map((loc, i) => {

@@ -324,7 +324,7 @@ export default function SupportChat() {
           <div className="d-flex flex-column gap-3">
             {messages.map((m, i) => {
               const showAvatar = i === 0 || messages[i - 1]?.is_admin !== m.is_admin;
-              const isAdmin = m.is_admin;
+              const isAdmin = !!m.is_admin;
               const structuredPayload = isAdmin ? parseSupportRecommendation(m.content) : null;
               
               return (

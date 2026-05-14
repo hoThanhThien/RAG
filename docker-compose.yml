@@ -42,6 +42,11 @@ services:
       MOMO_IPN_URL: ${MOMO_IPN_URL}
       MOMO_API_ENDPOINT: ${MOMO_API_ENDPOINT:-https://test-payment.momo.vn/v2/gateway/api/create}
       MOMO_ENVIRONMENT: ${MOMO_ENVIRONMENT:-test}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      RAG_ANSWER_MAX_TOKENS: ${RAG_ANSWER_MAX_TOKENS:-320}
     depends_on:
       mysql:
         condition: service_healthy

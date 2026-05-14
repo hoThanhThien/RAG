@@ -6,8 +6,7 @@ Phân cụm tour dựa trên hành vi booking thực tế:
   - fill_rate       : tỷ lệ lấp đầy (bookings / capacity)
   - recency_score   : độ "mới" của tour (gần đây được đặt hơn = cao hơn)
   - price           : giá tour
-  - vip_rate        : tỷ lệ bookings từ khách VIP / Khách mua nhiều
-
+  - vip_rate        : tỷ lệ bookings từ khách nằm trong nhóm 
 Auto K-selection qua Silhouette Score; kết quả được lưu vào bảng `tour_cluster`.
 """
 from __future__ import annotations
