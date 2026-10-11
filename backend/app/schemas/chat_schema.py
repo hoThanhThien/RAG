@@ -17,6 +17,7 @@ class ChatSource(BaseModel):
     location: Optional[str] = None
     category_name: Optional[str] = None
     price: Optional[float] = None
+    image_url: Optional[str] = None
     score: float
     text: str
 

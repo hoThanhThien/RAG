@@ -2,9 +2,26 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toAbsoluteUrl } from "../services/api";
 import { supportApi } from "../services/supportService";
+import { chatbotService } from "../services/chatbotService";
 import { connectSupportWS } from "../services/ws";
 import { useAuth } from "../context/AuthContext";
 import "../../styles/SupportChat.css";
+
+const QUICK_PROMPTS = [
+  "🌸 Tour Đà Lạt ngàn hoa",
+  "🏖️ Tour Nha Trang biển đảo",
+  "🌉 Tour Đà Nẵng - Hội An",
+  "🏔️ Tour Sa Pa săn mây",
+];
+
+const GUEST_WELCOME_MSG = {
+  id: "guest-welcome",
+  sender_id: null,
+  is_admin: true,
+  full_name: "Trợ lý AI Du Lịch",
+  content: "Xin chào quý khách! 👋 Em là Trợ lý AI Du Lịch. Em có thể hỗ trợ bạn tìm kiếm tour du lịch, gợi ý lịch trình, giá vé và tư vấn hành trình phù hợp nhất.\n\nBạn muốn khám phá địa điểm nào hôm nay?",
+  created_at: new Date().toISOString(),
+};
 
 function parseSupportRecommendation(content) {
   if (!content || typeof content !== "string") return null;
@@ -17,7 +34,7 @@ function parseSupportRecommendation(content) {
 
     const mode = String(parsed.mode ?? (Array.isArray(parsed.tours) ? "suggest_tour" : "")).trim();
     if (!["suggest_tour", "consulting", "chitchat"].includes(mode)) {
-        return null;
+      return null;
     }
 
     const tours = Array.isArray(parsed.tours)
@@ -48,7 +65,7 @@ export default function SupportChat() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([GUEST_WELCOME_MSG]);
   const [text, setText] = useState("");
   const [userId, setUserId] = useState(null);
   const [userFullName, setUserFullName] = useState("Bạn");
@@ -64,7 +81,7 @@ export default function SupportChat() {
   const typingTimeoutRef = useRef(null);
   const userIdRef = useRef(null); // always-current userId for WS callbacks
 
-  //  Lấy userId và tên từ AuthContext
+  // Đồng bộ thông tin đăng nhập từ AuthContext
   useEffect(() => {
     if (user) {
       setUserId(user.UserID || user.user_id || null);
@@ -72,27 +89,34 @@ export default function SupportChat() {
     } else {
       setUserId(null);
       setUserFullName("Bạn");
+      setThreadId(null);
+      setMessages([GUEST_WELCOME_MSG]);
     }
   }, [user]);
-  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
-  //  Lấy thread và lịch sử — chạy khi userId thay đổi
   useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  // Load thread và lịch sử tin nhắn khi đã đăng nhập
+  useEffect(() => {
+    if (!userId) {
+      // Khách chưa đăng nhập: dùng phiên AI với lời chào mặc định
+      setThreadId(null);
+      setMessages([GUEST_WELCOME_MSG]);
+      return;
+    }
+
     const boot = async () => {
-      if (!userId) return; // Chưa đăng nhập, bỏ qua
-      
       try {
         setIsLoading(true);
         const { data } = await supportApi.openOrCreateThread();
-        console.log(" Thread opened/created:", data.thread_id);
         setThreadId(data.thread_id);
         const hist = await supportApi.getMessages(data.thread_id);
         setMessages(hist.data || []);
-        // Load all threads
         await loadThreads();
       } catch (error) {
-        console.error(" Lỗi khi khởi tạo chat:", error);
-        console.error("Error details:", error.response?.data);
+        console.error("Lỗi khi khởi tạo chat:", error);
       } finally {
         setIsLoading(false);
       }
@@ -100,7 +124,7 @@ export default function SupportChat() {
     boot();
   }, [userId]);
 
-  //  Load danh sách threads
+  // Load danh sách threads
   const loadThreads = async () => {
     try {
       const { data } = await supportApi.getMyThreads();
@@ -110,50 +134,36 @@ export default function SupportChat() {
     }
   };
 
-  //  Tạo thread mới
+  // Tạo thread mới
   const createNewThread = async () => {
     try {
-      console.log("🔄 Creating new thread...");
       const response = await supportApi.createNewThread();
-      console.log("✅ New thread created:", response.data);
-      
       setThreadId(response.data.thread_id);
       setMessages([]);
       await loadThreads();
       setShowThreadList(false);
       alert("Đã tạo cuộc trò chuyện mới!");
     } catch (error) {
-      console.error("❌ Lỗi khi tạo thread mới:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
-      
-      // Check if user is logged in
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        alert("Bạn cần đăng nhập để tạo cuộc trò chuyện mới!");
-        return;
-      }
-      
+      console.error("Lỗi khi tạo thread mới:", error);
       alert(`Không thể tạo cuộc trò chuyện mới: ${error.response?.data?.detail || error.message}`);
     }
   };
 
-  // 🗑️ Xóa thread
+  // Xóa thread
   const deleteThread = async (threadIdToDelete) => {
     if (!confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?")) return;
-    
+
     try {
       await supportApi.deleteThread(threadIdToDelete);
       await loadThreads();
-      
-      // Nếu xóa thread đang mở, chuyển sang thread khác hoặc tạo mới
+
       if (threadIdToDelete === threadId) {
         const { data } = await supportApi.openOrCreateThread();
         setThreadId(data.thread_id);
         const hist = await supportApi.getMessages(data.thread_id);
         setMessages(hist.data || []);
       }
-      
+
       alert("Đã xóa cuộc trò chuyện!");
     } catch (error) {
       console.error("Lỗi khi xóa thread:", error);
@@ -185,7 +195,7 @@ export default function SupportChat() {
     }
   };
 
-  // 🔄 Chuyển sang thread khác
+  // Chuyển sang thread khác
   const switchThread = async (newThreadId) => {
     try {
       setIsLoading(true);
@@ -200,9 +210,12 @@ export default function SupportChat() {
     }
   };
 
-  // 🌐 Kết nối WebSocket khi có threadId
+  // Kết nối WebSocket khi người dùng đã đăng nhập và có threadId
   useEffect(() => {
-    if (!threadId) return;
+    if (!userId || !threadId) {
+      setIsConnected(false);
+      return;
+    }
 
     const token = localStorage.getItem("access_token");
     const ws = connectSupportWS(token);
@@ -226,9 +239,8 @@ export default function SupportChat() {
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-        
+
         if (msg.type === "support:new_message" && msg.thread_id === threadId) {
-          // Bỏ qua tin nhắn của chính mình — dùng ref để tránh stale closure
           const currentUserId = userIdRef.current;
           if (
             msg.message.sender_id != null &&
@@ -236,30 +248,24 @@ export default function SupportChat() {
             Number(msg.message.sender_id) === Number(currentUserId) &&
             !msg.message.is_admin
           ) {
-            console.log("⏭️ Skipping own message from WebSocket");
             return;
           }
-          
+
           setMessages((prev) => {
-            // Tránh duplicate message - check cả id và content
-            const exists = prev.some(m => {
-              // Check by ID (từ DB)
+            const exists = prev.some((m) => {
               if (m.id === msg.message.id) return true;
-              // Check by content + sender (cho optimistic messages)
-              if (m.content === msg.message.content && 
-                  m.sender_id === msg.message.sender_id &&
-                  Math.abs(new Date(m.created_at) - new Date(msg.message.created_at)) < 5000) {
+              if (
+                m.content === msg.message.content &&
+                m.sender_id === msg.message.sender_id &&
+                Math.abs(new Date(m.created_at) - new Date(msg.message.created_at)) < 5000
+              ) {
                 return true;
               }
               return false;
             });
-            
-            if (exists) {
-              console.log("⏭️ Duplicate message detected, skipping");
-              return prev;
-            }
-            
-            console.log("✅ Adding new message from WebSocket:", msg.message.id);
+
+            if (exists) return prev;
+
             return [
               ...prev,
               {
@@ -272,21 +278,19 @@ export default function SupportChat() {
               },
             ];
           });
-          
-          // Nếu là tin nhắn từ admin, ẩn typing indicator
+
           if (msg.message.is_admin) {
             setTyping(false);
           }
         }
-        
-        // Typing indicator
+
         if (msg.type === "support:typing" && msg.thread_id === threadId && msg.is_admin) {
           setTyping(true);
           clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTyping(false), 3000);
         }
       } catch (error) {
-        console.error("Lỗi xử lý message:", error);
+        console.error("Lỗi xử lý message WebSocket:", error);
       }
     };
 
@@ -307,13 +311,91 @@ export default function SupportChat() {
     return data.thread_id;
   };
 
-  // 📤 Gửi tin nhắn
-  const send = async () => {
-    if (!text.trim() || !threadId || isLoading || isSending) return;
+  // Gửi tin nhắn (hỗ trợ cả guest RAG lẫn user WebSocket)
+  const send = async (presetText = null) => {
+    const content = (typeof presetText === "string" ? presetText : text).trim();
+    if (!content || isLoading || isSending) return;
 
-    const content = text.trim();
+    // ==========================================
+    // 1. Chế độ KHÁCH: Trò chuyện trực tiếp với RAG AI
+    // ==========================================
+    if (!userId) {
+      const tempId = `guest_u_${Date.now()}`;
+      const userMsg = {
+        id: tempId,
+        sender_id: "guest",
+        is_admin: false,
+        full_name: "Bạn",
+        content,
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setText("");
+      setIsSending(true);
+      setTyping(true);
+
+      try {
+        const res = await chatbotService.chat({ query: content, userId: null, topK: 4 });
+        const seenIds = new Set();
+        const tours = [];
+
+        (res.sources || []).forEach((s) => {
+          const tid = String(s.tour_id || "");
+          if (tid && !seenIds.has(tid)) {
+            seenIds.add(tid);
+            const priceNum = Number(s.price || 0);
+            tours.push({
+              id: tid,
+              name: s.title || `Tour #${tid}`,
+              price: priceNum > 0 ? `${priceNum.toLocaleString("vi-VN")} VND` : "Liên hệ",
+              image: s.image_url || "https://placehold.co/600x400?text=Tour",
+              description: s.location ? `Điểm đến: ${s.location}` : (s.text ? s.text.slice(0, 100) + "..." : ""),
+              url: `/tour-detail/${tid}`,
+            });
+          }
+        });
+
+        const structuredContent = JSON.stringify({
+          mode: tours.length > 0 ? "suggest_tour" : "consulting",
+          message: res.answer || "Dưới đây là một số tour gợi ý cho bạn:",
+          tours: tours.slice(0, 3),
+        });
+
+        const botMsg = {
+          id: `guest_b_${Date.now()}`,
+          sender_id: null,
+          is_admin: true,
+          full_name: "Trợ lý AI Du Lịch",
+          content: structuredContent,
+          created_at: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, botMsg]);
+      } catch (err) {
+        console.error("Lỗi khi chat với AI:", err);
+        const errMsg = {
+          id: `guest_err_${Date.now()}`,
+          sender_id: null,
+          is_admin: true,
+          full_name: "Trợ lý AI Du Lịch",
+          content: "Xin lỗi, hiện tại hệ thống AI đang bận hoặc gặp sự cố kết nối. Bạn vui lòng thử lại sau giây lát nhé!",
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errMsg]);
+      } finally {
+        setIsSending(false);
+        setTyping(false);
+      }
+      return;
+    }
+
+    // ==========================================
+    // 2. Chế độ ĐÃ ĐĂNG NHẬP: Gửi qua Support Thread & WebSocket
+    // ==========================================
+    if (!threadId) return;
+
     const tempId = `temp_${Date.now()}`;
-
     const optimisticMessage = {
       id: tempId,
       sender_id: userId,
@@ -330,19 +412,14 @@ export default function SupportChat() {
 
     const applyResponse = (response) => {
       setMessages((prev) => {
-        // Always remove optimistic placeholder first
         const withoutTemp = prev.filter((m) => m.id !== tempId);
         const realId = String(response.data.id);
-        const existingIndex = withoutTemp.findIndex(
-          (m) => String(m.id) === realId
-        );
+        const existingIndex = withoutTemp.findIndex((m) => String(m.id) === realId);
         if (existingIndex !== -1) {
-          // WS already added the real message — just mark not-pending
           const next = [...withoutTemp];
           next[existingIndex] = { ...next[existingIndex], ...response.data, pending: false };
           return next;
         }
-        // WS hasn't arrived yet — append
         return [...withoutTemp, { ...response.data, pending: false }];
       });
     };
@@ -367,18 +444,21 @@ export default function SupportChat() {
 
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setText(content);
-      alert(status === 401 ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!" : "Không thể gửi tin nhắn. Hệ thống đang tự làm mới phiên chat, hãy thử lại.");
+      alert(
+        status === 401
+          ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!"
+          : "Không thể gửi tin nhắn. Hệ thống đang tự làm mới phiên chat, hãy thử lại."
+      );
     } finally {
       setIsSending(false);
     }
   };
 
-  // 🔽 Scroll xuống khi có tin nhắn mới
+  // Tự động cuộn xuống khi có tin nhắn mới
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typing]);
 
-  // Format time
   const parseServerDate = (dateString) => {
     if (!dateString) return null;
     const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(dateString);
@@ -400,12 +480,12 @@ export default function SupportChat() {
       if (minutes < 60) return `${minutes} phút trước`;
       if (minutes < 1440) return `${Math.floor(minutes / 60)} giờ trước`;
 
-      return date.toLocaleString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+      return date.toLocaleString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return "";
@@ -414,57 +494,97 @@ export default function SupportChat() {
 
   return (
     <div className="chat-widget">
-      {!open && userId && (
-        <div className="chat-toggle" onClick={() => setOpen(true)} title="Hỗ trợ trực tuyến">
+      {/* Nút bong bóng mở chat luôn hiển thị khi đóng */}
+      {!open && (
+        <div
+          className="chat-toggle"
+          onClick={() => setOpen(true)}
+          title="Hỗ trợ trực tuyến & AI Tư Vấn"
+        >
           <i className="bi bi-chat-dots-fill"></i>
-          {!isConnected && (
-            <span className="connection-status offline"></span>
-          )}
+          {userId && !isConnected && <span className="connection-status offline"></span>}
         </div>
       )}
-      
-      {open && userId && (
+
+      {/* Cửa sổ chat */}
+      {open && (
         <div className="chat-box">
           <div className="chat-header">
             <div className="d-flex align-items-center justify-content-between w-100">
               <div className="d-flex align-items-center gap-2">
-                <button 
-                  className="btn btn-sm btn-link p-0 text-white"
-                  onClick={() => setShowThreadList(!showThreadList)}
-                  title="Danh sách cuộc trò chuyện"
-                >
-                  <i className="bi bi-list" style={{ fontSize: '24px' }}></i>
-                </button>
+                {userId ? (
+                  <button
+                    className="btn btn-sm btn-link p-0 text-white"
+                    onClick={() => setShowThreadList(!showThreadList)}
+                    title="Danh sách cuộc trò chuyện"
+                  >
+                    <i className="bi bi-list" style={{ fontSize: "24px" }}></i>
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-sm btn-link p-0 text-white"
+                    onClick={() => {
+                      if (confirm("Làm mới lại cuộc trò chuyện với Trợ lý AI?")) {
+                        setMessages([GUEST_WELCOME_MSG]);
+                      }
+                    }}
+                    title="Làm mới hội thoại"
+                  >
+                    <i className="bi bi-arrow-clockwise" style={{ fontSize: "20px" }}></i>
+                  </button>
+                )}
                 <i className="bi bi-headset"></i>
                 <div>
-                  <div className="fw-bold">Hỗ trợ khách hàng & AI</div>
+                  <div className="fw-bold">
+                    {userId ? "Hỗ trợ khách hàng & AI" : "Trợ lý AI Tư Vấn Tour"}
+                  </div>
                   <small className="status-text">
-                    {isConnected ? (
-                      <>
-                        <span className="status-dot online"></span>
-                        Đang hoạt động
-                      </>
+                    {userId ? (
+                      isConnected ? (
+                        <>
+                          <span className="status-dot online"></span>
+                          Đang hoạt động (Trực tiếp)
+                        </>
+                      ) : (
+                        <>
+                          <span className="status-dot offline"></span>
+                          Đang kết nối...
+                        </>
+                      )
                     ) : (
                       <>
-                        <span className="status-dot offline"></span>
-                        Đang kết nối...
+                        <span className="status-dot online"></span>
+                        AI Trực tuyến 24/7
                       </>
                     )}
                   </small>
                 </div>
               </div>
-              <button 
-                className="btn-close-chat" 
-                onClick={() => setOpen(false)}
-                title="Đóng"
-              >
+              <button className="btn-close-chat" onClick={() => setOpen(false)} title="Đóng">
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
           </div>
-          
-          {/* Thread List Sidebar */}
-          {showThreadList && (
+
+          {/* Banner thông báo dành cho khách */}
+          {!userId && (
+            <div className="support-guest-banner">
+              <span>💡 Bạn đang chat với AI. Đăng nhập để lưu lịch sử & gặp tư vấn viên.</span>
+              <button
+                type="button"
+                className="support-guest-banner-link"
+                onClick={() => {
+                  navigate("/auth");
+                  setOpen(false);
+                }}
+              >
+                Đăng nhập
+              </button>
+            </div>
+          )}
+
+          {/* Sidebar danh sách Thread (cho người dùng đã đăng nhập) */}
+          {showThreadList && userId && (
             <div className="thread-list-sidebar">
               <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <h6 className="m-0">Cuộc trò chuyện</h6>
@@ -475,9 +595,10 @@ export default function SupportChat() {
                     title="Xóa tất cả cuộc trò chuyện"
                     disabled={!threads.length || isDeletingAllThreads}
                   >
-                    <i className="bi bi-trash3"></i> {isDeletingAllThreads ? "Đang xóa..." : "Xóa tất cả"}
+                    <i className="bi bi-trash3"></i>{" "}
+                    {isDeletingAllThreads ? "Đang xóa..." : "Xóa tất cả"}
                   </button>
-                  <button 
+                  <button
                     className="btn btn-sm btn-primary"
                     onClick={createNewThread}
                     title="Tạo cuộc trò chuyện mới"
@@ -486,15 +607,15 @@ export default function SupportChat() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="thread-list">
                 {threads.length === 0 ? (
                   <p className="text-muted small text-center">Chưa có cuộc trò chuyện nào</p>
                 ) : (
-                  threads.map(thread => (
-                    <div 
+                  threads.map((thread) => (
+                    <div
                       key={thread.thread_id}
-                      className={`thread-item ${thread.thread_id === threadId ? 'active' : ''}`}
+                      className={`thread-item ${thread.thread_id === threadId ? "active" : ""}`}
                       onClick={() => switchThread(thread.thread_id)}
                     >
                       <div className="d-flex justify-content-between align-items-start">
@@ -503,7 +624,8 @@ export default function SupportChat() {
                             {thread.last_content || "Chưa có tin nhắn"}
                           </div>
                           <small className="text-muted">
-                            {thread.message_count} tin nhắn • {formatTime(thread.last_time || thread.created_at)}
+                            {thread.message_count} tin nhắn •{" "}
+                            {formatTime(thread.last_time || thread.created_at)}
                           </small>
                         </div>
                         <button
@@ -523,7 +645,8 @@ export default function SupportChat() {
               </div>
             </div>
           )}
-          
+
+          {/* Vùng hiển thị tin nhắn */}
           <div className="chat-body">
             {isLoading ? (
               <div className="text-center py-4">
@@ -541,13 +664,16 @@ export default function SupportChat() {
             ) : (
               <>
                 {messages.map((m, i) => {
-                  const isUser = m.sender_id === userId || !m.is_admin;
+                  const isUser =
+                    m.sender_id === userId ||
+                    m.sender_id === "guest" ||
+                    (!m.is_admin && m.sender_id != null);
                   const showAvatar = i === 0 || messages[i - 1]?.is_admin !== m.is_admin;
                   const structuredPayload = !isUser ? parseSupportRecommendation(m.content) : null;
-                  
+
                   return (
-                    <div 
-                      key={m.id || i} 
+                    <div
+                      key={m.id || i}
                       className={`msg ${isUser ? "user" : "support"} ${m.pending ? "pending" : ""}`}
                     >
                       {showAvatar && (
@@ -555,49 +681,60 @@ export default function SupportChat() {
                           {isUser ? (
                             <i className="bi bi-person-circle"></i>
                           ) : (
-                            <i className="bi bi-headset"></i>
+                            <i className="bi bi-robot"></i>
                           )}
                         </div>
                       )}
                       <div className="bubble">
                         {showAvatar && (
-                          <div className="msg-sender">{m.full_name || (isUser ? userFullName : "Hỗ trợ")}</div>
+                          <div className="msg-sender">
+                            {m.full_name || (isUser ? userFullName : "Hỗ trợ & AI")}
+                          </div>
                         )}
-                        <div className="msg-content" style={{ whiteSpace: structuredPayload ? "normal" : "pre-wrap" }}>
+                        <div
+                          className="msg-content"
+                          style={{ whiteSpace: structuredPayload ? "normal" : "pre-wrap" }}
+                        >
                           {structuredPayload ? (
                             <div className="support-ai-recommendation">
                               {structuredPayload.message ? (
-                                <div className="support-ai-message">{structuredPayload.message}</div>
+                                <div className="support-ai-message">
+                                  {structuredPayload.message}
+                                </div>
                               ) : null}
-                              {structuredPayload.mode === "suggest_tour" && structuredPayload.tours.length > 0 ? (
+                              {structuredPayload.mode === "suggest_tour" &&
+                              structuredPayload.tours.length > 0 ? (
                                 <div className="support-tour-card-list">
-                                {structuredPayload.tours.map((tour) => (
-                                  <button
-                                    key={`${m.id}-${tour.id}`}
-                                    type="button"
-                                    className="support-tour-card"
-                                    onClick={() => {
-                                      navigate(tour.url);
-                                      setOpen(false);
-                                    }}
-                                    title={`Xem chi tiết ${tour.name}`}
-                                  >
-                                    <img
-                                      src={tour.image}
-                                      alt={tour.name}
-                                      className="support-tour-card-image"
-                                      onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = "https://placehold.co/600x400?text=Tour";
+                                  {structuredPayload.tours.map((tour) => (
+                                    <button
+                                      key={`${m.id || i}-${tour.id}`}
+                                      type="button"
+                                      className="support-tour-card"
+                                      onClick={() => {
+                                        navigate(tour.url);
+                                        setOpen(false);
                                       }}
-                                    />
-                                    <div className="support-tour-card-body">
-                                      <div className="support-tour-card-title">{tour.name}</div>
-                                      <div className="support-tour-card-price">{tour.price}</div>
-                                      <div className="support-tour-card-description">{tour.description}</div>
-                                    </div>
-                                  </button>
-                                ))}
+                                      title={`Xem chi tiết ${tour.name}`}
+                                    >
+                                      <img
+                                        src={tour.image}
+                                        alt={tour.name}
+                                        className="support-tour-card-image"
+                                        onError={(e) => {
+                                          e.currentTarget.onerror = null;
+                                          e.currentTarget.src =
+                                            "https://placehold.co/600x400?text=Tour";
+                                        }}
+                                      />
+                                      <div className="support-tour-card-body">
+                                        <div className="support-tour-card-title">{tour.name}</div>
+                                        <div className="support-tour-card-price">{tour.price}</div>
+                                        <div className="support-tour-card-description">
+                                          {tour.description}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
                                 </div>
                               ) : null}
                             </div>
@@ -613,10 +750,11 @@ export default function SupportChat() {
                     </div>
                   );
                 })}
+
                 {typing && (
                   <div className="msg support">
                     <div className="avatar">
-                      <i className="bi bi-headset"></i>
+                      <i className="bi bi-robot"></i>
                     </div>
                     <div className="bubble typing-indicator">
                       <span></span>
@@ -629,7 +767,23 @@ export default function SupportChat() {
             )}
             <div ref={bottomRef} />
           </div>
-          
+
+          {/* Quick Prompts Chips gợi ý sẵn */}
+          <div className="support-quick-chips">
+            {QUICK_PROMPTS.map((promptText, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="support-chip-btn"
+                onClick={() => send(promptText)}
+                disabled={isLoading || isSending}
+              >
+                {promptText}
+              </button>
+            ))}
+          </div>
+
+          {/* Ô nhập tin nhắn */}
           <div className="chat-footer">
             <input
               value={text}
@@ -640,11 +794,11 @@ export default function SupportChat() {
                   send();
                 }
               }}
-              placeholder="Ví dụ: tôi muốn đi biển hoặc tôi muốn đi nước ngoài"
+              placeholder="Nhập câu hỏi... (VD: Tour Đà Lạt, giá vé, lịch trình)"
               disabled={isLoading || isSending}
             />
-            <button 
-              onClick={send} 
+            <button
+              onClick={() => send()}
               disabled={!text.trim() || isLoading || isSending}
               title="Gửi tin nhắn"
             >

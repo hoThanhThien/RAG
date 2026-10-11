@@ -25,10 +25,10 @@ export default function GoToTop() {
     });
   };
 
-  // Inline CSS object cho hiệu ứng go-top (nằm phía trên nút AI Chatbot)
+  // Inline CSS object cho hiệu ứng go-top (nằm phía trên nút chat ở góc phải)
   const style = {
     bottom: '96px',
-    right: '28px',
+    right: '30px',
     width: '48px',
     height: '48px',
     zIndex: 1000,
