@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict, Any
 from app.database import get_db_connection
 from app.utils.pagination import PaginationParams, paginate_mysql, parse_sort
-from fastapi import HTTPException
 from app.schemas.category_schema import CategoryCreateSchema
+from app.dependencies.auth_dependencies import require_admin
 
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
@@ -25,7 +26,7 @@ def list_categories(paging: PaginationParams = Depends()):
         conn.close()
 
 @router.post("")
-def create_category(payload: CategoryCreateSchema):
+def create_category(payload: CategoryCreateSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -39,7 +40,7 @@ def create_category(payload: CategoryCreateSchema):
         conn.close()
 
 @router.put("/{category_id}")
-def update_category(category_id: int, payload: CategoryCreateSchema):
+def update_category(category_id: int, payload: CategoryCreateSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -57,7 +58,7 @@ def update_category(category_id: int, payload: CategoryCreateSchema):
         conn.close()
 
 @router.delete("/{category_id}")
-def delete_category(category_id: int):
+def delete_category(category_id: int, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
@@ -73,6 +74,7 @@ def delete_category(category_id: int):
             return {"message": "Xoá danh mục thành công"}
     finally:
         conn.close()
+
 
 
 

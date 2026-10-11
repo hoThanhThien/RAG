@@ -4,7 +4,12 @@ from app.schemas.auth_schema import UserResponse
 from app.database import get_db_connection
 from math import ceil
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 from app.schemas.user_schema import UpdateUserSchema
+
+class UpdateSelfProfileSchema(BaseModel):
+    full_name: str
+    phone: Optional[str] = None
 
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -180,9 +185,29 @@ async def delete_user(
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail="User not found")
 
+            # Kiểm tra ràng buộc dữ liệu trước khi xóa
+            cursor.execute("SELECT COUNT(*) AS cnt FROM booking WHERE UserID = %s", (user_id,))
+            if int(cursor.fetchone()["cnt"]) > 0:
+                raise HTTPException(status_code=400, detail="Không thể xóa người dùng đã có lịch sử đặt tour")
+
+            cursor.execute("SELECT COUNT(*) AS cnt FROM `comment` WHERE UserID = %s", (user_id,))
+            if int(cursor.fetchone()["cnt"]) > 0:
+                raise HTTPException(status_code=400, detail="Không thể xóa người dùng đã có đánh giá hoặc bình luận")
+
+            # Xóa các dữ liệu phụ trợ liên quan nếu có
+            cursor.execute("SELECT ThreadID FROM support_thread WHERE UserID = %s", (user_id,))
+            threads = cursor.fetchall()
+            for t in threads:
+                cursor.execute("DELETE FROM support_message WHERE ThreadID = %s", (t["ThreadID"],))
+            cursor.execute("DELETE FROM support_thread WHERE UserID = %s", (user_id,))
+            cursor.execute("DELETE FROM customer_segment WHERE UserID = %s", (user_id,))
+
             cursor.execute("DELETE FROM `user` WHERE UserID = %s", (user_id,))
             conn.commit()
         return {"message": "User deleted successfully"}
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -298,8 +323,12 @@ async def update_user(
         with conn.cursor() as cursor:
             # Check user exists
             cursor.execute("SELECT * FROM `user` WHERE UserID = %s", (user_id,))
-            if not cursor.fetchone():
+            existing = cursor.fetchone()
+            if not existing:
                 raise HTTPException(status_code=404, detail="User not found")
+
+            # Giữ nguyên RoleID nếu không gửi trong payload
+            target_role_id = payload.role_id if payload.role_id is not None else existing["RoleID"]
 
             # Update
             sql = """
@@ -307,10 +336,35 @@ async def update_user(
                 SET FullName = %s, Email = %s, Phone = %s, RoleID = %s
                 WHERE UserID = %s
             """
-            cursor.execute(sql, (payload.full_name, payload.email, payload.phone, payload.role_id, user_id))
+            cursor.execute(sql, (payload.full_name, payload.email, payload.phone, target_role_id, user_id))
             conn.commit()
 
         return {"message": "User updated successfully"}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.put("/profile/me", response_model=dict)
+async def update_my_profile(
+    payload: UpdateSelfProfileSchema,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Người dùng tự cập nhật thông tin cá nhân của chính mình"""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                UPDATE `user`
+                SET FullName = %s, Phone = %s
+                WHERE UserID = %s
+            """, (payload.full_name, payload.phone or "", current_user["UserID"]))
+            conn.commit()
+        return {"message": "Cập nhật thông tin thành công"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

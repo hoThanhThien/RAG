@@ -31,24 +31,25 @@ if not os.path.exists(UPLOAD_DIR):
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# --- PHẦN QUAN TRỌNG NHẤT: CẤU HÌNH CORS ---
-# Chỉ dùng 1 danh sách duy nhất, không khai báo lặp lại
+# --- CẤU HÌNH CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
         "http://52.64.184.203",
-	"http://52.64.184.203:8080",
-       # IP Public Frontend
-        "http://52.64.184.203:3000",  # IP Public Frontend kèm port
-        "http://52.64.184.203:8000",  # IP Public Backend
+        "http://52.64.184.203:8080",
+        "http://52.64.184.203:3000",
+        "http://52.64.184.203:8000",
     ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.trycloudflare\.com|.*\.ngrok-free\.app|52\.64\.184\.203)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
-# ---------------------------------------------
+# ---------------------
 
 # Include routers
 app.include_router(auth_controller.router)
@@ -57,6 +58,7 @@ app.include_router(booking_controller.router)
 app.include_router(user_controller.router)
 app.include_router(tour_controller.router)
 app.include_router(comment_controller.router)
+app.include_router(comment_controller.router_alias)
 app.include_router(payment_controller.router)
 app.include_router(category_controller.router)
 app.include_router(discount_controller.router)

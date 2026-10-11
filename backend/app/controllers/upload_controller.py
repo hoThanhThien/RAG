@@ -5,8 +5,12 @@ from datetime import datetime
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
-# Thư mục lưu file (đã được mount trong main.py bằng StaticFiles)
-UPLOAD_FOLDER = "uploads"
+# Thư mục lưu file tuyệt đối (đồng bộ với mount trong main.py)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(CURRENT_DIR)
+BACKEND_DIR = os.path.dirname(APP_DIR)
+UPLOAD_FOLDER = os.path.join(BACKEND_DIR, "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @router.post("")
 async def upload_file(file: UploadFile = File(...)):

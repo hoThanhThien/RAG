@@ -46,6 +46,9 @@ async def register(user_data: UserRegister):
         connection.commit()
         return {"message": "User registered successfully"}
         
+    except HTTPException:
+        connection.rollback()
+        raise
     except Exception as e:
         connection.rollback()
         raise HTTPException(
@@ -157,6 +160,9 @@ async def change_password(
         connection.commit()
         return {"message": "Password changed successfully"}
         
+    except HTTPException:
+        connection.rollback()
+        raise
     except Exception as e:
         connection.rollback()
         raise HTTPException(

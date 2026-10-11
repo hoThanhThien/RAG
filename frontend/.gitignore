@@ -24,4 +24,8 @@ dist-ssr
 *.sw?
 venv/
 
-.env/
+# Environment variables
+.env
+.env.*
+*.env
+!.env.example

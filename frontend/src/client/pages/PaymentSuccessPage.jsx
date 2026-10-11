@@ -88,8 +88,7 @@ const PaymentSuccessPage = () => {
                     {/* Thông báo tiếp theo */}
                     <div className="alert alert-info">
                       <i className="fas fa-info-circle"></i>
-                      <strong> Thông báo:</strong> Chúng tôi đã gửi email xác nhận đến địa chỉ email của bạn. 
-                      Vui lòng kiểm tra hộp thư để xem chi tiết tour.
+                      <strong> Lưu ý:</strong> Đơn đặt tour của bạn đã được ghi nhận trên hệ thống. Quý khách vui lòng kiểm tra và quản lý chi tiết tại mục <strong>Lịch sử đặt tour</strong>.
                     </div>
 
                     {/* Các hành động */}

@@ -30,6 +30,8 @@ Thumbs.db
 # Generated RAG store
 rag_store/
 
-venv/
-
-.env/
+# Environment variables
+.env
+.env.*
+*.env
+!.env.example

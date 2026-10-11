@@ -22,20 +22,13 @@ export const fetchUsers = async ({
 };
 
 export const deleteUser = async (id) => {
-  try {
-    await api.delete(`/users/${id}`);
-  } catch (err) {
-    console.error("❌ Failed to delete user", err);
-  }
+  const res = await api.delete(`/users/${id}`);
+  return res.data;
 };
 
-// ✅ Gọi đúng API update user
 export const updateUser = async (id, data) => {
-  try {
-    await api.put(`/users/${id}`, data);
-  } catch (err) {
-    console.error("❌ Failed to update user", err);
-  }
+  const res = await api.put(`/users/${id}`, data);
+  return res.data;
 };
 
 

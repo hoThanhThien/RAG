@@ -54,14 +54,14 @@ const AdminRoutes = () => {
         <Route path="users" element={withSuspense(<UserList />)} />
         <Route path="tours" element={withSuspense(<TourList />)} />
         <Route path="bookings" element={withSuspense(<BookingList />)} />
-        <Route path="guides" element={withSuspense(<GuideList />)} />
+        <Route path="guides" element={<Navigate to="/admin/tours" replace />} />
         <Route path="categories" element={withSuspense(<CategoryList />)} />
         <Route path="discounts" element={withSuspense(<DiscountList />)} />
-        <Route path="payments" element={withSuspense(<PaymentList />)} />
-        <Route path="photos" element={withSuspense(<PhotoList />)} />
-        <Route path="roles" element={withSuspense(<RoleList />)} />
-        <Route path="tour-guides" element={withSuspense(<TourGuideList />)} />
-        <Route path="tour-schedules" element={withSuspense(<TourScheduleList />)} />
+        <Route path="payments" element={<Navigate to="/admin/bookings" replace />} />
+        <Route path="photos" element={<Navigate to="/admin/tours" replace />} />
+        <Route path="roles" element={<Navigate to="/admin/users" replace />} />
+        <Route path="tour-guides" element={<Navigate to="/admin/tours" replace />} />
+        <Route path="tour-schedules" element={<Navigate to="/admin/tours" replace />} />
         <Route path="support" element={withSuspense(<SupportList />)} />
         <Route path="support/:thread_id" element={withSuspense(<SupportChat />)} />
         <Route path="comments" element={withSuspense(<CommentList />)} />

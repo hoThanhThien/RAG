@@ -435,9 +435,17 @@ async def update_booking_status(
             cur.execute("UPDATE booking SET Status = %s WHERE BookingID = %s", (new_status, booking_id))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Booking not found")
+            
+            # Đồng bộ trạng thái thanh toán nếu booking bị hủy
+            if new_status == "Cancelled":
+                cur.execute("UPDATE payment SET Status = 'Cancelled' WHERE BookingID = %s AND Status = 'Pending'", (booking_id,))
+            
             conn.commit()
             dashboard_broadcast_safe("booking_status_changed")
         return {"message": "Booking status updated successfully"}
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -465,9 +473,15 @@ async def cancel_booking(
                 raise HTTPException(status_code=400, detail="Cannot cancel confirmed booking")
 
             cur.execute("UPDATE booking SET Status = 'Cancelled' WHERE BookingID = %s", (booking_id,))
+            # Đồng bộ trạng thái payment Pending sang Cancelled
+            cur.execute("UPDATE payment SET Status = 'Cancelled' WHERE BookingID = %s AND Status = 'Pending'", (booking_id,))
+            
             conn.commit()
             dashboard_broadcast_safe("booking_cancelled")
         return {"message": "Booking cancelled successfully"}
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

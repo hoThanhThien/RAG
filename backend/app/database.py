@@ -8,10 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 1. Cấu hình biến môi trường
-# Docker: dùng "db", Local: dùng "localhost"
+# Khi chạy Docker Compose: DATABASE_URL được truyền vào trỏ tới @mysql:3306
+# Khi chạy Local: fallback về @localhost:3306
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://tour_user:tour_pass123@db:3306/tourbookingdb"
+    "mysql+pymysql://tour_user:tour_pass123@localhost:3306/tourbookingdb"
 )
 
 # 2. Cấu hình SQLAlchemy (Dùng cho Auth, User Models...)
@@ -32,11 +33,10 @@ def get_db():
     finally:
         db.close()
 
-# 3. Code của bạn (Dùng cho Tour Controller, Report...)
-def get_db_connection():
-    """
-    Return PyMySQL connection (so .cursor() works)
-    """
+# 3. Code dùng cho Tour Controller, Report, RAG (PyMySQL với Connection Pool)
+from sqlalchemy.pool import QueuePool
+
+def _raw_pymysql_connect():
     # Tách DATABASE_URL thủ công để lấy thông tin connect
     # Format: mysql+pymysql://user:pass@host:port/dbname
     try:
@@ -47,9 +47,7 @@ def get_db_connection():
             host_port, dbname = host_db.split("/")
             host, port = host_port.split(":")
         else:
-            # Fallback nếu URL không đúng định dạng chuẩn
-            print("Warning: DATABASE_URL parsing failed, using defaults or env vars")
-            return engine.raw_connection()
+            host, port, user, password, dbname = "localhost", 3306, "tour_user", "tour_pass123", "tourbookingdb"
 
         return pymysql.connect(
             host=host,
@@ -57,13 +55,28 @@ def get_db_connection():
             password=password,
             database=dbname,
             port=int(port),
-            cursorclass=pymysql.cursors.DictCursor, # Quan trọng: Trả về Dict
+            cursorclass=pymysql.cursors.DictCursor,
             autocommit=True,
             charset="utf8mb4"
         )
     except Exception as e:
-        print(f"Error connecting to DB manually: {e}")
-        # Fallback an toàn nếu parse lỗi
-        conn = engine.raw_connection()
-        # Ép kiểu cursor thành DictCursor nếu fallback
-        return conn
+        print(f"Error creating raw PyMySQL connection: {e}")
+        return engine.raw_connection()
+
+pymysql_pool = QueuePool(
+    _raw_pymysql_connect,
+    max_overflow=20,
+    pool_size=10,
+    recycle=3600,
+    pre_ping=True
+)
+
+def get_db_connection():
+    """
+    Return PyMySQL connection từ connection pool (hỗ trợ .cursor() và DictCursor)
+    """
+    try:
+        return pymysql_pool.connect()
+    except Exception as e:
+        print(f"Warning: pymysql_pool.connect() failed ({e}), creating standalone connection")
+        return _raw_pymysql_connect()

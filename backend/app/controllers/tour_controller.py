@@ -227,6 +227,16 @@ async def get_my_tours(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SHOW TABLES LIKE 'guide'")
+            has_guide_table = cur.fetchone() is not None
+            cur.execute("SHOW TABLES LIKE 'tour_guide'")
+            has_tg_table = cur.fetchone() is not None
+
+            if not has_guide_table or not has_tg_table:
+                if str(current_user.get("RoleName", "")).lower() == "admin":
+                    return await get_tours(page=page, page_size=page_size, limit_photos=1, sort=sort, q=None, active_only=False)
+                return {"items": [], **make_meta(0, page, page_size)}
+
             # lấy guide_id theo email
             cur.execute("SELECT GuideID FROM guide WHERE Email = %s", (current_user["Email"],))
             guide = cur.fetchone()
@@ -457,17 +467,23 @@ async def get_tour_bookings(
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            if current_user["RoleName"] != "admin":
-                cur.execute("SELECT GuideID FROM guide WHERE Email = %s", (current_user["Email"],))
-                g = cur.fetchone()
-                if not g:
-                    raise HTTPException(status_code=404, detail="Guide profile not found")
-                cur.execute(
-                    "SELECT 1 FROM tour_guide WHERE TourID = %s AND GuideID = %s",
-                    (tour_id, g["GuideID"]),
-                )
-                if not cur.fetchone():
-                    raise HTTPException(status_code=403, detail="You can only view bookings for tours you guide")
+            if str(current_user.get("RoleName", "")).lower() != "admin":
+                cur.execute("SHOW TABLES LIKE 'guide'")
+                has_guide_table = cur.fetchone() is not None
+                cur.execute("SHOW TABLES LIKE 'tour_guide'")
+                has_tg_table = cur.fetchone() is not None
+
+                if has_guide_table and has_tg_table:
+                    cur.execute("SELECT GuideID FROM guide WHERE Email = %s", (current_user["Email"],))
+                    g = cur.fetchone()
+                    if not g:
+                        raise HTTPException(status_code=404, detail="Guide profile not found")
+                    cur.execute(
+                        "SELECT 1 FROM tour_guide WHERE TourID = %s AND GuideID = %s",
+                        (tour_id, g["GuideID"]),
+                    )
+                    if not cur.fetchone():
+                        raise HTTPException(status_code=403, detail="You can only view bookings for tours you guide")
 
             cur.execute("""
                 SELECT b.*, u.FullName AS user_name, u.Phone AS user_phone, u.Email AS user_email
@@ -586,23 +602,23 @@ async def delete_tour(
     try:
         with conn.cursor(pymysql.cursors.DictCursor) as cur:
 
-            # 1. Kiểm tra xem tour có booking chưa
-            cur.execute("""
-                SELECT COUNT(*) AS booking_count
-                FROM booking
-                WHERE TourID = %s AND Status IN ('Confirmed','Pending')
-            """, (tour_id,))
+            # 1. Kiểm tra xem tour có booking hay không (ràng buộc khóa ngoại với bảng booking)
+            cur.execute("SELECT COUNT(*) AS total_bookings FROM booking WHERE TourID = %s", (tour_id,))
             result = cur.fetchone()
-            booking_count = result["booking_count"] if result else 0
+            total_bookings = result["total_bookings"] if result else 0
 
-            if booking_count > 0:
-                raise HTTPException(status_code=400, detail="Không thể xoá tour đang có booking")
+            if total_bookings > 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Tour đã từng phát sinh đơn đặt chỗ. Để bảo toàn dữ liệu lịch sử, không thể xoá vĩnh viễn. Vui lòng chuyển trạng thái tour sang 'Unavailable'."
+                )
 
-            # 2. Xoá ảnh trước
+            # 2. Xoá tour_cluster và ảnh trước
+            cur.execute("DELETE FROM tour_cluster WHERE TourID = %s", (tour_id,))
             cur.execute("DELETE FROM photo WHERE TourID = %s", (tour_id,))
 
-            # 2.1 Xoá bình luận liên quan (để tránh lỗi ràng buộc FK)
-            cur.execute("DELETE FROM comment WHERE TourID = %s", (tour_id,))
+            # 2.1 Xoá bình luận liên quan
+            cur.execute("DELETE FROM `comment` WHERE TourID = %s", (tour_id,))
 
             # 3. Xoá tour
             cur.execute("DELETE FROM tour WHERE TourID = %s", (tour_id,))
@@ -614,6 +630,9 @@ async def delete_tour(
             invalidate_rag_response_cache(reason="tour_deleted")
         background_tasks.add_task(_rebuild_rag_index_background)
         return {"message": "Xoá tour thành công"}
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         traceback.print_exc()

@@ -6,4 +6,4 @@ class UpdateUserSchema(BaseModel):
     full_name: str
     email: EmailStr
     phone: str
-    role_id: Optional[int] = 3  # ✅ Mặc định là 3 nếu không gửi
+    role_id: Optional[int] = None

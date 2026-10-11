@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Dict, Any
+import pymysql.cursors
 from app.database import get_db_connection
 from app.schemas.discount_schema import DiscountSchema, DiscountResponse
-from typing import List
-import pymysql.cursors  # ✅ để dùng DictCursor
+from app.dependencies.auth_dependencies import require_admin
 
 router = APIRouter(prefix="/discounts", tags=["Discounts"])
 
@@ -19,7 +20,7 @@ def validate_discount_payload(payload: DiscountSchema):
 def get_discounts():
     conn = get_db_connection()
     try:
-        cursor = conn.cursor(cursor=pymysql.cursors.DictCursor)  # ✅ sửa ở đây
+        cursor = conn.cursor(cursor=pymysql.cursors.DictCursor)
         cursor.execute("""
     SELECT
         DiscountID AS discount_id,
@@ -31,14 +32,13 @@ def get_discounts():
         EndDate AS end_date
     FROM discount
 """)
-
         result = cursor.fetchall()
         return result
     finally:
         conn.close()
 
 @router.post("")
-def create_discount(payload: DiscountSchema):
+def create_discount(payload: DiscountSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     validate_discount_payload(payload)
     conn = get_db_connection()
     try:
@@ -63,7 +63,7 @@ def create_discount(payload: DiscountSchema):
         conn.close()
 
 @router.put("/{discount_id}")
-def update_discount(discount_id: int, payload: DiscountSchema):
+def update_discount(discount_id: int, payload: DiscountSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     validate_discount_payload(payload)
     conn = get_db_connection()
     try:
@@ -94,12 +94,24 @@ def update_discount(discount_id: int, payload: DiscountSchema):
         conn.close()
 
 @router.delete("/{discount_id}")
-def delete_discount(discount_id: int):
+def delete_discount(discount_id: int, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor=pymysql.cursors.DictCursor)
+        # Kiểm tra ràng buộc khóa ngoại với bảng booking
+        cursor.execute("SELECT COUNT(*) AS cnt FROM booking WHERE DiscountID = %s", (discount_id,))
+        res = cursor.fetchone()
+        if res and res["cnt"] > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Mã giảm giá đã được áp dụng trong đơn đặt chỗ. Không thể xoá để bảo toàn lịch sử giao dịch."
+            )
+
         cursor.execute("DELETE FROM discount WHERE DiscountID = %s", (discount_id,))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Không tìm thấy mã giảm giá")
         conn.commit()
         return {"message": "Xoá thành công"}
     finally:
         conn.close()
+

@@ -1,5 +1,26 @@
+# Virtual environments
 venv/
+.venv/
 
-.env/
+# Environment variables (NEVER COMMIT)
+.env
+.env.*
+*.env
+!.env.example
+
+# Python cache
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
+
+# Node & Build artifacts
+node_modules/
+dist/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

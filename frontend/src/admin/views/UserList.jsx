@@ -11,6 +11,7 @@ export default function UserList() {
     full_name: "",
     email: "",
     phone: "",
+    role_id: 3,
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
@@ -53,27 +54,38 @@ export default function UserList() {
 
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc muốn xoá user này không?")) {
-      await deleteUser(id);
-      const nextPage = users.length === 1 && page > 1 ? page - 1 : page;
-      setPage(nextPage);
-      loadUsers(nextPage, searchTerm);
+      try {
+        await deleteUser(id);
+        const nextPage = users.length === 1 && page > 1 ? page - 1 : page;
+        setPage(nextPage);
+        loadUsers(nextPage, searchTerm);
+      } catch (err) {
+        const msg = err?.response?.data?.detail || "Không thể xoá người dùng này.";
+        alert(msg);
+      }
     }
   };
 
   const handleEdit = (user) => {
     setEditingUser(user);
     setForm({
-      full_name: user.full_name,
-      email: user.email,
-      phone: user.phone,
+      full_name: user.full_name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      role_id: Number(user.role_id) || 3,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await updateUser(editingUser.user_id, form);
-    setEditingUser(null);
-    loadUsers(page, searchTerm);
+    try {
+      await updateUser(editingUser.user_id, form);
+      setEditingUser(null);
+      loadUsers(page, searchTerm);
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Cập nhật người dùng thất bại.";
+      alert(msg);
+    }
   };
 
   const goToPage = (nextPage) => {
@@ -189,6 +201,17 @@ export default function UserList() {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className="form-control"
             />
+          </div>
+          <div className="mb-3">
+            <label>Vai trò (Role):</label>
+            <select
+              className="form-select"
+              value={form.role_id}
+              onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })}
+            >
+              <option value={3}>User</option>
+              <option value={1}>Admin</option>
+            </select>
           </div>
           <button className="btn btn-success" type="submit">
             Lưu
