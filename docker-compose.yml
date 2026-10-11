@@ -27,22 +27,24 @@ services:
       - "8000:8000"
     volumes:
       - uploads_data:/app/uploads
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@mysql:3306/tourbookingdb
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
-      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
-      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
       RAG_REDIS_ENABLED: ${RAG_REDIS_ENABLED:-true}
       RAG_REDIS_URL: ${RAG_REDIS_URL:-redis://redis:6379/0}
-      MOMO_PARTNER_CODE: ${MOMO_PARTNER_CODE}
-      MOMO_ACCESS_KEY: ${MOMO_ACCESS_KEY}
-      MOMO_SECRET_KEY: ${MOMO_SECRET_KEY}
-      MOMO_REDIRECT_URL: ${MOMO_REDIRECT_URL}
-      MOMO_IPN_URL: ${MOMO_IPN_URL}
+      MOMO_PARTNER_CODE: ${MOMO_PARTNER_CODE:-}
+      MOMO_ACCESS_KEY: ${MOMO_ACCESS_KEY:-}
+      MOMO_SECRET_KEY: ${MOMO_SECRET_KEY:-}
+      MOMO_REDIRECT_URL: ${MOMO_REDIRECT_URL:-http://localhost:3000/payment/success}
+      MOMO_IPN_URL: ${MOMO_IPN_URL:-http://localhost:8000/payments/momo/ipn}
       MOMO_API_ENDPOINT: ${MOMO_API_ENDPOINT:-https://test-payment.momo.vn/v2/gateway/api/create}
       MOMO_ENVIRONMENT: ${MOMO_ENVIRONMENT:-test}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
