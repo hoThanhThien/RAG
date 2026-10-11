@@ -19,9 +19,8 @@ export default function SupportList() {
     };
     fetchThreads();
 
-    // 🌐 Kết nối WebSocket để nhận tin nhắn mới realtime
-    const token = localStorage.getItem("access_token");
-    const ws = connectSupportWS(token);
+    // 🌐 Kết nối WebSocket để nhận tin nhắn mới realtime (dùng HttpOnly Cookie)
+    const ws = connectSupportWS();
     wsRef.current = ws;
 
     ws.onopen = () => {

@@ -252,10 +252,9 @@ const AdminHome = () => {
     loadDashboardData({ source: 'initial' });
   }, [loadDashboardData]);
 
-  // Realtime updates via WebSocket without reloading the page
+  // Realtime updates via WebSocket without reloading the page (dùng HttpOnly Cookie)
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const ws = connectAdminDashboardWS(token);
+    const ws = connectAdminDashboardWS();
     wsRef.current = ws;
 
     ws.onopen = () => setWsConnected(true);

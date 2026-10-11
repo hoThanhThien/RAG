@@ -3,8 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 function authHeader() {
-  const token = localStorage.getItem("access_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {};
 }
 
 // helpers format

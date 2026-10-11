@@ -1,7 +1,7 @@
-import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { supportApi } from "../services/supportService";
 import { connectSupportWS } from "../../client/services/ws.js";
+import { getCurrentUser } from "../../client/services/authService";
 
 function parseSupportRecommendation(content) {
   if (!content || typeof content !== "string") return null;
@@ -60,13 +60,17 @@ export default function SupportChat() {
   const wsRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Get admin name from token
+  // Get admin name from auth me
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    const payload = parseJwt(token);
-    if (payload?.full_name) {
-      setAdminName(payload.full_name);
-    }
+    const fetchAdmin = async () => {
+      try {
+        const u = await getCurrentUser();
+        if (u?.FullName) setAdminName(u.FullName);
+      } catch (err) {
+        console.error("Không thể lấy thông tin admin:", err);
+      }
+    };
+    fetchAdmin();
   }, []);
 
   // Load tin nhắn ban đầu
@@ -93,10 +97,9 @@ export default function SupportChat() {
     fetchMessages();
   }, [thread_id]);
 
-  // Kết nối WebSocket
+  // Kết nối WebSocket (dùng HttpOnly Cookie)
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    const ws = connectSupportWS(token);
+    const ws = connectSupportWS();
     wsRef.current = ws;
 
     ws.onopen = () => {

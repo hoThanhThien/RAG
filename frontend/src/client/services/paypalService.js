@@ -17,12 +17,6 @@ export class PayPalService {
    */
   static async createPayPalOrder(bookingId) {
     try {
-      const token = localStorage.getItem('access_token');
-      console.log('PayPal Service - Token found:', !!token, 'BookingId:', bookingId);
-      if (!token) {
-        throw new Error('Bạn cần đăng nhập để thực hiện thanh toán');
-      }
-
       const { data } = await api.post('/payments/paypal/create', {
         booking_id: bookingId,
       });
@@ -42,11 +36,6 @@ export class PayPalService {
    */
   static async capturePayPalPayment(orderID, bookingID) {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        throw new Error('Bạn cần đăng nhập để thực hiện thanh toán');
-      }
-
       const { data } = await api.post('/payments/paypal/capture', {
         orderID,
         bookingID,

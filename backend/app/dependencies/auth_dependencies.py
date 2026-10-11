@@ -1,8 +1,8 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.utils.auth import verify_token
 from app.database import get_db_connection
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pymysql.cursors import DictCursor
 import pymysql
 from fastapi import WebSocket, WebSocketException
@@ -10,11 +10,26 @@ from jose import jwt, JWTError
 from app.utils.auth import SECRET_KEY, ALGORITHM  # ✅ Sử dụng từ file auth.py bạn đang có
 
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
-    """Lấy thông tin user hiện tại từ token"""
-    token = credentials.credentials
+def get_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Dict[str, Any]:
+    """Lấy thông tin user hiện tại từ HttpOnly Cookie hoặc Authorization Bearer header"""
+    token = None
+    if request and "access_token" in request.cookies:
+        token = request.cookies.get("access_token")
+    elif credentials:
+        token = credentials.credentials
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user_id = verify_token(token)
     
     # Lấy thông tin user từ database
@@ -71,16 +86,20 @@ def require_guide(current_user: Dict[str, Any] = Depends(get_current_user)):
         )
     return current_user
 
-def get_current_user_optional(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Lấy user hiện tại, không bắt buộc đăng nhập"""
+def get_current_user_optional(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+):
+    """Lấy user hiện tại, không bắt buộc đăng nhập (hỗ trợ cookie & header)"""
     try:
-        return get_current_user(credentials)
+        return get_current_user(request, credentials)
     except HTTPException:
         return None
 
 
 async def get_current_user_ws(websocket: WebSocket):
-    token = websocket.query_params.get("token")
+    # Ưu tiên lấy từ cookie WebSocket handshake, sau đó fallback query param ?token=
+    token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
     if not token:
         raise WebSocketException(code=4401, reason="Missing token")
 

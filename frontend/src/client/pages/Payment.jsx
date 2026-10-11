@@ -273,19 +273,11 @@ export default function Payment() {
               onClick={async () => {
                 try {
                   console.log('Testing API connection...');
-                  const token = localStorage.getItem('access_token');
-                  const response = await fetch(`${api.defaults.baseURL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/payments/paypal/create`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ booking_id: parseInt(bookingId) })
+                  const res = await api.post('/payments/paypal/create', {
+                    booking_id: parseInt(bookingId)
                   });
-                  console.log('API Response:', response.status, response.statusText);
-                  const data = await response.text();
-                  console.log('API Data:', data);
-                  alert(`API Test: ${response.status} ${response.statusText}\nData: ${data.substring(0, 200)}`);
+                  console.log('API Response:', res.status);
+                  alert(`API Test: ${res.status} OK\nData: ${JSON.stringify(res.data).substring(0, 200)}`);
                 } catch (err) {
                   console.error('API Test Error:', err);
                   alert(`API Test Error: ${err.message}`);

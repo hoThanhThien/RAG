@@ -217,8 +217,7 @@ export default function SupportChat() {
       return;
     }
 
-    const token = localStorage.getItem("access_token");
-    const ws = connectSupportWS(token);
+    const ws = connectSupportWS();
     wsRef.current = ws;
 
     ws.onopen = () => {

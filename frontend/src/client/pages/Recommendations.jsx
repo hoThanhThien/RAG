@@ -1,22 +1,19 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { recommendationService } from "../services/recommendationService";
+import { useAuth } from "../context/AuthContext";
 
 const fmtVND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 
-function readUserIdFromToken() {
-  const token = localStorage.getItem("access_token");
-  if (!token) return "";
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return String(payload?.user_id ?? payload?.UserID ?? "");
-  } catch {
-    return "";
-  }
-}
-
 export default function Recommendations() {
-  const [userId, setUserId] = useState(readUserIdFromToken());
+  const { user } = useAuth();
+  const [userId, setUserId] = useState(user?.UserID || user?.user_id || "");
+
+  useEffect(() => {
+    if (user) {
+      setUserId(String(user.UserID || user.user_id || ""));
+    }
+  }, [user]);
   const [prompt, setPrompt] = useState("recommend a family beach tour");
   const [topK, setTopK] = useState(5);
   const [loading, setLoading] = useState(false);

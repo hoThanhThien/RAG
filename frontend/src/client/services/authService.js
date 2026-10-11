@@ -20,15 +20,11 @@ export const register = async ({ first_name, last_name, email, password, phone }
   }
 };
 
-// Đăng nhập
+// Đăng nhập (HttpOnly Cookie được trình duyệt tự động lưu)
 export const login = async (data) => {
   try {
-    const res = await api.post("/auth/login", data);
-    const token = res.data.access_token;
-
-    localStorage.setItem("access_token", token);
-
-    // Gọi để lấy thông tin người dùng
+    await api.post("/auth/login", data);
+    // Gọi /auth/me để lấy thông tin người dùng dựa trên HttpOnly Cookie vừa nhận
     const userRes = await api.get("/auth/me");
     return { success: true, user: userRes.data };
   } catch (err) {
@@ -39,27 +35,25 @@ export const login = async (data) => {
   }
 };
 
-// Đăng xuất
+// Đăng xuất (Backend xóa HttpOnly Cookie)
 export const logout = async () => {
   try {
     await api.post("/auth/logout");
-  } catch  {
+  } catch {
     // Không cần xử lý lỗi logout
   }
-  localStorage.removeItem("access_token");
 };
 
-// Lấy user hiện tại
+// Lấy user hiện tại dựa trên HttpOnly Cookie
 export const getCurrentUser = async () => {
   const response = await api.get("/auth/me");
   return response.data;
 };
 
 export const changePassword = async (old_password, new_password) => {
-  // axios interceptor đã tự gắn Bearer token rồi
   const res = await api.put("/auth/change-password", {
     old_password,
     new_password,
   });
-  return res.data; // theo spec backend của bạn trả về string
+  return res.data;
 };

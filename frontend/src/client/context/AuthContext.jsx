@@ -8,24 +8,15 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Thêm loading
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
-      // ✅ Kiểm tra token trước khi gọi API
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
       try {
+        // Tự động gửi HttpOnly Cookie để lấy phiên đăng nhập
         const data = await getCurrentUser();
         setUser(data);
-      } catch (err) {
-        // Token không hợp lệ hoặc hết hạn -> xóa token
-        localStorage.removeItem("access_token");
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);

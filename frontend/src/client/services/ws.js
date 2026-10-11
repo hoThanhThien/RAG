@@ -18,23 +18,9 @@ export function getWsBaseUrl() {
 /**
  * Kết nối WebSocket cho Support Chat (backward compatible)
  */
-export function connectSupportWS(token) {
-  if (!token) {
-    console.warn("⚠️ No token for WebSocket");
-    // Return a mock WebSocket object to prevent errors
-    return {
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-      send: () => console.warn("WebSocket not connected"),
-      close: () => {},
-      readyState: WebSocket.CLOSED
-    };
-  }
-
+export function connectSupportWS(token = null) {
   const wsHost = getWsBaseUrl();
-  const url = `${wsHost}/ws/support?token=${token}`;
+  const url = token ? `${wsHost}/ws/support?token=${token}` : `${wsHost}/ws/support`;
 
   console.log("🔌 Connecting to Support WebSocket");
 
@@ -63,13 +49,8 @@ export function connectSupportWSWithRetry(token, options = {}) {
   let isManualClose = false;
 
   const connect = () => {
-    if (!token) {
-      console.warn("⚠️ No token provided for WebSocket connection");
-      return null;
-    }
-
     const wsHost = getWsBaseUrl();
-    const url = `${wsHost}/ws/support?token=${token}`;
+    const url = token ? `${wsHost}/ws/support?token=${token}` : `${wsHost}/ws/support`;
 
     console.log("🔌 Connecting to Support WebSocket");
 
@@ -120,21 +101,9 @@ export function connectSupportWSWithRetry(token, options = {}) {
 /**
  * Kết nối WebSocket cho Admin Dashboard realtime updates
  */
-export function connectAdminDashboardWS(token) {
-  if (!token) {
-    return {
-      onopen: null,
-      onclose: null,
-      onerror: null,
-      onmessage: null,
-      send: () => {},
-      close: () => {},
-      readyState: WebSocket.CLOSED
-    };
-  }
-
+export function connectAdminDashboardWS(token = null) {
   const wsHost = getWsBaseUrl();
-  const url = `${wsHost}/ws/admin/dashboard?token=${token}`;
+  const url = token ? `${wsHost}/ws/admin/dashboard?token=${token}` : `${wsHost}/ws/admin/dashboard`;
 
   const ws = new WebSocket(url);
   ws.onopen = () => console.log("✅ WS dashboard connected");

@@ -103,8 +103,8 @@ export default function AIChatbot() {
   useEffect(() => {
     if (!userId || !supportThreadId) return;
 
-    const token = localStorage.getItem("access_token");
-    const ws = connectSupportWS(token);
+    // Kết nối WebSocket tự động dùng HttpOnly Cookie
+    const ws = connectSupportWS();
     wsRef.current = ws;
 
     ws.onopen = () => setIsSupportConnected(true);

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { tourService } from "../services/tourService";
 import { commentService } from "../services/commentService";
+import { useAuth } from "../context/AuthContext";
 
 function parseJwt(token) {
   if (!token) return null;
@@ -78,6 +79,7 @@ function StarPicker({ value, onChange }) {
 export default function TourDetail() {
   const { id } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
 
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -137,11 +139,10 @@ export default function TourDetail() {
 
   const refreshReviewQuota = useCallback(async () => {
     try {
-      const token = localStorage.getItem("access_token");
-      const payload = parseJwt(token);
-      setCurrentUserId(payload?.user_id ?? payload?.UserID ?? null);
+      const currentUid = user?.UserID || user?.user_id || null;
+      setCurrentUserId(currentUid);
 
-      if (!token) {
+      if (!user) {
         setCanRate(false);
         setRemainingReviews(0);
         return;
@@ -223,8 +224,7 @@ export default function TourDetail() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem("access_token");
-    if (!token) {
+    if (!user) {
       alert("Vui lòng đăng nhập để bình luận.");
       return nav("/login?next=" + encodeURIComponent(`/tours/${tour.id}`));
     }

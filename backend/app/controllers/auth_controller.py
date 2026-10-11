@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import HTTPBearer
 from app.schemas.auth_schema import UserLogin, UserRegister, Token, UserResponse, ChangePassword
 from app.utils.auth import verify_password, get_password_hash, create_access_token
@@ -60,8 +60,8 @@ async def register(user_data: UserRegister):
         connection.close()
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin):
-    """Đăng nhập"""
+async def login(user_credentials: UserLogin, response: Response):
+    """Đăng nhập - Thiết lập HttpOnly Cookie"""
     connection = get_db_connection()
     cursor = connection.cursor()
     
@@ -84,10 +84,22 @@ async def login(user_credentials: UserLogin):
             )
         
         # Tạo access token
-        access_token_expires = timedelta(minutes=30)
+        access_token_expires = timedelta(days=7)
         access_token = create_access_token(
             data={"sub": str(user["UserID"]), "full_name": user["FullName"] },
             expires_delta=access_token_expires
+        )
+        
+        # Ghi HttpOnly Cookie an toàn chống XSS
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            max_age=int(access_token_expires.total_seconds()),
+            expires=int(access_token_expires.total_seconds()),
+            samesite="lax",
+            secure=False,
+            path="/",
         )
         
         return {"access_token": access_token, "token_type": "bearer"}
@@ -97,9 +109,9 @@ async def login(user_credentials: UserLogin):
         connection.close()
 
 @router.post("/logout")
-async def logout(current_user: Dict[str, Any] = Depends(get_current_user)):
-    """Đăng xuất"""
-    # Trong implementation thực tế, bạn có thể thêm token vào blacklist
+async def logout(response: Response, current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Đăng xuất - Xóa HttpOnly Cookie"""
+    response.delete_cookie(key="access_token", path="/", samesite="lax")
     return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
