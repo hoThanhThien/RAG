@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, setAuthToken } from "./api";
 
 // Đăng ký
 export const register = async ({ first_name, last_name, email, password, phone }) => {
@@ -20,11 +20,16 @@ export const register = async ({ first_name, last_name, email, password, phone }
   }
 };
 
-// Đăng nhập (HttpOnly Cookie được trình duyệt tự động lưu)
+// Đăng nhập (HttpOnly Cookie được tự động lưu + Token trong RAM)
 export const login = async (data) => {
   try {
-    await api.post("/auth/login", data);
-    // Gọi /auth/me để lấy thông tin người dùng dựa trên HttpOnly Cookie vừa nhận
+    const res = await api.post("/auth/login", data);
+    const token = res.data?.access_token;
+    if (token) {
+      setAuthToken(token);
+    }
+
+    // Gọi /auth/me để lấy thông tin người dùng
     const userRes = await api.get("/auth/me");
     return { success: true, user: userRes.data };
   } catch (err) {
@@ -35,16 +40,17 @@ export const login = async (data) => {
   }
 };
 
-// Đăng xuất (Backend xóa HttpOnly Cookie)
+// Đăng xuất (Backend xóa HttpOnly Cookie + Xóa token trong RAM)
 export const logout = async () => {
   try {
     await api.post("/auth/logout");
   } catch {
     // Không cần xử lý lỗi logout
   }
+  setAuthToken(null);
 };
 
-// Lấy user hiện tại dựa trên HttpOnly Cookie
+// Lấy user hiện tại
 export const getCurrentUser = async () => {
   const response = await api.get("/auth/me");
   return response.data;

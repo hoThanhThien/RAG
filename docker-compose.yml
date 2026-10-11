@@ -3,12 +3,12 @@ services:
     image: mysql:8.0
     container_name: mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: tourbookingdb
-      MYSQL_USER: tour_user
-      MYSQL_PASSWORD: tour_pass123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tourbookingdb}
+      MYSQL_USER: ${MYSQL_USER:-tour_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tour_pass123}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -24,13 +24,16 @@ services:
     image: rag-backend
     container_name: backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - uploads_data:/app/uploads
     env_file:
-      - ./backend/.env
+      - .env
     environment:
-      DATABASE_URL: mysql+pymysql://tour_user:tour_pass123@mysql:3306/tourbookingdb
+      DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://tour_user:tour_pass123@mysql:3306/tourbookingdb}
+      SECRET_KEY: ${SECRET_KEY:-super-secret-jwt-key-for-tour-booking-dev-environment-2025}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
       PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
@@ -49,6 +52,9 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       RAG_ANSWER_MAX_TOKENS: ${RAG_ANSWER_MAX_TOKENS:-320}
+      BANK_WEBHOOK_URL: ${BANK_WEBHOOK_URL:-http://localhost:8000/payments/webhook/bank}
+      SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
     depends_on:
       mysql:
         condition: service_healthy
@@ -61,7 +67,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
     networks:
       - app_network
@@ -72,10 +78,16 @@ services:
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
         - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8000}
+        - VITE_PAYPAL_CLIENT_ID=${VITE_PAYPAL_CLIENT_ID:-}
+        - VITE_BANK_CODE=${VITE_BANK_CODE:-}
+        - VITE_BANK_NAME=${VITE_BANK_NAME:-}
+        - VITE_BANK_ACCOUNT=${VITE_BANK_ACCOUNT:-}
+        - VITE_BANK_HOLDER=${VITE_BANK_HOLDER:-}
+        - VITE_APP_NAME=${VITE_APP_NAME:-}
     image: rag-frontend
     container_name: frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
       - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8000}
@@ -88,11 +100,11 @@ services:
     image: phpmyadmin:latest
     container_name: phpmyadmin
     ports:
-      - "8080:80"
+      - "${PHPMYADMIN_PORT:-8080}:80"
     environment:
       PMA_HOST: mysql
       PMA_USER: root
-      PMA_PASSWORD: root123
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
     depends_on:
       - mysql
     networks:

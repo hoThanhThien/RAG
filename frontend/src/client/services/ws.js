@@ -1,8 +1,18 @@
+import { getAuthToken } from "./api";
+
 /**
  * Lấy WebSocket URL từ biến môi trường hoặc tự tính từ API URL
- * Hoạt động cho cả local (ws://) và production (wss://)
+ * Tự động đồng bộ giữa 127.0.0.1 và localhost
  */
 export function getWsBaseUrl() {
+  if (typeof window !== "undefined") {
+    const { hostname, protocol } = window.location;
+    if (hostname === "127.0.0.1" || hostname === "localhost") {
+      const wsProto = protocol === "https:" ? "wss:" : "ws:";
+      return `${wsProto}//${hostname}:8000`;
+    }
+  }
+
   // Ưu tiên dùng VITE_WS_URL nếu có
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
@@ -10,19 +20,18 @@ export function getWsBaseUrl() {
   
   // Fallback: Tự tính từ VITE_API_URL
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  
-  // Chuyển http/https thành ws/wss
   return apiUrl.replace(/^http/, "ws");
 }
 
 /**
- * Kết nối WebSocket cho Support Chat (backward compatible)
+ * Kết nối WebSocket cho Support Chat
  */
 export function connectSupportWS(token = null) {
+  const effectiveToken = token || getAuthToken();
   const wsHost = getWsBaseUrl();
-  const url = token ? `${wsHost}/ws/support?token=${token}` : `${wsHost}/ws/support`;
+  const url = effectiveToken ? `${wsHost}/ws/support?token=${effectiveToken}` : `${wsHost}/ws/support`;
 
-  console.log("🔌 Connecting to Support WebSocket");
+  console.log("🔌 Connecting to Support WebSocket:", url);
 
   const ws = new WebSocket(url);
   ws.onopen = () => console.log("✅ WS support connected");
@@ -102,8 +111,9 @@ export function connectSupportWSWithRetry(token, options = {}) {
  * Kết nối WebSocket cho Admin Dashboard realtime updates
  */
 export function connectAdminDashboardWS(token = null) {
+  const effectiveToken = token || getAuthToken();
   const wsHost = getWsBaseUrl();
-  const url = token ? `${wsHost}/ws/admin/dashboard?token=${token}` : `${wsHost}/ws/admin/dashboard`;
+  const url = effectiveToken ? `${wsHost}/ws/admin/dashboard?token=${effectiveToken}` : `${wsHost}/ws/admin/dashboard`;
 
   const ws = new WebSocket(url);
   ws.onopen = () => console.log("✅ WS dashboard connected");

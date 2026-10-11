@@ -133,13 +133,13 @@ async def get_current_user_info(current_user: Dict[str, Any] = Depends(get_curre
     
     return UserResponse(
         user_id=current_user["UserID"],
-        first_name=current_user["FirstName"],
-        last_name=current_user["LastName"], 
-        full_name=current_user["FullName"],
-        email=current_user["Email"],
-        phone=current_user["Phone"],
-        role_name=current_user["RoleName"],
-        role_id=current_user["RoleID"],
+        first_name=current_user.get("FirstName") or "",
+        last_name=current_user.get("LastName") or "", 
+        full_name=current_user.get("FullName") or "",
+        email=current_user.get("Email") or "",
+        phone=current_user.get("Phone") or "",
+        role_name=current_user.get("RoleName") or "User",
+        role_id=current_user.get("RoleID") or 3,
         booking_count=booking_count,
         created_at=current_user.get("CreatedAt")
     )
