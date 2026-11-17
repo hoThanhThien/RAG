@@ -1,17 +1,32 @@
 import { api, clearClientStoredTokens } from "./api";
 
-// Đăng ký
-export const register = async ({ first_name, last_name, email, password, phone }) => {
+// Đăng ký (Mã hóa mật khẩu bcrypt, tự động đăng nhập & lưu JWT vào HttpOnly Cookie)
+export const register = async ({ first_name, last_name, full_name, email, password, phone }) => {
   try {
-    await api.post("/auth/register", {
+    clearClientStoredTokens();
+    const res = await api.post("/auth/register", {
       first_name,
       last_name,
+      full_name,
       email,
       password,
       phone,
       role_id: 3, // default user
     });
-    return { success: true };
+    const loginPayload = res.data?.data || {};
+    const message = res.data?.message || "Đăng ký tài khoản thành công";
+
+    const userRes = await api.get("/auth/me");
+    const user = {
+      ...(loginPayload.account || {}),
+      ...(userRes.data || {}),
+    };
+    return {
+      success: true,
+      user,
+      data: loginPayload,
+      message,
+    };
   } catch (err) {
     return {
       success: false,
@@ -44,6 +59,33 @@ export const login = async (data) => {
     return {
       success: false,
       message: err?.response?.data?.detail || "Đăng nhập thất bại",
+    };
+  }
+};
+
+// Đăng ký / Đăng nhập bằng Google (tự tạo tài khoản nếu email chưa tồn tại & lưu JWT vào HttpOnly Cookie)
+export const loginWithGoogle = async (payload) => {
+  try {
+    clearClientStoredTokens();
+    const res = await api.post("/auth/google", payload);
+    const loginPayload = res.data?.data || {};
+    const message = res.data?.message || "Đăng nhập bằng Google thành công";
+
+    const userRes = await api.get("/auth/me");
+    const user = {
+      ...(loginPayload.account || {}),
+      ...(userRes.data || {}),
+    };
+    return {
+      success: true,
+      user,
+      data: loginPayload,
+      message,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err?.response?.data?.detail || "Đăng nhập Google thất bại",
     };
   }
 };

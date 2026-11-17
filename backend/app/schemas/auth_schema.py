@@ -17,12 +17,22 @@ class UserLogin(BaseModel):
 
 
 class UserRegister(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = ""
+    last_name: Optional[str] = ""
+    full_name: Optional[str] = None
     email: EmailStr
-    password: str
-    phone: str
+    password: str = Field(..., min_length=6)
+    phone: Optional[str] = ""
     role_id: Optional[int] = 3  # Default to user role
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = None
+    access_token: Optional[str] = None
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class AccountSchema(BaseModel):

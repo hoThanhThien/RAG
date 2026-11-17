@@ -1,7 +1,9 @@
 import os
+import secrets
 from datetime import timedelta
 from typing import Any, Dict, Optional
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer
 
@@ -9,6 +11,7 @@ from app.database import get_db_connection
 from app.dependencies.auth_dependencies import get_current_user, get_current_user_optional
 from app.schemas.auth_schema import (
     ChangePassword,
+    GoogleAuthRequest,
     LoginResponse,
     UserLogin,
     UserRegister,
@@ -142,15 +145,126 @@ def _issue_login_response(
     }
 
 
-@router.post("/register", response_model=dict)
-async def register(user_data: UserRegister):
-    """Đăng ký tài khoản mới"""
+def _split_name_parts(first_name: str, last_name: str, full_name: Optional[str], email: str) -> tuple[str, str, str]:
+    fn = (first_name or "").strip()
+    ln = (last_name or "").strip()
+    full = (full_name or "").strip()
+    if full and not fn and not ln:
+        parts = full.split()
+        fn = parts[0]
+        ln = " ".join(parts[1:]) if len(parts) > 1 else ""
+    combined = full or " ".join(p for p in (fn, ln) if p).strip()
+    if not combined:
+        combined = email.split("@")[0] if "@" in email else "User"
+    if not fn:
+        fn = combined.split()[0]
+    return fn[:50], ln[:50], combined[:100]
+
+
+def _verify_google_identity(payload: GoogleAuthRequest) -> Dict[str, str]:
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    dev_mode = os.getenv("GOOGLE_AUTH_DEV_MODE", "true").strip().lower() in ("1", "true", "yes")
+
+    if payload.credential:
+        try:
+            resp = requests.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": payload.credential},
+                timeout=10,
+            )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Không thể kết nối Google để xác thực: {exc}",
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google ID token không hợp lệ hoặc đã hết hạn",
+            )
+        info = resp.json()
+        if google_client_id and info.get("aud") != google_client_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google Client ID không khớp",
+            )
+        if str(info.get("email_verified", "true")).lower() not in ("true", "1"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tài khoản Google chưa xác minh email",
+            )
+        email = (info.get("email") or "").strip().lower()
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không lấy được email từ tài khoản Google",
+            )
+        return {
+            "email": email,
+            "first_name": (info.get("given_name") or "").strip(),
+            "last_name": (info.get("family_name") or "").strip(),
+            "full_name": (info.get("name") or "").strip(),
+        }
+
+    if payload.access_token:
+        try:
+            resp = requests.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {payload.access_token}"},
+                timeout=10,
+            )
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Không thể kết nối Google để lấy thông tin tài khoản: {exc}",
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google access token không hợp lệ hoặc đã hết hạn",
+            )
+        info = resp.json()
+        if info.get("email_verified") is False:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tài khoản Google chưa xác minh email",
+            )
+        email = (info.get("email") or "").strip().lower()
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không lấy được email từ tài khoản Google",
+            )
+        return {
+            "email": email,
+            "first_name": (info.get("given_name") or "").strip(),
+            "last_name": (info.get("family_name") or "").strip(),
+            "full_name": (info.get("name") or "").strip(),
+        }
+
+    if payload.email and (not google_client_id or dev_mode):
+        return {
+            "email": str(payload.email).strip().lower(),
+            "first_name": (payload.first_name or "").strip(),
+            "last_name": (payload.last_name or "").strip(),
+            "full_name": (payload.full_name or "").strip(),
+        }
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Thiếu Google credential hoặc access_token hợp lệ",
+    )
+
+
+@router.post("/register", response_model=LoginResponse)
+async def register(user_data: UserRegister, response: Response, request: Request):
+    """Đăng ký tài khoản mới - Tự động đăng nhập & lưu JWT vào HttpOnly Cookie."""
     connection = get_db_connection()
     cursor = connection.cursor()
 
     try:
-        # Kiểm tra email đã tồn tại
-        cursor.execute("SELECT UserID FROM user WHERE Email = %s", (user_data.email,))
+        normalized_email = str(user_data.email).strip().lower()
+        cursor.execute("SELECT UserID FROM user WHERE Email = %s", (normalized_email,))
         if cursor.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -159,27 +273,136 @@ async def register(user_data: UserRegister):
 
         # Mã hóa mật khẩu bằng bcrypt
         hashed_password = get_password_hash(user_data.password)
-        full_name = f"{user_data.first_name} {user_data.last_name}".strip()
+        first_name, last_name, full_name = _split_name_parts(
+            user_data.first_name or "",
+            user_data.last_name or "",
+            user_data.full_name,
+            normalized_email,
+        )
+        phone = (user_data.phone or "").strip()
 
-        # Thêm user mới
+        # Luôn gán role User (3) cho đăng ký công khai
         cursor.execute(
             """
             INSERT INTO user (FirstName, LastName, FullName, Password, Phone, Email, RoleID)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                user_data.first_name,
-                user_data.last_name,
+                first_name,
+                last_name,
                 full_name,
                 hashed_password,
-                user_data.phone,
-                user_data.email,
-                user_data.role_id,
+                phone,
+                normalized_email,
+                3,
             ),
         )
 
+        new_user_id = cursor.lastrowid
         connection.commit()
-        return {"message": "User registered successfully"}
+
+        cursor.execute(
+            """
+            SELECT u.*, r.RoleName
+            FROM user u
+            JOIN role r ON u.RoleID = r.RoleID
+            WHERE u.UserID = %s
+            """,
+            (new_user_id,),
+        )
+        new_user = cursor.fetchone()
+        if not new_user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load newly registered user",
+            )
+
+        return _issue_login_response(
+            user=new_user,
+            response=response,
+            request=request,
+            message="Đăng ký tài khoản thành công",
+        )
+
+    except HTTPException:
+        connection.rollback()
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@router.post("/google", response_model=LoginResponse)
+async def google_auth(payload: GoogleAuthRequest, response: Response, request: Request):
+    """Đăng ký / Đăng nhập bằng Google - Cấp JWT lưu trong HttpOnly Cookie."""
+    identity = _verify_google_identity(payload)
+    email = identity["email"]
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT u.*, r.RoleName
+            FROM user u
+            JOIN role r ON u.RoleID = r.RoleID
+            WHERE u.Email = %s
+            """,
+            (email,),
+        )
+        user = cursor.fetchone()
+
+        if user:
+            message = "Đăng nhập bằng Google thành công"
+        else:
+            first_name, last_name, full_name = _split_name_parts(
+                identity.get("first_name", ""),
+                identity.get("last_name", ""),
+                identity.get("full_name", ""),
+                email,
+            )
+            random_password_hash = get_password_hash(secrets.token_urlsafe(24))
+            cursor.execute(
+                """
+                INSERT INTO user (FirstName, LastName, FullName, Password, Phone, Email, RoleID)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (first_name, last_name, full_name, random_password_hash, "", email, 3),
+            )
+            new_user_id = cursor.lastrowid
+            connection.commit()
+
+            cursor.execute(
+                """
+                SELECT u.*, r.RoleName
+                FROM user u
+                JOIN role r ON u.RoleID = r.RoleID
+                WHERE u.UserID = %s
+                """,
+                (new_user_id,),
+            )
+            user = cursor.fetchone()
+            message = "Đăng ký và đăng nhập bằng Google thành công"
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Không thể khởi tạo tài khoản Google",
+            )
+
+        return _issue_login_response(
+            user=user,
+            response=response,
+            request=request,
+            message=message,
+        )
 
     except HTTPException:
         connection.rollback()
