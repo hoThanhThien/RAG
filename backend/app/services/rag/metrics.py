@@ -18,6 +18,7 @@ class RAGMetrics:
             "embedding_cache_hits_redis": 0,
             "redis_fallback_total": 0,
             "openai_answer_fallback_total": 0,
+            "out_of_scope_total": 0,
             "cache_invalidations_total": 0,
             "last_invalidation_reason": None,
             "last_rebuild_at": None,

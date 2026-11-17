@@ -44,6 +44,9 @@ const Sidebar = () => {
           <li className={isActive("/admin/comments") ? "active" : ""}>
             <Link to="/admin/comments"><i className="bi bi-chat-left-text-fill me-2" /> Đánh giá</Link>
           </li>
+          <li className={isActive("/admin/rag-settings") ? "active" : ""}>
+            <Link to="/admin/rag-settings"><i className="bi bi-robot me-2" /> Cấu hình RAG AI</Link>
+          </li>
           
         </ul>
       </nav>

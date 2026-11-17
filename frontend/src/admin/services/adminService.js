@@ -155,4 +155,68 @@ export const adminService = {
       throw error;
     }
   },
+
+  getRagConfig: async () => {
+    try {
+      const response = await api.get('/chat/config', liveConfig());
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching RAG config:', error);
+      throw error;
+    }
+  },
+
+  updateRagConfig: async (payload) => {
+    try {
+      const response = await api.put('/chat/config', payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating RAG config:', error);
+      throw error;
+    }
+  },
+
+  testRagChat: async (payload) => {
+    try {
+      const response = await api.post('/chat/test', payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error testing RAG chat:', error);
+      throw error;
+    }
+  },
+
+  reindexRag: async (force = true) => {
+    try {
+      const response = await api.post('/chat/reindex', null, {
+        params: { force },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error reindexing RAG:', error);
+      throw error;
+    }
+  },
+
+  invalidateRagCache: async (reason = 'admin_manual') => {
+    try {
+      const response = await api.post('/chat/cache/invalidate', null, {
+        params: { reason },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error invalidating RAG cache:', error);
+      throw error;
+    }
+  },
+
+  getRagMetrics: async () => {
+    try {
+      const response = await api.get('/chat/metrics', liveConfig());
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching RAG metrics:', error);
+      throw error;
+    }
+  },
 };

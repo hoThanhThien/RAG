@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from app.services.rag.intents import extract_query_intents, segment_instruction
+from app.services.rag.intents import extract_query_intents, normalize_text, segment_instruction
 
 
 def build_context(sources: List[Dict[str, Any]], max_context_chars: int) -> str:
@@ -23,8 +22,9 @@ def build_context(sources: List[Dict[str, Any]], max_context_chars: int) -> str:
     return "\n\n".join(parts)
 
 
-def build_system_prompt(segment: Optional[Dict[str, Any]]) -> str:
+def build_system_prompt(segment: Optional[Dict[str, Any]], custom_addon: str = "") -> str:
     personalization = segment_instruction(segment)
+    addon_block = f"\n\nHƯỚNG DẪN BỔ SUNG TỪ QUẢN TRỊ VIÊN:\n{custom_addon.strip()}" if custom_addon and custom_addon.strip() else ""
     return (
         "Bạn là trợ lý AI tư vấn du lịch. Chỉ được phép dựa trên context được cung cấp, không bịa thông tin.\n"
         "\n"
@@ -54,8 +54,59 @@ def build_system_prompt(segment: Optional[Dict[str, Any]]) -> str:
         "Nếu intent là 'cao cấp' thì sắp xếp giảm dần theo giá.\n"
         "KHÔNG thêm text như 'gợi ý cho bạn' nếu không cần thiết. "
         "Trả lời bằng tiếng Việt, ngắn gọn, thực dụng.\n"
-        f"{personalization}"
+        f"{personalization}{addon_block}"
     )
+
+
+def build_out_of_scope_prompts(
+    query: str,
+    segment: Optional[Dict[str, Any]],
+    mode: str,
+    custom_system_prompt: str = "",
+    popular_tours_context: str = "",
+) -> Tuple[str, str]:
+    personalization = segment_instruction(segment)
+    admin_prompt = (custom_system_prompt or "").strip()
+
+    if mode == "open_ai":
+        base_prompt = admin_prompt or (
+            "Bạn là trợ lý AI thân thiện của nền tảng đặt tour du lịch. "
+            "Hãy trả lời câu hỏi của người dùng một cách tự nhiên, rõ ràng, súc tích bằng tiếng Việt."
+        )
+        system_prompt = (
+            f"{base_prompt}\n\n"
+            "Lưu ý:\n"
+            "- Câu hỏi này nằm ngoài danh mục tour hiện có trong hệ thống.\n"
+            "- Tuyệt đối KHÔNG bịa đặt tên tour hoặc giá vé không có trong dữ liệu được cung cấp.\n"
+            f"- Cá nhân hóa nhẹ nhàng: {personalization}"
+        )
+    else:
+        # general_travel (mặc định)
+        base_prompt = admin_prompt or (
+            "Bạn là chuyên gia tư vấn du lịch thân thiện và am hiểu thực tế."
+        )
+        system_prompt = (
+            f"{base_prompt}\n\n"
+            "NHIỆM VỤ KHI CÂU HỎI NGOÀI DANH MỤC TOUR:\n"
+            "1. Dùng kiến thức du lịch chung để giải đáp ngắn gọn, hữu ích và thực tế cho câu hỏi của khách (visa, kinh nghiệm, thời tiết, văn hóa, điểm đến ngoài danh mục...).\n"
+            "2. Nếu khách hỏi về một điểm đến/tour cụ thể chưa có trong hệ thống, hãy nói rõ là hiện tại danh mục tour của hệ thống chưa có tour khớp trực tiếp.\n"
+            "3. Tuyệt đối KHÔNG bịa đặt tên tour, lịch khởi hành hoặc giá tour của hệ thống nếu không có trong danh sách gợi ý bên dưới.\n"
+            "4. Nếu có danh sách tour nổi bật bên dưới, có thể gợi ý nhẹ nhàng 1–3 lựa chọn thay thế phù hợp.\n"
+            "5. Trả lời bằng tiếng Việt, tự nhiên, súc tích.\n"
+            f"{personalization}"
+        )
+
+    popular_block = (
+        f"\n\nMột số tour nổi bật hiện có trong hệ thống (chỉ dùng để tham khảo/gợi ý thêm nếu phù hợp):\n{popular_tours_context}"
+        if popular_tours_context.strip()
+        else "\n\n(Hiện không đính kèm tour gợi ý bổ sung.)"
+    )
+    user_prompt = (
+        f"Người dùng hỏi: {query}"
+        f"{popular_block}\n\n"
+        "Hãy trả lời trực tiếp câu hỏi trên bằng tiếng Việt."
+    )
+    return system_prompt, user_prompt
 
 
 def build_user_prompt(query: str, segment: Optional[Dict[str, Any]], context: str, focus_tour_id: Optional[int] = None, focus_source: Optional[Dict[str, Any]] = None) -> str:
@@ -88,8 +139,7 @@ def build_user_prompt(query: str, segment: Optional[Dict[str, Any]], context: st
         )
     # Detect if this is a knowledge question (no tour suggestion needed)
     knowledge_keywords = ["co gi chung", "diem chung", "la gi", "tai sao", "so sanh", "dinh nghia", "giai thich"]
-    from app.services.rag.intents import normalize_text as _norm
-    query_norm = _norm(query)
+    query_norm = normalize_text(query)
     is_knowledge_question = any(kw in query_norm for kw in knowledge_keywords)
 
     answer_instruction = (

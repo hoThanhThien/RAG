@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toAbsoluteUrl } from "../services/api";
 import { chatbotService } from "../services/chatbotService";
 import { supportApi } from "../services/supportService";
@@ -25,6 +25,12 @@ const INITIAL_AI_MESSAGE = {
 export default function AIChatbot() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const focusTourId = useMemo(() => {
+    const match = location.pathname.match(/^\/(?:tours|tour-detail)\/(\d+)/i);
+    return match ? Number(match[1]) : null;
+  }, [location.pathname]);
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("ai"); // 'ai' hoặc 'support'
@@ -180,6 +186,14 @@ export default function AIChatbot() {
       timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
     };
 
+    const historyPayload = messages
+      .filter((m) => m.id !== "welcome_init" && !m.isError && (m.sender === "user" || m.sender === "bot") && m.text)
+      .slice(-6)
+      .map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
     setMessages((prev) => [...prev, userMsg]);
     setInputText("");
     setIsLoading(true);
@@ -189,6 +203,8 @@ export default function AIChatbot() {
         query: textToSend,
         userId: userId,
         topK: 4,
+        focusTourId: focusTourId,
+        history: historyPayload,
       });
 
       // Lọc tour trùng lặp theo tour_id
@@ -206,6 +222,9 @@ export default function AIChatbot() {
         sender: "bot",
         text: res.answer || "Dưới đây là một số tour phù hợp với yêu cầu của bạn:",
         sources: uniqueSources,
+        isOutOfScope: Boolean(res.is_out_of_scope),
+        outOfScopeMode: res.out_of_scope_mode || null,
+        modelUsed: res.model_used || null,
         timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -215,6 +234,7 @@ export default function AIChatbot() {
       const errorMsg = {
         id: `err_${Date.now()}`,
         sender: "bot",
+        isError: true,
         text: "Rất tiếc, hệ thống tư vấn AI đang bận hoặc có lỗi kết nối. Bạn vui lòng thử lại sau giây lát!",
         sources: [],
         timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
@@ -371,17 +391,31 @@ export default function AIChatbot() {
           {/* ========================================================= */}
           {activeTab === "ai" && (
             <>
+              {focusTourId && (
+                <div className="ai-focus-banner">
+                  <i className="bi bi-pin-angle-fill"></i>
+                  <span>Đang tư vấn theo ngữ cảnh Tour #{focusTourId}</span>
+                </div>
+              )}
               <div className="ai-chat-body">
                 {messages.map((m) => (
                   <div key={m.id} className={`ai-message ${m.sender}`}>
                     <div className="ai-bubble">
+                      {m.sender === "bot" && m.isOutOfScope && (
+                        <div className="ai-oos-tag">
+                          <i className="bi bi-compass"></i> Tư vấn mở rộng ngoài danh mục
+                        </div>
+                      )}
                       <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
 
                       {/* Danh sách thẻ Tour được gợi ý bởi RAG */}
                       {m.sources && m.sources.length > 0 && (
                         <div className="ai-sources-container">
                           <div className="ai-sources-title">
-                            <i className="bi bi-geo-alt-fill text-danger"></i> Gợi ý tour phù hợp:
+                            <i className="bi bi-geo-alt-fill text-danger"></i>{" "}
+                            {m.isOutOfScope
+                              ? "Một số tour nổi bật có thể bạn quan tâm:"
+                              : "Gợi ý tour phù hợp:"}
                           </div>
                           {m.sources.map((src, idx) => {
                             const imageUrl = src.image_url
@@ -393,7 +427,7 @@ export default function AIChatbot() {
                                 key={`${src.tour_id}-${idx}`}
                                 className="ai-source-card"
                                 onClick={() => {
-                                  navigate(`/tour-detail/${src.tour_id}`);
+                                  navigate(`/tours/${src.tour_id}`);
                                   setIsOpen(false);
                                 }}
                                 title={`Xem chi tiết ${src.title}`}

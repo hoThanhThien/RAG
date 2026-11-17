@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import re
 import unicodedata
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 
 BEACH_TERMS = ["bien", "beach", "island", "coast", "phu quoc", "nha trang", "da nang", "ha long", "quy nhon", "con dao", "vung tau"]
@@ -22,10 +23,78 @@ SIMILAR_TERMS = [
 ]
 
 
+FOLLOWUP_PATTERNS = [
+    "tour do",
+    "tour nay",
+    "tour dau",
+    "tour thu",
+    "cai dau",
+    "cai thu",
+    "cai do",
+    "cai nay",
+    "con cho",
+    "con slot",
+    "may ngay",
+    "bao lau",
+    "gia bao nhieu",
+    "gia sao",
+    "nhieu tien",
+    "di bang gi",
+    "phuong tien",
+    "lich trinh",
+    "khi nao",
+    "khoi hanh",
+    "them thong tin",
+    "chi tiet hon",
+]
+
+QUERY_STOPWORDS = {
+    "toi", "minh", "ban", "em", "anh", "chi", "co", "chu", "bac", "quy", "khach",
+    "cho", "hoi", "muon", "can", "tim", "xem", "kiem", "khong", "la", "gi", "nao",
+    "dau", "tai", "va", "hay", "hoac", "nhung", "cac", "mot", "nhieu", "ve", "voi",
+    "cua", "trong", "ngoai", "tren", "duoi", "sau", "truoc", "nay", "kia", "do",
+    "tour", "du", "lich", "chuyen", "di", "gia", "bao", "nhieu", "tien", "ngay",
+    "dem", "thang", "nam", "tu", "van", "goi", "y", "nhe", "vay", "a", "oi",
+    "the", "sao", "nhu", "de", "duoc", "thi", "ma", "con", "het", "dang", "se",
+    "da", "vua", "moi", "tot", "nhat", "re", "cao", "cap", "binh", "phu", "hop",
+    "nhung", "ai", "lam", "giup", "xin", "chao", "cam", "on", "vui", "long",
+    "for", "the", "and", "with", "what", "where", "when", "how", "can", "you",
+    "please", "about", "want", "find", "book", "trip", "travel",
+}
+
+
 def normalize_text(text: Any) -> str:
-    normalized = unicodedata.normalize("NFKD", " ".join(str(text or "").split()))
+    cleaned = " ".join(str(text or "").split()).replace("đ", "d").replace("Đ", "D")
+    normalized = unicodedata.normalize("NFKD", cleaned)
     normalized = normalized.encode("ascii", "ignore").decode("ascii")
     return normalized.lower()
+
+
+def extract_meaningful_tokens(query: str) -> List[str]:
+    normalized = normalize_text(query)
+    raw_tokens = re.findall(r"[a-z0-9]+", normalized)
+    meaningful: List[str] = []
+    seen = set()
+    for token in raw_tokens:
+        if len(token) < 2 or token in QUERY_STOPWORDS:
+            continue
+        if token not in seen:
+            seen.add(token)
+            meaningful.append(token)
+    return meaningful
+
+
+def is_followup_query(query: str) -> bool:
+    normalized = normalize_text(query)
+    if not normalized:
+        return False
+    if any(pattern in normalized for pattern in FOLLOWUP_PATTERNS):
+        return True
+    if any(extract_query_intents(query).values()):
+        return False
+    tokens = extract_meaningful_tokens(query)
+    word_count = len(normalized.split())
+    return word_count <= 4 and len(tokens) == 0
 
 
 def extract_query_intents(query: str) -> Dict[str, bool]:

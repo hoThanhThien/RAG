@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -29,12 +30,20 @@ from app.services.rag.intents import (
     MOUNTAIN_TERMS,
     RELAX_TERMS,
     SIMILAR_TERMS,
+    extract_meaningful_tokens,
     extract_query_intents,
+    is_followup_query,
     normalize_text,
     source_match_text,
 )
 from app.services.rag.metrics import rag_metrics
-from app.services.rag.prompting import build_context, build_system_prompt, build_user_prompt
+from app.services.rag.prompting import (
+    build_context,
+    build_out_of_scope_prompts,
+    build_system_prompt,
+    build_user_prompt,
+)
+from app.services.rag.runtime_config import apply_runtime_override, get_runtime_config
 
 try:
     import faiss  # type: ignore
@@ -236,7 +245,7 @@ def _get_sbert_model() -> Optional[Any]:
         return None
 
 
-def _get_cross_encoder() -> Optional[Any]:
+def _get_cross_encoder(runtime_cfg: Optional[Dict[str, Any]] = None) -> Optional[Any]:
     """Lazy-load CrossEncoder for re-ranking.
 
     WHY: Cross-encoders process (query, document) pairs jointly, enabling
@@ -246,15 +255,20 @@ def _get_cross_encoder() -> Optional[Any]:
     well for Vietnamese.
     """
     global _CROSS_ENCODER_MODEL
-    if not settings.reranker_enabled:
+    cfg = runtime_cfg or get_runtime_config()
+    enabled = bool(cfg.get("reranker_enabled", settings.reranker_enabled))
+    model_name = str(cfg.get("reranker_model") or settings.reranker_model).strip()
+    if not enabled:
         return None
     if not _CROSS_ENCODER_AVAILABLE or _CrossEncoder is None:
         return None
-    if _CROSS_ENCODER_MODEL is not None:
+    if _CROSS_ENCODER_MODEL is not None and getattr(_CROSS_ENCODER_MODEL, "_model_name_cached", model_name) == model_name:
         return _CROSS_ENCODER_MODEL
     try:
-        _CROSS_ENCODER_MODEL = _CrossEncoder(settings.reranker_model)
-        logger.info("Loaded CrossEncoder reranker: %s", settings.reranker_model)
+        model = _CrossEncoder(model_name)
+        setattr(model, "_model_name_cached", model_name)
+        _CROSS_ENCODER_MODEL = model
+        logger.info("Loaded CrossEncoder reranker: %s", model_name)
         return _CROSS_ENCODER_MODEL
     except Exception:
         logger.warning("Failed to load CrossEncoder reranker, reranking disabled", exc_info=False)
@@ -297,21 +311,24 @@ def _batched(items: List[str], batch_size: int) -> List[List[str]]:
     return [items[index : index + batch_size] for index in range(0, len(items), batch_size)]
 
 
-def _call_openai_embeddings(texts: List[str]) -> np.ndarray:
-    api_key = os.getenv("OPENAI_API_KEY")
+def _call_openai_embeddings(texts: List[str], runtime_cfg: Optional[Dict[str, Any]] = None) -> np.ndarray:
+    cfg = runtime_cfg or get_runtime_config()
+    api_key = str(cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not configured")
+    base_url = str(cfg.get("openai_base_url") or DEFAULT_OPENAI_BASE_URL).rstrip("/")
+    embedding_model = str(cfg.get("embedding_model") or DEFAULT_EMBEDDING_MODEL).strip()
 
     vectors: List[np.ndarray] = []
     for batch in _batched(texts, settings.embedding_batch_size):
         response = _HTTP_SESSION.post(
-            f"{DEFAULT_OPENAI_BASE_URL}/embeddings",
+            f"{base_url}/embeddings",
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             json={
-                "model": DEFAULT_EMBEDDING_MODEL,
+                "model": embedding_model,
                 "input": batch,
             },
             timeout=settings.openai_timeout_seconds,
@@ -361,6 +378,74 @@ def _fetch_tour_rows() -> List[Dict[str, Any]]:
             return list(cur.fetchall() or [])
     finally:
         conn.close()
+
+
+def _load_tour_rows_from_metadata() -> List[Dict[str, Any]]:
+    """Fallback tour loader using existing rag_store/chunks.json when MySQL is unavailable."""
+    if not METADATA_FILE.exists():
+        return []
+    try:
+        chunks = json.loads(METADATA_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+    by_tour: Dict[int, Dict[str, Any]] = {}
+    desc_parts: Dict[int, List[str]] = {}
+    review_parts: Dict[int, List[str]] = {}
+
+    for chunk in chunks:
+        tour_id = _safe_int(chunk.get("tour_id"))
+        if tour_id <= 0:
+            continue
+        entry = by_tour.setdefault(
+            tour_id,
+            {
+                "tour_id": tour_id,
+                "title": chunk.get("title") or f"Tour {tour_id}",
+                "location": chunk.get("location") or "",
+                "description": "",
+                "price": _safe_float(chunk.get("price")),
+                "start_date": None,
+                "end_date": None,
+                "capacity": 0,
+                "status": "Available",
+                "category_name": chunk.get("category_name") or "General",
+                "avg_rating": 0.0,
+                "booking_count": 0,
+                "review_snippets": "",
+            },
+        )
+        chunk_type = str(chunk.get("chunk_type") or "")
+        text = str(chunk.get("text") or "")
+        title = str(chunk.get("title") or entry["title"])
+
+        if chunk_type == "overview":
+            raw_start = chunk.get("start_date") or _extract_text_field(text, "Khoi hanh")
+            raw_end = chunk.get("end_date") or _extract_text_field(text, "Ket thuc")
+            entry["start_date"] = None if not raw_start or str(raw_start).upper() == "N/A" else str(raw_start)
+            entry["end_date"] = None if not raw_end or str(raw_end).upper() == "N/A" else str(raw_end)
+            entry["capacity"] = _safe_int(chunk.get("capacity") or _extract_text_field(text, "Suc chua"))
+            entry["status"] = str(chunk.get("status") or _extract_text_field(text, "Trang thai") or "Available")
+            entry["booking_count"] = _safe_int(
+                chunk.get("booking_count") or _extract_text_field(text, "So booking da xac nhan")
+            )
+            entry["avg_rating"] = _safe_float(_extract_text_field(text, "Danh gia trung binh"))
+        elif chunk_type.startswith("description_"):
+            prefix = f"Mo ta tour {title}: "
+            clean = text[len(prefix) :] if text.startswith(prefix) else text
+            if clean:
+                desc_parts.setdefault(tour_id, []).append(clean)
+        elif chunk_type.startswith("reviews_"):
+            prefix = f"Nhan xet khach hang ve tour {title}: "
+            clean = text[len(prefix) :] if text.startswith(prefix) else text
+            if clean:
+                review_parts.setdefault(tour_id, []).append(clean)
+
+    for tour_id, entry in by_tour.items():
+        entry["description"] = " ".join(desc_parts.get(tour_id, []))
+        entry["review_snippets"] = " | ".join(review_parts.get(tour_id, []))
+
+    return sorted(by_tour.values(), key=lambda row: row["tour_id"], reverse=True)
 
 
 def _generate_enrichment_text(title: str, location: str, category_name: str, price: float, avg_rating: float, booking_count: int) -> str:
@@ -480,8 +565,10 @@ def _build_chunks(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         booking_count = _safe_int(row.get("booking_count"))
         capacity = _safe_int(row.get("capacity"))
         status = _normalize_whitespace(row.get("status") or "Available")
-        start_date = row.get("start_date").isoformat() if row.get("start_date") else "N/A"
-        end_date = row.get("end_date").isoformat() if row.get("end_date") else "N/A"
+        raw_start = row.get("start_date")
+        raw_end = row.get("end_date")
+        start_date = raw_start.isoformat() if hasattr(raw_start, "isoformat") else (str(raw_start) if raw_start else "N/A")
+        end_date = raw_end.isoformat() if hasattr(raw_end, "isoformat") else (str(raw_end) if raw_end else "N/A")
 
         overview = (
             f"Tour {title}. Diem den: {location}. Danh muc: {category_name}. "
@@ -606,7 +693,14 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         }
 
     started_at = time.perf_counter()
-    rows = _fetch_tour_rows()
+    runtime_cfg = get_runtime_config()
+    try:
+        rows = _fetch_tour_rows()
+        data_source = "mysql"
+    except Exception as exc:
+        logger.warning("Database unavailable during RAG index build (%s); falling back to metadata", exc)
+        rows = _load_tour_rows_from_metadata()
+        data_source = "metadata-fallback"
     chunks = _build_chunks(rows)
 
     # --- Integrate Vietnam tourism knowledge base ---
@@ -614,7 +708,8 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
     # destinations in depth. They bridge the vocabulary gap between natural
     # user queries ("Hội An có gì hay?") and sparse tour metadata fields.
     # BM25 benefits most: knowledge chunks contain the exact Vietnamese terms.
-    if settings.knowledge_base_enabled:
+    kb_enabled = bool(runtime_cfg.get("knowledge_base_enabled", settings.knowledge_base_enabled))
+    if kb_enabled:
         kb_chunks = load_knowledge_chunks(max_chunks=settings.knowledge_base_max_chunks)
         if kb_chunks:
             chunks.extend(kb_chunks)
@@ -625,21 +720,33 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
         raise RuntimeError("No tour data found to build the RAG index")
 
     vectorizer = None
-    _openai_key = os.getenv("OPENAI_API_KEY", "")
-    _openai_base = os.getenv("OPENAI_BASE_URL", "")
-    _use_openai_embeddings = bool(_openai_key) and "groq.com" not in _openai_base
+    _openai_key = str(runtime_cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
+    _openai_base = str(runtime_cfg.get("openai_base_url") or os.getenv("OPENAI_BASE_URL") or "").strip()
+    _provider = str(runtime_cfg.get("llm_provider") or "openai").lower()
+    _use_openai_embeddings = (
+        bool(_openai_key)
+        and _provider not in ("groq", "gemini", "openrouter", "local_fallback")
+        and "groq.com" not in _openai_base
+        and "generativelanguage.googleapis.com" not in _openai_base
+    )
+    embedding_provider = ""
     if _use_openai_embeddings:
-        vectors = _call_openai_embeddings(texts)
-        embedding_provider = "openai"
-    elif _get_sbert_model() is not None:
-        # WHY: SBERT produces 384-dim dense vectors that capture semantic
-        # meaning in Vietnamese, far superior to TF-IDF for this use-case.
-        # Set OPENAI_API_KEY to use text-embedding-3-large for best quality.
-        _, vectors = _fit_local_embeddings(texts)
-        embedding_provider = "local-sbert"
-    else:
-        vectorizer, vectors = _fit_local_embeddings(texts)
-        embedding_provider = "local-tfidf"
+        try:
+            vectors = _call_openai_embeddings(texts, runtime_cfg=runtime_cfg)
+            embedding_provider = "openai"
+        except Exception as exc:
+            logger.warning("OpenAI embedding build failed (%s), falling back to local embeddings", exc)
+
+    if not embedding_provider:
+        if _get_sbert_model() is not None:
+            # WHY: SBERT produces 384-dim dense vectors that capture semantic
+            # meaning in Vietnamese, far superior to TF-IDF for this use-case.
+            # Set OPENAI_API_KEY to use text-embedding-3-large for best quality.
+            _, vectors = _fit_local_embeddings(texts)
+            embedding_provider = "local-sbert"
+        else:
+            vectorizer, vectors = _fit_local_embeddings(texts)
+            embedding_provider = "local-tfidf"
 
     vectors = _normalize_vectors(vectors.astype("float32"))
     index = None
@@ -651,13 +758,18 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
     np.save(VECTORS_FILE, vectors)
     METADATA_FILE.write_text(json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    dense_w = float(runtime_cfg.get("hybrid_dense_weight", settings.hybrid_dense_weight))
+    lexical_w = float(runtime_cfg.get("hybrid_lexical_weight", settings.hybrid_lexical_weight))
+    emb_model_name = str(runtime_cfg.get("embedding_model") or DEFAULT_EMBEDDING_MODEL)
+
     state = {
         "built_at": int(time.time()),
         "document_count": len(chunks),
         "tour_count": len(rows),
+        "data_source": data_source,
         "embedding_provider": embedding_provider,
         "embedding_model": (
-            DEFAULT_EMBEDDING_MODEL if embedding_provider == "openai"
+            emb_model_name if embedding_provider == "openai"
             else settings.local_embedding_model if embedding_provider == "local-sbert"
             else "tfidf"
         ),
@@ -668,8 +780,8 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
             "overlap_sentences": settings.chunk_overlap_sentences,
         },
         "weights": {
-            "dense": settings.hybrid_dense_weight,
-            "lexical": settings.hybrid_lexical_weight,
+            "dense": dense_w,
+            "lexical": lexical_w,
         },
     }
     STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -685,15 +797,16 @@ def build_vector_store(force: bool = False) -> Dict[str, Any]:
     _LOCAL_RESPONSE_CACHE.clear()
     invalidate_rag_response_cache(reason="rebuild")
     rag_metrics.mark_rebuild()
-    logger.info("RAG index built in %.2fs with %s chunks across %s tours", time.perf_counter() - started_at, len(chunks), len(rows))
+    logger.info("RAG index built in %.2fs with %s chunks across %s tours (%s)", time.perf_counter() - started_at, len(chunks), len(rows), data_source)
 
     return {
         "message": "RAG index built successfully",
         "documents": len(chunks),
         "tour_count": len(rows),
+        "data_source": data_source,
         "embedding_provider": embedding_provider,
         "path": str(RAG_DIR),
-        "knowledge_base_enabled": settings.knowledge_base_enabled,
+        "knowledge_base_enabled": kb_enabled,
     }
 
 
@@ -740,18 +853,27 @@ def _response_cache_key(
     cache_state: Dict[str, Any],
     segment: Optional[Dict[str, Any]],
     focus_tour_id: Optional[int] = None,
+    history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     state = cache_state.get("state") or {}
     built_at = state.get("built_at") or "0"
     embedding_provider = state.get("embedding_provider") or "local-tfidf"
     epoch = _get_response_cache_epoch()
+    if history:
+        trimmed = [
+            {"role": str(t.get("role") or ""), "content": str(t.get("content") or "")[:200]}
+            for t in history[-4:]
+        ]
+        history_sig = hashlib.md5(json.dumps(trimmed, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
+    else:
+        history_sig = "nohist"
     return (
         f"response:{embedding_provider}:{built_at}:{epoch}:{top_k}:{user_id or 0}:"
-        f"{focus_tour_id or 0}:{_segment_cache_signature(segment)}:{normalize_text(query)}"
+        f"{focus_tour_id or 0}:{history_sig}:{_segment_cache_signature(segment)}:{normalize_text(query)}"
     )
 
 
-def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
+def _embed_query(query: str, cache: Dict[str, Any], runtime_cfg: Optional[Dict[str, Any]] = None) -> np.ndarray:
     provider = str((cache.get("state") or {}).get("embedding_provider") or "local-tfidf")
     built_at = str((cache.get("state") or {}).get("built_at") or "0")
     cache_key = f"{provider}:{built_at}:{normalize_text(query)}"
@@ -770,7 +892,7 @@ def _embed_query(query: str, cache: Dict[str, Any]) -> np.ndarray:
         return cached
 
     if provider == "openai":
-        vectors = _call_openai_embeddings([query])
+        vectors = _call_openai_embeddings([query], runtime_cfg=runtime_cfg)
     elif provider == "local-sbert":
         # WHY: SBERT query embedding must match the SBERT document embeddings
         # stored in the index. Using TF-IDF transform here would give wrong dims.
@@ -807,10 +929,51 @@ def _expand_query_for_retrieval(query: str) -> str:
         expansions.append("tour gia re tiet kiem khuyen mai gia tot")
     if intents.get("relax"):
         expansions.append("tour nghi duong thu gian resort yen tinh")
-    if len(normalized_query.split()) <= 3 and not any(intents.values()):
+    travel_hint_terms = ("tour", "du lich", "di", "nghi", "chuyen", "ve", "dat", "kham pha", "choi")
+    if (
+        len(normalized_query.split()) <= 3
+        and not any(intents.values())
+        and any(term in normalized_query for term in travel_hint_terms)
+    ):
         expansions.append("tour du lich pho bien de di")
 
     return " ".join(dict.fromkeys(expansions))
+
+
+def _contextualize_query_with_history(query: str, history: Optional[List[Dict[str, str]]]) -> str:
+    if not history or not is_followup_query(query):
+        return query
+
+    prev_users: List[str] = []
+    prev_assistant = ""
+    for turn in reversed(history):
+        role = str(turn.get("role") or "").strip().lower()
+        content = _normalize_whitespace(turn.get("content"))
+        if not content:
+            continue
+        if role == "assistant" and not prev_assistant:
+            prev_assistant = content[:200]
+        elif role == "user":
+            prev_users.append(content)
+            if len(prev_users) >= 2:
+                break
+
+    if not prev_users and not prev_assistant:
+        return query
+
+    deictic_terms = ("tour do", "tour nay", "tour dau", "tour thu", "cai dau", "cai thu", "cai do", "cai nay")
+    norm_q = normalize_text(query)
+    parts: List[str] = []
+    for user_msg in prev_users:
+        if extract_meaningful_tokens(user_msg) or any(extract_query_intents(user_msg).values()):
+            parts.append(user_msg)
+            break
+    if not parts and prev_users:
+        parts.append(prev_users[0])
+    if prev_assistant and any(term in norm_q for term in deictic_terms):
+        parts.append(prev_assistant)
+    parts.append(query)
+    return " ".join(parts)
 
 
 def _adaptive_search_k(query: str, top_k: int, chunk_count: int) -> Tuple[int, int]:
@@ -858,7 +1021,7 @@ def _lexical_candidates(expanded_query: str, cache: Dict[str, Any], search_k: in
     return bm25.search(normalize_text(expanded_query), search_k)
 
 
-def _rerank_candidates(query: str, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _rerank_candidates(query: str, items: List[Dict[str, Any]], runtime_cfg: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Re-rank items using a cross-encoder model.
 
     WHY: The first-stage hybrid retriever scores query and document independently.
@@ -867,7 +1030,7 @@ def _rerank_candidates(query: str, items: List[Dict[str, Any]]) -> List[Dict[str
     short queries can be highly ambiguous ("tour đẹp", "đi biển mùa hè").
     Falls back gracefully to original order if the model is not available.
     """
-    cross_encoder = _get_cross_encoder()
+    cross_encoder = _get_cross_encoder(runtime_cfg=runtime_cfg)
     if cross_encoder is None or not items:
         return items
     try:
@@ -885,17 +1048,40 @@ def _rerank_candidates(query: str, items: List[Dict[str, Any]]) -> List[Dict[str
         return items
 
 
-def _collect_hybrid_candidates(query: str, cache: Dict[str, Any], top_k: int) -> List[Dict[str, Any]]:
+def _collect_hybrid_candidates(
+    query: str,
+    cache: Dict[str, Any],
+    top_k: int,
+    runtime_cfg: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     chunks = cache.get("chunks") or []
     if not chunks:
         return []
 
+    cfg = runtime_cfg or get_runtime_config()
+    dense_w = float(cfg.get("hybrid_dense_weight", settings.hybrid_dense_weight))
+    lexical_w = float(cfg.get("hybrid_lexical_weight", settings.hybrid_lexical_weight))
+    total_w = dense_w + lexical_w
+    if total_w > 0:
+        dense_w /= total_w
+        lexical_w /= total_w
+    else:
+        dense_w, lexical_w = 0.68, 0.32
+
     expanded_query = _expand_query_for_retrieval(query)
     dense_k, lexical_k = _adaptive_search_k(query, top_k, len(chunks))
-    query_vector = _embed_query(expanded_query, cache)
+    query_vector = _embed_query(expanded_query, cache, runtime_cfg=cfg)
 
     dense = _dense_candidates(query_vector, cache, dense_k)
     lexical = _lexical_candidates(expanded_query, cache, lexical_k)
+    raw_dense_map = {index: float(score) for index, score in dense}
+    raw_lexical_map = {index: float(score) for index, score in lexical}
+
+    max_raw_dense = max(raw_dense_map.values()) if raw_dense_map else 0.0
+    max_raw_lexical = max(raw_lexical_map.values()) if raw_lexical_map else 0.0
+    dense_confidence = min(1.0, max(0.0, max_raw_dense) / 0.30)
+    lexical_confidence = min(1.0, max(0.0, max_raw_lexical) / 4.5)
+
     dense_scores = _normalize_score_map(dense)
     lexical_scores = _normalize_score_map(lexical)
 
@@ -903,11 +1089,15 @@ def _collect_hybrid_candidates(query: str, cache: Dict[str, Any], top_k: int) ->
     combined: List[Dict[str, Any]] = []
     for index in candidate_indices:
         item = dict(chunks[index])
-        dense_score = dense_scores.get(index, 0.0)
-        lexical_score = lexical_scores.get(index, 0.0)
+        raw_dense = raw_dense_map.get(index, 0.0)
+        raw_lexical = raw_lexical_map.get(index, 0.0)
+        dense_score = dense_scores.get(index, 0.0) * dense_confidence
+        lexical_score = lexical_scores.get(index, 0.0) * lexical_confidence
+        item["raw_dense_score"] = round(raw_dense, 4)
+        item["raw_lexical_score"] = round(raw_lexical, 4)
         item["dense_score"] = round(dense_score, 4)
         item["lexical_score"] = round(lexical_score, 4)
-        item["score"] = round(dense_score * settings.hybrid_dense_weight + lexical_score * settings.hybrid_lexical_weight, 4)
+        item["score"] = round(dense_score * dense_w + lexical_score * lexical_w, 4)
         combined.append(item)
 
     combined.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
@@ -1202,10 +1392,18 @@ def _filter_results_by_intent(items: List[Dict[str, Any]], query: str, top_k: in
     return candidates[:top_k]
 
 
-def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] = None) -> List[Dict[str, Any]]:
+def retrieve_documents(
+    query: str,
+    top_k: int = 4,
+    focus_tour_id: Optional[int] = None,
+    history: Optional[List[Dict[str, str]]] = None,
+    runtime_cfg: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     cache = load_vector_store()
+    cfg = runtime_cfg or get_runtime_config()
     started_at = time.perf_counter()
-    intents = extract_query_intents(query)
+    retrieval_query = _contextualize_query_with_history(query, history)
+    intents = extract_query_intents(retrieval_query)
     is_similar_query = intents.get("similar") and focus_tour_id
 
     # Resolve focused tour metadata for context-aware filtering
@@ -1217,7 +1415,7 @@ def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] 
             focus_category = normalize_text(str(focus_src.get("category_name") or ""))
             focus_location = normalize_text(str(focus_src.get("location") or ""))
 
-    candidates = _collect_hybrid_candidates(query, cache, top_k=top_k)
+    candidates = _collect_hybrid_candidates(retrieval_query, cache, top_k=top_k, runtime_cfg=cfg)
     rescored: List[Dict[str, Any]] = []
     for item in candidates:
         enriched = dict(item)
@@ -1229,13 +1427,15 @@ def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] 
                 continue  # remove the current tour from similar results
             item_text = normalize_text(str(enriched.get("category_name") or ""))
             item_location = normalize_text(str(enriched.get("location") or ""))
-            enriched["score"] = _intent_score_adjustment(query, enriched)
+            enriched["score"] = _intent_score_adjustment(retrieval_query, enriched)
+            enriched["retrieval_score"] = enriched["score"]
             if focus_category and focus_category in item_text:
                 enriched["score"] = round(float(enriched.get("score") or 0.0) + 0.80, 4)
             if focus_location and focus_location in item_location:
                 enriched["score"] = round(float(enriched.get("score") or 0.0) + 0.50, 4)
         else:
-            enriched["score"] = _intent_score_adjustment(query, enriched)
+            enriched["score"] = _intent_score_adjustment(retrieval_query, enriched)
+            enriched["retrieval_score"] = enriched["score"]
             # Boost focused tour for non-similar queries
             if focus_tour_id and tour_id == focus_tour_id:
                 enriched["score"] = round(float(enriched.get("score") or 0.0) + 1.5, 4)
@@ -1249,25 +1449,27 @@ def retrieve_documents(query: str, top_k: int = 4, focus_tour_id: Optional[int] 
         focus_source = _find_focus_source(cache, focus_tour_id, deduped)
         if focus_source is not None and all(_safe_int(item.get("tour_id")) != focus_tour_id for item in deduped):
             focus_enriched = dict(focus_source)
-            focus_enriched["score"] = round(float(focus_enriched.get("score") or 0.0) + 1.5, 4)
+            base_focus_score = float(focus_enriched.get("score") or 0.0)
+            focus_enriched["retrieval_score"] = base_focus_score
+            focus_enriched["score"] = round(base_focus_score + 1.5, 4)
             deduped = [focus_enriched, *deduped]
             deduped.sort(key=lambda item: float(item.get("score") or 0.0), reverse=True)
 
-    final_results = _filter_results_by_intent(deduped, query=query, top_k=top_k)
+    reranker_enabled = bool(cfg.get("reranker_enabled", settings.reranker_enabled))
+    filter_limit = max(top_k, settings.reranker_top_k) if reranker_enabled else top_k
+    final_results = _filter_results_by_intent(deduped, query=retrieval_query, top_k=filter_limit)
 
-    # --- Cross-encoder reranking (optional, enabled via RAG_RERANKER_ENABLED=true) ---
-    # WHY: Intent filtering and hybrid scoring already give a good shortlist.
-    # The cross-encoder re-reads (query, document) jointly to produce more
-    # accurate relevance scores, reordering the final top-K without extra DB calls.
-    if settings.reranker_enabled and final_results:
-        final_results = _rerank_candidates(query, final_results)
+    # --- Cross-encoder reranking (optional, enabled via Admin UI or RAG_RERANKER_ENABLED=true) ---
+    # Re-ranks the broader candidate pool (reranker_top_k) BEFORE slicing to final top_k.
+    if reranker_enabled and final_results:
+        final_results = _rerank_candidates(query, final_results, runtime_cfg=cfg)
         final_results = final_results[:top_k]
 
     logger.info(
         "RAG retrieve query=%r top_k=%s candidates=%s results=%s similar=%s focus=%s reranker=%s latency_ms=%.1f",
         query, top_k, len(candidates), len(final_results),
         bool(is_similar_query), focus_tour_id,
-        settings.reranker_enabled,
+        reranker_enabled,
         (time.perf_counter() - started_at) * 1000,
     )
     rag_metrics.observe("retrieve", (time.perf_counter() - started_at) * 1000)
@@ -1366,79 +1568,347 @@ def _fallback_answer(query: str, segment: Optional[Dict[str, Any]], sources: Lis
     return "\n".join(lines)
 
 
-def _generate_answer(query: str, segment: Optional[Dict[str, Any]], sources: List[Dict[str, Any]], max_context_chars: int, focus_source: Optional[Dict[str, Any]] = None, focus_tour_id: Optional[int] = None) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return _fallback_answer(query, segment, sources, focus_source=focus_source)
+def _sanitize_history(history: Optional[List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    if not history:
+        return []
+    cleaned: List[Dict[str, str]] = []
+    for turn in history[-6:]:
+        role = str(turn.get("role") or "").strip().lower()
+        content = _normalize_whitespace(turn.get("content"))
+        if role in ("user", "assistant") and content:
+            cleaned.append({"role": role, "content": content[:600]})
+    return cleaned
+
+
+def _get_popular_tour_suggestions(cache: Dict[str, Any], limit: int = 3) -> List[Dict[str, Any]]:
+    chunks = cache.get("chunks") or []
+    best_by_tour: Dict[int, Dict[str, Any]] = {}
+    for chunk in chunks:
+        tour_id = _safe_int(chunk.get("tour_id"))
+        if tour_id <= 0 or chunk.get("chunk_type") != "overview":
+            continue
+        status = str(chunk.get("status") or "Available").lower()
+        if status == "unavailable" or status == "deleted":
+            continue
+        if tour_id not in best_by_tour:
+            item = dict(chunk)
+            item["score"] = 0.0
+            best_by_tour[tour_id] = item
+    ranked = sorted(
+        best_by_tour.values(),
+        key=lambda item: (_safe_int(item.get("booking_count")), _safe_float(item.get("price"))),
+        reverse=True,
+    )
+    return ranked[:limit]
+
+
+def _detect_out_of_scope(
+    query: str,
+    sources: List[Dict[str, Any]],
+    similarity_threshold: float,
+    focus_tour_id: Optional[int] = None,
+    focus_source: Optional[Dict[str, Any]] = None,
+    history: Optional[List[Dict[str, str]]] = None,
+) -> Tuple[bool, str, float]:
+    """Check whether the query falls outside the indexed tour/knowledge catalog."""
+    if not sources:
+        return True, "no_matching_sources", 0.0
+
+    max_score = max(float(s.get("retrieval_score", s.get("score")) or 0.0) for s in sources)
+    max_raw_dense = max(float(s.get("raw_dense_score") or 0.0) for s in sources)
+    max_raw_lexical = max(float(s.get("raw_lexical_score") or 0.0) for s in sources)
+    intents = extract_query_intents(query)
+
+    if focus_tour_id and focus_source is not None:
+        if _focus_question_answer(query, focus_source) is not None or intents.get("similar"):
+            return False, "in_scope_focus", round(max_score, 4)
+
+    if history and is_followup_query(query):
+        return False, "in_scope_followup", round(max_score, 4)
+
+    if max_score < similarity_threshold:
+        return True, "below_similarity_threshold", round(max_score, 4)
+
+    norm_q = normalize_text(query)
+    browsing_phrases = ("cac tour", "nhung tour", "tour nao", "goi y tour", "danh sach tour", "tu van tour", "co tour gi")
+    tokens = extract_meaningful_tokens(query)
+    if any(phrase in norm_q for phrase in browsing_phrases) and len(tokens) <= 1:
+        return False, "in_scope_browsing", round(max_score, 4)
+
+    if tokens and not any(intents.values()):
+        top_text = " ".join(source_match_text(item) for item in sources[:3])
+        top_words = set(re.findall(r"[a-z0-9]+", top_text))
+        matched_tokens = [token for token in tokens if token in top_words]
+        coverage = len(matched_tokens) / max(len(tokens), 1)
+        if not matched_tokens:
+            return True, "unmatched_topic_or_destination", round(max_score, 4)
+        if coverage < 0.5 and max_raw_dense < max(similarity_threshold, 0.28) and max_raw_lexical < 5.0:
+            return True, "unmatched_topic_or_destination", round(max_score, 4)
+
+    return False, "in_scope", round(max_score, 4)
+
+
+def _call_llm_chat(
+    messages: List[Dict[str, str]],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    runtime_cfg: Dict[str, Any],
+) -> str:
+    provider = str(runtime_cfg.get("llm_provider") or "openai").strip().lower()
+    api_key = str(runtime_cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
+    base_url = str(runtime_cfg.get("openai_base_url") or DEFAULT_OPENAI_BASE_URL).strip().rstrip("/")
+
+    if provider == "local_fallback" or not api_key or not base_url:
+        raise RuntimeError("External LLM provider is disabled or missing API key")
+
+    response = _HTTP_SESSION.post(
+        f"{base_url}/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        },
+        timeout=settings.openai_timeout_seconds,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return str(data["choices"][0]["message"]["content"]).strip()
+
+
+def _format_popular_tours_text(popular_tours: List[Dict[str, Any]]) -> str:
+    lines: List[str] = []
+    for idx, item in enumerate(popular_tours[:3], start=1):
+        price = _safe_float(item.get("price"))
+        price_str = f"{price:,.0f} VND" if price > 0 else "Liên hệ"
+        lines.append(
+            f"{idx}. {item.get('title')} — {item.get('location')} "
+            f"({item.get('category_name')}), giá khoảng {price_str}"
+        )
+    return "\n".join(lines)
+
+
+def _generate_out_of_scope_answer(
+    query: str,
+    segment: Optional[Dict[str, Any]],
+    popular_tours: List[Dict[str, Any]],
+    runtime_cfg: Dict[str, Any],
+    history: Optional[List[Dict[str, str]]] = None,
+) -> Tuple[str, str]:
+    oos_mode = str(runtime_cfg.get("out_of_scope_mode") or "general_travel").strip().lower()
+    oos_model = str(runtime_cfg.get("out_of_scope_model") or runtime_cfg.get("chat_model") or DEFAULT_CHAT_MODEL).strip()
+    oos_temp = float(runtime_cfg.get("out_of_scope_temperature", 0.5))
+    oos_max_tokens = int(runtime_cfg.get("out_of_scope_max_tokens", 400))
+    fallback_msg = str(runtime_cfg.get("out_of_scope_fallback_message") or "").strip() or (
+        "Hiện tại hệ thống chưa có tour hoặc thông tin chi tiết khớp trực tiếp với yêu cầu này trong danh mục."
+    )
+    suggest_popular = bool(runtime_cfg.get("suggest_popular_tours_on_oos", True))
+    popular_text = _format_popular_tours_text(popular_tours) if (suggest_popular and popular_tours) else ""
+
+    if oos_mode == "strict":
+        if popular_text:
+            return f"{fallback_msg}\n\nMột số tour nổi bật hiện có để bạn tham khảo:\n{popular_text}", "strict-policy"
+        return fallback_msg, "strict-policy"
+
+    system_prompt, user_prompt = build_out_of_scope_prompts(
+        query=query,
+        segment=segment,
+        mode=oos_mode,
+        custom_system_prompt=str(runtime_cfg.get("out_of_scope_system_prompt") or ""),
+        popular_tours_context=popular_text,
+    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        *_sanitize_history(history),
+        {"role": "user", "content": user_prompt},
+    ]
+
+    provider = str(runtime_cfg.get("llm_provider") or "openai").strip().lower()
+    api_key = str(runtime_cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
+    if provider != "local_fallback" and api_key:
+        try:
+            content = _call_llm_chat(
+                messages=messages,
+                model=oos_model,
+                temperature=oos_temp,
+                max_tokens=oos_max_tokens,
+                runtime_cfg=runtime_cfg,
+            )
+            return content, oos_model
+        except Exception:
+            rag_metrics.increment("openai_answer_fallback_total")
+            logger.exception("Out-of-scope LLM generation failed for query=%r model=%s", query, oos_model)
+
+    if popular_text:
+        return f"{fallback_msg}\n\nMột số tour nổi bật hiện có để bạn tham khảo:\n{popular_text}", "local-fallback"
+    return fallback_msg, "local-fallback"
+
+
+def _generate_answer(
+    query: str,
+    segment: Optional[Dict[str, Any]],
+    sources: List[Dict[str, Any]],
+    max_context_chars: int,
+    focus_source: Optional[Dict[str, Any]] = None,
+    focus_tour_id: Optional[int] = None,
+    history: Optional[List[Dict[str, str]]] = None,
+    runtime_cfg: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, str]:
+    cfg = runtime_cfg or get_runtime_config()
+    provider = str(cfg.get("llm_provider") or "openai").strip().lower()
+    api_key = str(cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
+    if provider == "local_fallback" or not api_key:
+        return _fallback_answer(query, segment, sources, focus_source=focus_source), "local-fallback"
+
+    chat_model = str(cfg.get("chat_model") or DEFAULT_CHAT_MODEL).strip()
+    temperature = float(cfg.get("temperature", settings.answer_temperature))
+    max_tokens = int(cfg.get("max_tokens", settings.answer_max_tokens))
+    custom_addon = str(cfg.get("custom_system_prompt_addon") or "")
 
     context = build_context(sources, max_context_chars=max_context_chars)
-    payload = {
-        "model": DEFAULT_CHAT_MODEL,
-        "messages": [
-            {"role": "system", "content": build_system_prompt(segment)},
-            {"role": "user", "content": build_user_prompt(query, segment, context, focus_tour_id=focus_tour_id, focus_source=focus_source)},
-        ],
-        "temperature": settings.answer_temperature,
-        "max_tokens": settings.answer_max_tokens,
-    }
+    messages = [
+        {"role": "system", "content": build_system_prompt(segment, custom_addon=custom_addon)},
+        *_sanitize_history(history),
+        {"role": "user", "content": build_user_prompt(query, segment, context, focus_tour_id=focus_tour_id, focus_source=focus_source)},
+    ]
 
     try:
-        response = _HTTP_SESSION.post(
-            f"{DEFAULT_OPENAI_BASE_URL}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=settings.openai_timeout_seconds,
+        content = _call_llm_chat(
+            messages=messages,
+            model=chat_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            runtime_cfg=cfg,
         )
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        return content, chat_model
     except Exception:
         rag_metrics.increment("openai_answer_fallback_total")
         logger.exception("OpenAI answer generation failed for query=%r", query)
-        return _fallback_answer(query, segment, sources, focus_source=focus_source)
+        return _fallback_answer(query, segment, sources, focus_source=focus_source), "local-fallback"
 
 
-def answer_chat(query: str, user_id: Optional[int] = None, top_k: int = 4, max_context_chars: int = 3500, focus_tour_id: Optional[int] = None) -> Dict[str, Any]:
+def answer_chat(
+    query: str,
+    user_id: Optional[int] = None,
+    top_k: Optional[int] = None,
+    max_context_chars: int = 3500,
+    focus_tour_id: Optional[int] = None,
+    history: Optional[List[Dict[str, str]]] = None,
+    config_override: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     cache = load_vector_store()
+    cfg = apply_runtime_override(get_runtime_config(), config_override)
+    effective_top_k = int(top_k if top_k is not None else cfg.get("top_k_default", 4))
     started_at = time.perf_counter()
     rag_metrics.mark_request(query)
-    segment = get_user_segment(user_id) if user_id else None
-    response_cache_key = _response_cache_key(query, user_id, top_k, cache, segment, focus_tour_id=focus_tour_id)
-    redis_cache = _get_redis_cache()
 
-    if redis_cache is not None:
+    segment = None
+    if user_id:
+        try:
+            segment = get_user_segment(user_id)
+        except Exception:
+            segment = None
+
+    use_cache = config_override is None
+    response_cache_key = _response_cache_key(
+        query,
+        user_id,
+        effective_top_k,
+        cache,
+        segment,
+        focus_tour_id=focus_tour_id,
+        history=history,
+    )
+    redis_cache = _get_redis_cache() if use_cache else None
+
+    if use_cache and redis_cache is not None:
         cached_response = redis_cache.get_json(response_cache_key)
         if cached_response is not None:
             rag_metrics.increment("response_cache_hits_redis")
             logger.info("RAG response cache hit (redis) query=%r", query)
             return cached_response
 
-    local_response = _LOCAL_RESPONSE_CACHE.get(response_cache_key)
-    if local_response is not None:
-        rag_metrics.increment("response_cache_hits_memory")
-        logger.info("RAG response cache hit (memory) query=%r", query)
-        return local_response
+    if use_cache:
+        local_response = _LOCAL_RESPONSE_CACHE.get(response_cache_key)
+        if local_response is not None:
+            rag_metrics.increment("response_cache_hits_memory")
+            logger.info("RAG response cache hit (memory) query=%r", query)
+            return local_response
 
-    sources = retrieve_documents(query, top_k=top_k, focus_tour_id=focus_tour_id)
+    sources = retrieve_documents(
+        query,
+        top_k=effective_top_k,
+        focus_tour_id=focus_tour_id,
+        history=history,
+        runtime_cfg=cfg,
+    )
     focus_source = _find_focus_source(cache, focus_tour_id, sources)
-    answer = _generate_answer(query, segment, sources, max_context_chars=max_context_chars, focus_source=focus_source, focus_tour_id=focus_tour_id)
+    similarity_threshold = float(cfg.get("similarity_threshold", 0.22))
+    is_oos, oos_reason, max_score = _detect_out_of_scope(
+        query,
+        sources,
+        similarity_threshold=similarity_threshold,
+        focus_tour_id=focus_tour_id,
+        focus_source=focus_source,
+        history=history,
+    )
+
+    if is_oos:
+        rag_metrics.increment("out_of_scope_total")
+        suggest_popular = bool(cfg.get("suggest_popular_tours_on_oos", True))
+        popular_tours = _get_popular_tour_suggestions(cache, limit=min(effective_top_k, 3)) if suggest_popular else []
+        answer, model_used = _generate_out_of_scope_answer(
+            query=query,
+            segment=segment,
+            popular_tours=popular_tours,
+            runtime_cfg=cfg,
+            history=history,
+        )
+        returned_sources = popular_tours if suggest_popular else []
+        oos_mode_used: Optional[str] = str(cfg.get("out_of_scope_mode") or "general_travel")
+    else:
+        answer, model_used = _generate_answer(
+            query,
+            segment,
+            sources,
+            max_context_chars=max_context_chars,
+            focus_source=focus_source,
+            focus_tour_id=focus_tour_id,
+            history=history,
+            runtime_cfg=cfg,
+        )
+        returned_sources = sources
+        oos_mode_used = None
+
     latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
-    logger.info("RAG answer query=%r latency_ms=%.1f sources=%s", query, latency_ms, len(sources))
+    logger.info(
+        "RAG answer query=%r oos=%s reason=%s model=%s latency_ms=%.1f sources=%s",
+        query, is_oos, oos_reason, model_used, latency_ms, len(returned_sources),
+    )
     rag_metrics.observe("answer", latency_ms)
 
     payload = {
         "answer": answer,
         "query": query,
-        "top_k": top_k,
+        "top_k": effective_top_k,
         "retriever": str((cache.get("state") or {}).get("retriever") or "hybrid-faiss-bm25"),
         "embedding_provider": str((cache.get("state") or {}).get("embedding_provider") or "local-tfidf"),
         "segment": segment,
-        "sources": sources,
+        "sources": returned_sources,
+        "is_out_of_scope": is_oos,
+        "out_of_scope_reason": oos_reason if is_oos else None,
+        "out_of_scope_mode": oos_mode_used,
+        "model_used": model_used,
+        "max_score": max_score,
+        "latency_ms": latency_ms,
     }
-    _LOCAL_RESPONSE_CACHE.set(response_cache_key, payload, settings.response_cache_ttl_seconds)
-    if redis_cache is not None:
-        redis_cache.set_json(response_cache_key, payload, settings.response_cache_ttl_seconds)
+    if use_cache:
+        _LOCAL_RESPONSE_CACHE.set(response_cache_key, payload, settings.response_cache_ttl_seconds)
+        if redis_cache is not None:
+            redis_cache.set_json(response_cache_key, payload, settings.response_cache_ttl_seconds)
     return payload

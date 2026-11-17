@@ -20,6 +20,7 @@ const SupportChat = lazy(() => import("./views/SupportChat"));
 const CommentList = lazy(() => import("./views/CommentList"));
 const CustomerClustering = lazy(() => import("./views/CustomerClustering"));
 const TourClustering = lazy(() => import("./views/TourClustering"));
+const RAGSettings = lazy(() => import("./views/RAGSettings"));
 
 const withSuspense = (node) => (
   <Suspense
@@ -65,6 +66,7 @@ const AdminRoutes = () => {
         <Route path="support" element={withSuspense(<SupportList />)} />
         <Route path="support/:thread_id" element={withSuspense(<SupportChat />)} />
         <Route path="comments" element={withSuspense(<CommentList />)} />
+        <Route path="rag-settings" element={withSuspense(<RAGSettings />)} />
 
         
       </Route>
