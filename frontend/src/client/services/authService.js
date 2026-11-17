@@ -1,4 +1,4 @@
-import { api, setAuthToken } from "./api";
+import { api, clearClientStoredTokens } from "./api";
 
 // Đăng ký
 export const register = async ({ first_name, last_name, email, password, phone }) => {
@@ -20,18 +20,26 @@ export const register = async ({ first_name, last_name, email, password, phone }
   }
 };
 
-// Đăng nhập (HttpOnly Cookie được tự động lưu + Token trong RAM)
+// Đăng nhập (JWT accessToken & refreshToken được lưu hoàn toàn trong HttpOnly Cookie)
 export const login = async (data) => {
   try {
+    clearClientStoredTokens();
     const res = await api.post("/auth/login", data);
-    const token = res.data?.access_token;
-    if (token) {
-      setAuthToken(token);
-    }
+    const loginPayload = res.data?.data || {};
+    const message = res.data?.message || "Đăng nhập thành công";
 
-    // Gọi /auth/me để lấy thông tin người dùng
+    // Gọi /auth/me để lấy thông tin người dùng hiện tại qua HttpOnly Cookie
     const userRes = await api.get("/auth/me");
-    return { success: true, user: userRes.data };
+    const user = {
+      ...(loginPayload.account || {}),
+      ...(userRes.data || {}),
+    };
+    return {
+      success: true,
+      user,
+      data: loginPayload,
+      message,
+    };
   } catch (err) {
     return {
       success: false,
@@ -40,14 +48,21 @@ export const login = async (data) => {
   }
 };
 
-// Đăng xuất (Backend xóa HttpOnly Cookie + Xóa token trong RAM)
+// Làm mới phiên đăng nhập từ refresh_token trong HttpOnly Cookie
+export const refreshSession = async () => {
+  const res = await api.post("/auth/refresh");
+  return res.data;
+};
+
+// Đăng xuất (Backend xóa HttpOnly Cookies access_token & refresh_token)
 export const logout = async () => {
   try {
     await api.post("/auth/logout");
   } catch {
     // Không cần xử lý lỗi logout
+  } finally {
+    clearClientStoredTokens();
   }
-  setAuthToken(null);
 };
 
 // Lấy user hiện tại

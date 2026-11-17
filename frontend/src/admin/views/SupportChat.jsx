@@ -19,13 +19,13 @@ function parseSupportRecommendation(content) {
 
     const tours = Array.isArray(parsed.tours)
       ? parsed.tours
-          .map((tour) => ({
-            id: String(tour?.id ?? "").trim(),
-            name: String(tour?.name ?? "Tour").trim(),
-            price: String(tour?.price ?? "Liên hệ").trim(),
-            url: String(tour?.url ?? "").trim(),
-          }))
-          .filter((tour) => (tour.id ? Boolean(tour.url) : false))
+        .map((tour) => ({
+          id: String(tour?.id ?? "").trim(),
+          name: String(tour?.name ?? "Tour").trim(),
+          price: String(tour?.price ?? "Liên hệ").trim(),
+          url: String(tour?.url ?? "").trim(),
+        }))
+        .filter((tour) => (tour.id ? Boolean(tour.url) : false))
       : [];
 
     return {
@@ -33,14 +33,6 @@ function parseSupportRecommendation(content) {
       message: String(parsed.message ?? "").trim(),
       tours,
     };
-  } catch {
-    return null;
-  }
-}
-
-function parseJwt(token) {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
@@ -80,7 +72,7 @@ export default function SupportChat() {
         setIsLoading(true);
         const res = await supportApi.getMessages(thread_id);
         setMessages(res.data || []);
-        
+
         // Get user info
         try {
           const threadInfo = await supportApi.getThreadInfo(thread_id);
@@ -121,7 +113,7 @@ export default function SupportChat() {
       try {
         const msg = JSON.parse(event.data);
         console.log("📨 Admin received WebSocket message:", msg);
-        
+
         if (
           msg.type === "support:new_message" &&
           msg.message?.thread_id == thread_id
@@ -269,7 +261,7 @@ export default function SupportChat() {
             >
               <i className="bi bi-arrow-left"></i>
             </button>
-            
+
             <div>
               <h5 className="mb-0 fw-bold">
                 <i className="bi bi-chat-dots me-2 text-primary"></i>
@@ -288,7 +280,7 @@ export default function SupportChat() {
               </small>
             </div>
           </div>
-          
+
           <div className="d-flex align-items-center gap-3">
             <span className={`badge ${isConnected ? 'bg-success' : 'bg-danger'}`}>
               <i className={`bi ${isConnected ? 'bi-wifi' : 'bi-wifi-off'} me-1`}></i>
@@ -299,9 +291,9 @@ export default function SupportChat() {
       </div>
 
       {/* Chat body */}
-      <div 
-        className="flex-grow-1 overflow-auto px-4 py-3" 
-        style={{ 
+      <div
+        className="flex-grow-1 overflow-auto px-4 py-3"
+        style={{
           background: 'linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%)',
           minHeight: 0
         }}
@@ -329,15 +321,15 @@ export default function SupportChat() {
               const showAvatar = i === 0 || messages[i - 1]?.is_admin !== m.is_admin;
               const isAdmin = !!m.is_admin;
               const structuredPayload = isAdmin ? parseSupportRecommendation(m.content) : null;
-              
+
               return (
-                <div 
-                  key={m.id || i} 
+                <div
+                  key={m.id || i}
                   className={`d-flex ${isAdmin ? 'justify-content-end' : 'justify-content-start'} align-items-end gap-2`}
                   style={{ opacity: m.pending ? 0.6 : 1 }}
                 >
                   {!isAdmin && showAvatar && (
-                    <div 
+                    <div
                       className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                       style={{
                         width: '36px',
@@ -350,25 +342,24 @@ export default function SupportChat() {
                       <i className="bi bi-person-fill"></i>
                     </div>
                   )}
-                  
+
                   <div style={{ maxWidth: '70%' }}>
                     {showAvatar && (
                       <div className={`small fw-bold mb-1 ${isAdmin ? 'text-end' : ''}`} style={{ opacity: 0.7 }}>
                         {m.full_name || (isAdmin ? adminName : "Khách hàng")}
                       </div>
                     )}
-                    
+
                     <div
-                      className={`p-3 rounded-3 ${
-                        isAdmin 
-                          ? 'text-white' 
+                      className={`p-3 rounded-3 ${isAdmin
+                          ? 'text-white'
                           : 'bg-white border'
-                      }`}
+                        }`}
                       style={{
-                        background: isAdmin 
+                        background: isAdmin
                           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                           : 'white',
-                        boxShadow: isAdmin 
+                        boxShadow: isAdmin
                           ? '0 4px 12px rgba(102, 126, 234, 0.3)'
                           : '0 2px 8px rgba(0, 0, 0, 0.08)',
                         borderBottomRightRadius: isAdmin ? '4px' : undefined,
@@ -382,17 +373,17 @@ export default function SupportChat() {
                             {structuredPayload.message ? <div>{structuredPayload.message}</div> : null}
                             {structuredPayload.mode === 'suggest_tour' && structuredPayload.tours.length > 0 ? (
                               <div className="d-flex flex-column gap-1">
-                              {structuredPayload.tours.map((tour) => (
-                                <button
-                                  key={`${m.id}-${tour.id}`}
-                                  type="button"
-                                  className="btn btn-sm btn-light text-start border"
-                                  onClick={() => navigate(tour.url)}
-                                >
-                                  <div className="fw-semibold text-dark">{tour.name}</div>
-                                  <div className="small text-muted">{tour.price}</div>
-                                </button>
-                              ))}
+                                {structuredPayload.tours.map((tour) => (
+                                  <button
+                                    key={`${m.id}-${tour.id}`}
+                                    type="button"
+                                    className="btn btn-sm btn-light text-start border"
+                                    onClick={() => navigate(tour.url)}
+                                  >
+                                    <div className="fw-semibold text-dark">{tour.name}</div>
+                                    <div className="small text-muted">{tour.price}</div>
+                                  </button>
+                                ))}
                               </div>
                             ) : null}
                           </div>
@@ -400,7 +391,7 @@ export default function SupportChat() {
                           m.content
                         )}
                       </div>
-                      <div 
+                      <div
                         className={`small mt-2 d-flex align-items-center gap-1 ${isAdmin ? 'justify-content-end' : ''}`}
                         style={{ opacity: 0.7, fontSize: '11px' }}
                       >
@@ -409,9 +400,9 @@ export default function SupportChat() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {isAdmin && showAvatar && (
-                    <div 
+                    <div
                       className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
                       style={{
                         width: '36px',
@@ -456,7 +447,7 @@ export default function SupportChat() {
               overflow: 'auto'
             }}
           />
-          <button 
+          <button
             className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
             onClick={send}
             disabled={!text.trim() || isLoading || isSending}
@@ -470,7 +461,7 @@ export default function SupportChat() {
             <i className="bi bi-send-fill"></i>
           </button>
         </div>
-        
+
         {!isConnected && (
           <div className="alert alert-warning mt-2 mb-0 py-2 px-3 small d-flex align-items-center gap-2">
             <i className="bi bi-exclamation-triangle-fill"></i>

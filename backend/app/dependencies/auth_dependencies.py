@@ -1,13 +1,9 @@
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status, Request, WebSocket, WebSocketException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.utils.auth import verify_token
 from app.database import get_db_connection
 from typing import Dict, Any, Optional
-from pymysql.cursors import DictCursor
 import pymysql
-from fastapi import WebSocket, WebSocketException
-from jose import jwt, JWTError
-from app.utils.auth import SECRET_KEY, ALGORITHM  # ✅ Sử dụng từ file auth.py bạn đang có
 
 
 security = HTTPBearer(auto_error=False)
@@ -30,7 +26,7 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = verify_token(token)
+    user_id = verify_token(token, expected_type="access")
     
     # Lấy thông tin user từ database
     connection = get_db_connection()
@@ -98,14 +94,13 @@ def get_current_user_optional(
 
 
 async def get_current_user_ws(websocket: WebSocket):
-    # Ưu tiên lấy từ cookie WebSocket handshake, sau đó fallback query param ?token=
+    # Ưu tiên lấy từ HttpOnly cookie trong WebSocket handshake, fallback query param ?token= nếu client khác gọi
     token = websocket.cookies.get("access_token") or websocket.query_params.get("token")
     if not token:
         raise WebSocketException(code=4401, reason="Missing token")
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
+        user_id = verify_token(token, expected_type="access")
 
         connection = get_db_connection()
         cursor = connection.cursor(cursor=pymysql.cursors.DictCursor)
@@ -125,5 +120,5 @@ async def get_current_user_ws(websocket: WebSocket):
             cursor.close()
             connection.close()
 
-    except JWTError:
+    except HTTPException:
         raise WebSocketException(code=4401, reason="Invalid token")

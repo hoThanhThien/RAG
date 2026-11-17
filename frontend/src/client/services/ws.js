@@ -1,5 +1,3 @@
-import { getAuthToken } from "./api";
-
 /**
  * Lấy WebSocket URL từ biến môi trường hoặc tự tính từ API URL
  * Tự động đồng bộ giữa 127.0.0.1 và localhost
@@ -17,19 +15,18 @@ export function getWsBaseUrl() {
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
   }
-  
+
   // Fallback: Tự tính từ VITE_API_URL
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
   return apiUrl.replace(/^http/, "ws");
 }
 
 /**
- * Kết nối WebSocket cho Support Chat
+ * Kết nối WebSocket cho Support Chat (xác thực tự động qua HttpOnly Cookie)
  */
-export function connectSupportWS(token = null) {
-  const effectiveToken = token || getAuthToken();
+export function connectSupportWS() {
   const wsHost = getWsBaseUrl();
-  const url = effectiveToken ? `${wsHost}/ws/support?token=${effectiveToken}` : `${wsHost}/ws/support`;
+  const url = `${wsHost}/ws/support`;
 
   console.log("🔌 Connecting to Support WebSocket:", url);
 
@@ -41,16 +38,16 @@ export function connectSupportWS(token = null) {
 }
 
 /**
- * Kết nối WebSocket với auto-reconnect (advanced)
+ * Kết nối WebSocket với auto-reconnect (xác thực tự động qua HttpOnly Cookie)
  */
-export function connectSupportWSWithRetry(token, options = {}) {
+export function connectSupportWSWithRetry(options = {}) {
   const {
     onOpen,
     onClose,
     onError,
     onMessage,
     maxRetries = 5,
-    retryDelay = 3000
+    retryDelay = 3000,
   } = options;
 
   let ws = null;
@@ -59,30 +56,30 @@ export function connectSupportWSWithRetry(token, options = {}) {
 
   const connect = () => {
     const wsHost = getWsBaseUrl();
-    const url = token ? `${wsHost}/ws/support?token=${token}` : `${wsHost}/ws/support`;
+    const url = `${wsHost}/ws/support`;
 
     console.log("🔌 Connecting to Support WebSocket");
 
     ws = new WebSocket(url);
-    
+
     ws.onopen = () => {
       console.log("✅ WS support connected");
       retryCount = 0;
       onOpen?.();
     };
-    
+
     ws.onclose = (event) => {
       console.log(`❌ WS support closed (code: ${event.code})`);
       onClose?.(event);
-      
+
       if (!isManualClose && retryCount < maxRetries) {
         retryCount++;
         const delay = retryDelay * retryCount;
-        console.log(`🔄 Reconnecting in ${delay/1000}s... (attempt ${retryCount}/${maxRetries})`);
+        console.log(`🔄 Reconnecting in ${delay / 1000}s... (attempt ${retryCount}/${maxRetries})`);
         setTimeout(connect, delay);
       }
     };
-    
+
     ws.onerror = (e) => {
       console.error("⚠️ WS support error", e);
       onError?.(e);
@@ -98,22 +95,25 @@ export function connectSupportWSWithRetry(token, options = {}) {
   ws = connect();
 
   return {
-    get ws() { return ws; },
-    send: (data) => ws?.readyState === WebSocket.OPEN && ws.send(typeof data === 'string' ? data : JSON.stringify(data)),
+    get ws() {
+      return ws;
+    },
+    send: (data) =>
+      ws?.readyState === WebSocket.OPEN &&
+      ws.send(typeof data === "string" ? data : JSON.stringify(data)),
     close: () => {
       isManualClose = true;
       ws?.close();
-    }
+    },
   };
 }
 
 /**
- * Kết nối WebSocket cho Admin Dashboard realtime updates
+ * Kết nối WebSocket cho Admin Dashboard realtime updates (xác thực tự động qua HttpOnly Cookie)
  */
-export function connectAdminDashboardWS(token = null) {
-  const effectiveToken = token || getAuthToken();
+export function connectAdminDashboardWS() {
   const wsHost = getWsBaseUrl();
-  const url = effectiveToken ? `${wsHost}/ws/admin/dashboard?token=${effectiveToken}` : `${wsHost}/ws/admin/dashboard`;
+  const url = `${wsHost}/ws/admin/dashboard`;
 
   const ws = new WebSocket(url);
   ws.onopen = () => console.log("✅ WS dashboard connected");
@@ -128,7 +128,7 @@ export function connectAdminDashboardWS(token = null) {
 export function connectTourWS(tourId) {
   const wsHost = getWsBaseUrl();
   const url = `${wsHost}/ws/tour/${tourId}`;
-  
+
   console.log(`🔌 Connecting to Tour WebSocket: ${url}`);
 
   const ws = new WebSocket(url);

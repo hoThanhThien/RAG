@@ -4,15 +4,6 @@ import { tourService } from "../services/tourService";
 import { commentService } from "../services/commentService";
 import { useAuth } from "../context/AuthContext";
 
-function parseJwt(token) {
-  if (!token) return null;
-  try {
-    return JSON.parse(atob(token.split(".")[1]));
-  } catch {
-    return null;
-  }
-}
-
 const fmtVND = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 
 function diffDays(start, end) {
