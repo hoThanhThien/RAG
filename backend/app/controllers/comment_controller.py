@@ -77,7 +77,12 @@ def get_review_quota(cur, user_id: int, tour_id: int):
     return booking_count, rated_count, remaining
 
 # ---------- Create comment (login-only, mỗi booking được đánh giá 1 lần) ----------
-@router.post("/", response_model=dict)
+@router.post(
+    "/",
+    response_model=dict,
+    summary="Tạo bình luận / đánh giá tour",
+    description="Cho phép người dùng tạo bình luận và chấm điểm (1-5 sao) cho tour đã đặt (mỗi booking được đánh giá 1 lần).",
+)
 async def create_comment(
     payload: Dict[str, Any] = Body(...),
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -204,7 +209,11 @@ async def create_comment(
         conn.close()
 
 # ---------- Can rate? (login-only) ----------
-@router.get("/can-rate")
+@router.get(
+    "/can-rate",
+    summary="Kiểm tra lượt đánh giá còn lại",
+    description="Kiểm tra người dùng hiện tại còn quyền đánh giá sao cho tour/booking hay không.",
+)
 async def can_rate(
     tour_id: int = Query(..., ge=1),
     booking_id: Optional[int] = Query(None, ge=1),
@@ -258,7 +267,11 @@ async def can_rate(
         conn.close()
 
 # ---------- Comments by tour (PUBLIC, pagination) ----------
-@router.get("/tour/{tour_id}")
+@router.get(
+    "/tour/{tour_id}",
+    summary="Danh sách bình luận theo tour",
+    description="API công khai lấy danh sách bình luận và đánh giá sao của một tour (có phân trang & sắp xếp).",
+)
 async def get_comments_by_tour(
     tour_id: int,
     page: int = Query(1, ge=1),
@@ -321,7 +334,11 @@ async def get_comments_by_tour(
         conn.close()
 
 # ---------- Update comment (giữ quy tắc vote 1 lần) ----------
-@router.put("/{comment_id}")
+@router.put(
+    "/{comment_id}",
+    summary="Cập nhật bình luận / đánh giá",
+    description="Chủ sở hữu bình luận hoặc Admin chỉnh sửa nội dung và số sao đánh giá.",
+)
 async def update_comment(
     comment_id: int,
     payload: Dict[str, Any] = Body(...),
@@ -391,7 +408,11 @@ async def update_comment(
         conn.close()
 
 # ---------- Delete comment ----------
-@router.delete("/{comment_id}")
+@router.delete(
+    "/{comment_id}",
+    summary="Xóa bình luận / đánh giá",
+    description="Chủ sở hữu bình luận hoặc Admin xóa bình luận theo ID.",
+)
 async def delete_comment(
     comment_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -421,7 +442,11 @@ async def delete_comment(
         conn.close()
 
 # ---------- List ALL comments (Admin & User, pagination) ----------
-@router.get("/")
+@router.get(
+    "/",
+    summary="Danh sách toàn bộ bình luận",
+    description="Xem toàn bộ bình luận trong hệ thống có phân trang, tìm kiếm theo tên người dùng hoặc tên tour.",
+)
 async def get_all_comments(
     current_user: Dict[str, Any] = Depends(get_current_user),  # cả admin & user đều truy cập
     page: int = Query(1, ge=1),
@@ -496,7 +521,13 @@ async def get_all_comments(
         conn.close()
 
 # ---------- Alias để FE có thể gọi /tours/{id}/comments ----------
-@router_alias.get("/{tour_id}/comments", include_in_schema=False)
+@router_alias.get(
+    "/{tour_id}/comments",
+    tags=["Tours", "Comments"],
+    include_in_schema=True,
+    summary="Danh sách bình luận của tour (Alias)",
+    description="Endpoint alias dưới `/tours/{tour_id}/comments` để lấy danh sách bình luận theo tour.",
+)
 async def alias_get_comments_under_tour(
     tour_id: int,
     page: int = Query(1, ge=1),
@@ -507,7 +538,11 @@ async def alias_get_comments_under_tour(
 
 
 # ---------- Lấy các comment của chính người dùng ----------
-@router.get("/me")
+@router.get(
+    "/me",
+    summary="Bình luận của tôi",
+    description="Trả về danh sách tất cả bình luận & đánh giá do người dùng hiện tại viết.",
+)
 async def get_my_comments(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):

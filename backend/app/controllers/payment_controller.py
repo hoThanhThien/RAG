@@ -155,7 +155,12 @@ def ensure_payment_paypal_columns(cur):
         if not cur.fetchone():
             cur.execute(f"ALTER TABLE payment {ddl}")
 
-@router.post("/init", response_model=dict)
+@router.post(
+    "/init",
+    response_model=dict,
+    summary="Khởi tạo thông tin thanh toán",
+    description="Lấy hoặc tạo bản ghi payment Pending cho một đơn đặt tour kèm `order_code`.",
+)
 async def init_payment(
     booking_id: int = Body(..., embed=True),
     current_user=Depends(get_current_user)
@@ -195,7 +200,12 @@ async def init_payment(
     finally:
         conn.close()
 
-@router.post("/pull", response_model=dict)
+@router.post(
+    "/pull",
+    response_model=dict,
+    summary="Kiểm tra & đối soát trạng thái thanh toán",
+    description="Kiểm tra trạng thái thanh toán của booking và đối soát tự động với giao dịch ngân hàng (`bank_txn`).",
+)
 async def pull_status(
     booking_id: int = Body(..., embed=True),
     current_user=Depends(get_current_user)
@@ -241,7 +251,11 @@ async def pull_status(
 
 # -------------------- DEBUG API: KIỂM TRA BANK TRANSACTIONS --------------------
 
-@router.get("/debug/bank-txns")
+@router.get(
+    "/debug/bank-txns",
+    summary="Xem giao dịch ngân hàng gần đây (Admin Debug)",
+    description="Lấy danh sách tối đa 20 giao dịch `bank_txn` trong 7 ngày gần nhất để kiểm tra đối soát.",
+)
 async def debug_bank_transactions(current_user=Depends(get_current_user)):
     """Debug API để xem các giao dịch ngân hàng gần đây"""
     if current_user["RoleName"] != "admin":
@@ -266,7 +280,11 @@ async def debug_bank_transactions(current_user=Depends(get_current_user)):
     finally:
         conn.close()
 
-@router.post("/debug/manual-reconcile")
+@router.post(
+    "/debug/manual-reconcile",
+    summary="Kiểm tra khớp đối soát thủ công (Admin Debug)",
+    description="Đối chiếu `OrderCode` và số tiền của booking với danh sách giao dịch ngân hàng gần đây.",
+)
 async def manual_reconcile_payment(
     booking_id: int = Body(..., embed=True),
     current_user=Depends(get_current_user)
@@ -326,7 +344,11 @@ class PaypalCreateRequest(BaseModel):
     # return_url: str = "http://localhost:5173/payment-success" 
     # cancel_url: str = "http://localhost:5173/payment-cancel"
 
-@router.post("/paypal/create")
+@router.post(
+    "/paypal/create",
+    summary="Tạo đơn thanh toán PayPal",
+    description="Quy đổi VND sang USD theo tỷ giá và gọi PayPal Orders v2 API để lấy `orderID` & `approve_url`.",
+)
 async def create_paypal_payment(
     req_body: PaypalCreateRequest,
     current_user=Depends(get_current_user)
@@ -401,7 +423,11 @@ class PaypalCaptureRequest(BaseModel):
     orderID: str
     bookingID: int  # Gửi kèm bookingID để biết cập nhật đơn nào
 
-@router.post("/paypal/capture")
+@router.post(
+    "/paypal/capture",
+    summary="Xác nhận (Capture) thanh toán PayPal",
+    description="Xác nhận hoàn tất giao dịch PayPal sau khi khách hàng phê duyệt và cập nhật booking sang `Confirmed`.",
+)
 async def capture_paypal_payment(
     req_body: PaypalCaptureRequest,
     current_user=Depends(get_current_user)
@@ -516,7 +542,11 @@ async def check_bank_tx_local(conn, order_code: str, amount: float):
 
 from app.utils.sepay import verify_signature, extract_order_code
 
-@router.post("/webhook/bank")
+@router.post(
+    "/webhook/bank",
+    summary="Webhook nhận giao dịch ngân hàng / SePay",
+    description="Nhận thông báo biến động số dư từ SePay/Casso, lưu `bank_txn` và tự động đối soát các đơn đang `Pending`.",
+)
 async def bank_webhook(request: Request):
     """
     Webhook để nhận thông báo giao dịch từ ngân hàng/SePay
@@ -615,7 +645,11 @@ async def bank_webhook(request: Request):
         return {"status": "error", "message": str(e)}
 
 # Simple webhook for testing
-@router.post("/webhook/test")
+@router.post(
+    "/webhook/test",
+    summary="Tạo dữ liệu mẫu test Webhook ngân hàng",
+    description="Sinh payload giả lập để test endpoint `/payments/webhook/bank`.",
+)
 async def test_webhook():
     """Test webhook để simulate bank transaction"""
     # Simulate một giao dịch test
@@ -629,7 +663,11 @@ async def test_webhook():
     # Call webhook với test data
     return {"test_data": test_data, "message": "Use this data to call /webhook/bank"}
 
-@router.post("/manual/add-bank-txn")
+@router.post(
+    "/manual/add-bank-txn",
+    summary="Thêm giao dịch ngân hàng thủ công để đối soát (Admin)",
+    description="Admin nhập giao dịch ngân hàng mẫu vào `bank_txn` và tự động đối soát với các payment đang chờ.",
+)
 async def manual_add_bank_transaction(
     transaction_id: str = Body(...),
     amount: float = Body(...), 

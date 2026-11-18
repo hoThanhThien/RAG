@@ -12,7 +12,11 @@ BACKEND_DIR = os.path.dirname(APP_DIR)
 UPLOAD_FOLDER = os.path.join(BACKEND_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@router.post("")
+@router.post(
+    "",
+    summary="Tải lên tệp hình ảnh",
+    description="Upload tệp hình ảnh lên thư mục `/uploads` và trả về đường dẫn `image_url` công khai.",
+)
 async def upload_file(file: UploadFile = File(...)):
     try:
         # Tạo thư mục nếu chưa có

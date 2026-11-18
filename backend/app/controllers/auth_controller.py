@@ -256,7 +256,12 @@ def _verify_google_identity(payload: GoogleAuthRequest) -> Dict[str, str]:
     )
 
 
-@router.post("/register", response_model=LoginResponse)
+@router.post(
+    "/register",
+    response_model=LoginResponse,
+    summary="Đăng ký tài khoản mới",
+    description="Tạo tài khoản mới (mật khẩu băm bcrypt, mặc định RoleID=3), tự động cấp JWT lưu vào HttpOnly Cookie và trả về cấu trúc LoginResponse.",
+)
 async def register(user_data: UserRegister, response: Response, request: Request):
     """Đăng ký tài khoản mới - Tự động đăng nhập & lưu JWT vào HttpOnly Cookie."""
     connection = get_db_connection()
@@ -338,7 +343,12 @@ async def register(user_data: UserRegister, response: Response, request: Request
         connection.close()
 
 
-@router.post("/google", response_model=LoginResponse)
+@router.post(
+    "/google",
+    response_model=LoginResponse,
+    summary="Đăng ký / Đăng nhập bằng Google",
+    description="Xác thực Google ID Token (`credential`) hoặc OAuth2 Access Token (`access_token`). Nếu email chưa có trong hệ thống sẽ tự động tạo tài khoản User mới, cấp JWT vào HttpOnly Cookie.",
+)
 async def google_auth(payload: GoogleAuthRequest, response: Response, request: Request):
     """Đăng ký / Đăng nhập bằng Google - Cấp JWT lưu trong HttpOnly Cookie."""
     identity = _verify_google_identity(payload)
@@ -418,7 +428,12 @@ async def google_auth(payload: GoogleAuthRequest, response: Response, request: R
         connection.close()
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    summary="Đăng nhập hệ thống",
+    description="Đăng nhập bằng Email hoặc Username + mật khẩu. Sinh cặp accessToken & refreshToken (UUIDv5 account.id) và lưu an toàn trong HttpOnly Cookie.",
+)
 async def login(user_credentials: UserLogin, response: Response, request: Request):
     """Đăng nhập - Mã hóa JWT (accessToken, refreshToken) và lưu trong HttpOnly Cookie."""
     connection = get_db_connection()
@@ -470,7 +485,12 @@ async def login(user_credentials: UserLogin, response: Response, request: Reques
         connection.close()
 
 
-@router.post("/refresh", response_model=LoginResponse)
+@router.post(
+    "/refresh",
+    response_model=LoginResponse,
+    summary="Làm mới phiên đăng nhập (Refresh Token)",
+    description="Đọc `refresh_token` từ HttpOnly Cookie để cấp lại cặp accessToken & refreshToken mới và cập nhật HttpOnly Cookie.",
+)
 async def refresh_session(request: Request, response: Response):
     """Làm mới cặp accessToken & refreshToken từ refresh_token trong HttpOnly Cookie."""
     refresh_token = request.cookies.get("refresh_token")
@@ -513,7 +533,11 @@ async def refresh_session(request: Request, response: Response):
         connection.close()
 
 
-@router.post("/logout")
+@router.post(
+    "/logout",
+    summary="Đăng xuất hệ thống",
+    description="Xóa hoàn toàn cookie `access_token` và `refresh_token` khỏi trình duyệt.",
+)
 async def logout(
     request: Request,
     response: Response,
@@ -525,7 +549,12 @@ async def logout(
     return {"message": "Successfully logged out"}
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Lấy thông tin tài khoản hiện tại",
+    description="Trả về thông tin chi tiết của người dùng đang đăng nhập từ HttpOnly Cookie hoặc Bearer token, kèm số lượng booking.",
+)
 async def get_current_user_info(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Lấy thông tin user hiện tại từ HttpOnly Cookie session."""
     connection = get_db_connection()
@@ -563,7 +592,11 @@ async def get_current_user_info(current_user: Dict[str, Any] = Depends(get_curre
     )
 
 
-@router.put("/change-password")
+@router.put(
+    "/change-password",
+    summary="Đổi mật khẩu",
+    description="Xác thực mật khẩu cũ và cập nhật mật khẩu mới được băm bằng bcrypt.",
+)
 async def change_password(
     password_data: ChangePassword,
     current_user: Dict[str, Any] = Depends(get_current_user),

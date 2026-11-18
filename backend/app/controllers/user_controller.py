@@ -51,7 +51,11 @@ def parse_sort(sort_expr: Optional[str], allowed: Dict[str, str], default_sql: s
     return ("ORDER BY " + ", ".join(parts)) if parts else default_sql
 
 # ---------- LIST USERS (admin) - có phân trang ----------
-@router.get("")
+@router.get(
+    "",
+    summary="Danh sách người dùng (Admin)",
+    description="Lấy danh sách toàn bộ người dùng có phân trang, tìm kiếm theo tên/email và sắp xếp.",
+)
 async def get_users(
     current_user: Dict[str, Any] = Depends(require_admin),
     page: int = Query(1, ge=1),
@@ -132,7 +136,12 @@ async def get_users(
         conn.close()
 
 # ---------- GET USER BY ID (giữ nguyên) ----------
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get(
+    "/{user_id}",
+    response_model=UserResponse,
+    summary="Chi tiết người dùng theo ID",
+    description="Xem thông tin người dùng (Admin hoặc chính người dùng đó).",
+)
 async def get_user_by_id(
     user_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -169,7 +178,11 @@ async def get_user_by_id(
         conn.close()
 
 # ---------- DELETE USER (admin) ----------
-@router.delete("/{user_id}")
+@router.delete(
+    "/{user_id}",
+    summary="Xóa người dùng (Admin)",
+    description="Xóa tài khoản chưa phát sinh booking/bình luận (không thể tự xóa chính mình).",
+)
 async def delete_user(
     user_id: int,
     current_user: Dict[str, Any] = Depends(require_admin)
@@ -215,7 +228,11 @@ async def delete_user(
         conn.close()
 
 # ---------- UPDATE USER ROLE (admin) ----------
-@router.put("/{user_id}/role")
+@router.put(
+    "/{user_id}/role",
+    summary="Cập nhật vai trò người dùng (Admin)",
+    description="Thay đổi RoleID cho người dùng (không thể tự thay đổi vai trò của chính mình).",
+)
 async def update_user_role(
     user_id: int,
     role_id: int,
@@ -246,7 +263,11 @@ async def update_user_role(
         conn.close()
 
 # ---------- USER BOOKING HISTORY (có phân trang) ----------
-@router.get("/bookings/history")
+@router.get(
+    "/bookings/history",
+    summary="Lịch sử đặt tour của tôi",
+    description="Lấy lịch sử đơn đặt tour kèm thông tin thanh toán của người dùng hiện tại (có phân trang).",
+)
 async def get_user_booking_history(
     current_user: Dict[str, Any] = Depends(get_current_user),
     page: int = Query(1, ge=1),
@@ -308,7 +329,12 @@ async def get_user_booking_history(
     finally:
         conn.close()
 
-@router.put("/{user_id}", response_model=dict)
+@router.put(
+    "/{user_id}",
+    response_model=dict,
+    summary="Cập nhật thông tin người dùng (Admin)",
+    description="Admin chỉnh sửa họ tên, email, số điện thoại và vai trò cho tài khoản người dùng.",
+)
 async def update_user(
     user_id: int,
     payload: UpdateUserSchema,
@@ -349,7 +375,12 @@ async def update_user(
     finally:
         conn.close()
 
-@router.put("/profile/me", response_model=dict)
+@router.put(
+    "/profile/me",
+    response_model=dict,
+    summary="Cập nhật hồ sơ cá nhân",
+    description="Người dùng đang đăng nhập tự cập nhật họ tên và số điện thoại của mình.",
+)
 async def update_my_profile(
     payload: UpdateSelfProfileSchema,
     current_user: Dict[str, Any] = Depends(get_current_user)

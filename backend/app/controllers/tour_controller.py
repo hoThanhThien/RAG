@@ -123,7 +123,11 @@ class TourResponse(BaseModel):
     category_name: str
 
 # ---------- 1) List tất cả tour (public) + kèm ảnh + PHÂN TRANG ----------
-@router.get("")
+@router.get(
+    "",
+    summary="Danh sách tour du lịch (có phân trang & lọc)",
+    description="Lấy danh sách tour công khai kèm ảnh, điểm đánh giá trung bình, tìm kiếm từ khóa và sắp xếp.",
+)
 async def get_tours(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -216,7 +220,11 @@ async def get_tours(
         conn.close()
 
 # ---------- 2) Tour của guide (guide/admin) + PHÂN TRANG ----------
-@router.get("/my-tours")
+@router.get(
+    "/my-tours",
+    summary="Danh sách tour được phân công (Guide / Admin)",
+    description="Hướng dẫn viên xem các tour mình phụ trách cùng số lượng đặt chỗ đã xác nhận.",
+)
 async def get_my_tours(
     current_user: Dict[str, Any] = Depends(require_guide),
     page: int = Query(1, ge=1),
@@ -305,87 +313,12 @@ async def get_my_tours(
     finally:
         conn.close()
 
-# ---------- 3) Lấy 1 tour theo ID (public) ----------
-@router.get("/{tour_id}", response_model=TourResponse)
-async def get_tour_by_id(tour_id: int):
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT
-                    t.TourID, t.Title, t.Location, t.Description, t.Capacity, t.Price,
-                    t.StartDate, t.EndDate, t.Status, t.CategoryID,
-                    c.CategoryName AS category_name
-                FROM tour t
-                JOIN category c ON t.CategoryID = c.CategoryID
-                WHERE t.TourID = %s
-            """, (tour_id,))
-            r = cur.fetchone()
-        if not r:
-            raise HTTPException(status_code=404, detail="Tour not found")
-
-        return TourResponse(
-            tour_id=r["TourID"],
-            title=r["Title"],
-            location=r["Location"],
-            description=r["Description"],
-            capacity=r["Capacity"],
-            price=float(r["Price"]) if r["Price"] is not None else None,
-            start_date=r["StartDate"],
-            end_date=r["EndDate"],
-            status=r["Status"],
-            category_id=r["CategoryID"],
-            category_name=r["category_name"],
-        )
-    finally:
-        conn.close()
-
-# ---------- 4) 1 tour + danh sách ảnh ----------
-@router.get("/{tour_id}/with-photos")
-async def get_tour_with_photos(
-    tour_id: int,
-    limit_photos: int = Query(0, ge=0, description="0 = lấy tất cả ảnh; >0 = giới hạn số ảnh")
-):
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT
-                    t.TourID AS tour_id, t.Title AS title, t.Location AS location,
-                    t.Description AS description, t.Capacity AS capacity, t.Price AS price,
-                    t.StartDate AS start_date, t.EndDate AS end_date, t.Status AS status,
-                    t.CategoryID AS category_id, c.CategoryName AS category_name
-                FROM tour t
-                JOIN category c ON t.CategoryID = c.CategoryID
-                WHERE t.TourID = %s
-            """, (tour_id,))
-            tour = cur.fetchone()
-            if not tour:
-                raise HTTPException(status_code=404, detail="Tour not found")
-
-            # ảnh của tour
-            photo_sql = """
-                SELECT PhotoID AS photo_id, Caption AS caption, ImageURL AS image_url,
-                       UploadDate AS upload_date, IsPrimary AS is_primary
-                FROM photo
-                WHERE TourID = %s
-                ORDER BY IsPrimary DESC, PhotoID DESC
-            """
-            params = [tour_id]
-            if limit_photos:
-                photo_sql += " LIMIT %s"
-                params.append(limit_photos)
-            cur.execute(photo_sql, params)
-            photos = cur.fetchall()
-
-        tour_json = to_jsonable(tour)
-        tour_json["photos"] = [to_jsonable(p) for p in photos]
-        return tour_json
-    finally:
-        conn.close()
-
-# ---------- 5) Nhiều tour + mỗi tour có ảnh + PHÂN TRANG ----------
-@router.get("/with-photos")
+# ---------- 3) Nhiều tour + mỗi tour có ảnh + PHÂN TRANG (đặt trước /{tour_id}) ----------
+@router.get(
+    "/with-photos",
+    summary="Danh sách tour kèm album ảnh",
+    description="Lọc tour theo danh mục, trạng thái, từ khóa và lấy kèm danh sách ảnh của từng tour.",
+)
 async def list_tours_with_photos(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
@@ -458,8 +391,100 @@ async def list_tours_with_photos(
     finally:
         conn.close()
 
+# ---------- 4) Lấy 1 tour theo ID (public) ----------
+@router.get(
+    "/{tour_id}",
+    response_model=TourResponse,
+    summary="Chi tiết 1 tour theo ID",
+    description="Lấy thông tin cơ bản của một tour du lịch.",
+)
+async def get_tour_by_id(tour_id: int):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    t.TourID, t.Title, t.Location, t.Description, t.Capacity, t.Price,
+                    t.StartDate, t.EndDate, t.Status, t.CategoryID,
+                    c.CategoryName AS category_name
+                FROM tour t
+                JOIN category c ON t.CategoryID = c.CategoryID
+                WHERE t.TourID = %s
+            """, (tour_id,))
+            r = cur.fetchone()
+        if not r:
+            raise HTTPException(status_code=404, detail="Tour not found")
+
+        return TourResponse(
+            tour_id=r["TourID"],
+            title=r["Title"],
+            location=r["Location"],
+            description=r["Description"],
+            capacity=r["Capacity"],
+            price=float(r["Price"]) if r["Price"] is not None else None,
+            start_date=r["StartDate"],
+            end_date=r["EndDate"],
+            status=r["Status"],
+            category_id=r["CategoryID"],
+            category_name=r["category_name"],
+        )
+    finally:
+        conn.close()
+
+# ---------- 5) 1 tour + danh sách ảnh ----------
+@router.get(
+    "/{tour_id}/with-photos",
+    summary="Chi tiết 1 tour kèm danh sách ảnh",
+    description="Trả về thông tin đầy đủ của một tour kèm toàn bộ (hoặc giới hạn) hình ảnh.",
+)
+async def get_tour_with_photos(
+    tour_id: int,
+    limit_photos: int = Query(0, ge=0, description="0 = lấy tất cả ảnh; >0 = giới hạn số ảnh")
+):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    t.TourID AS tour_id, t.Title AS title, t.Location AS location,
+                    t.Description AS description, t.Capacity AS capacity, t.Price AS price,
+                    t.StartDate AS start_date, t.EndDate AS end_date, t.Status AS status,
+                    t.CategoryID AS category_id, c.CategoryName AS category_name
+                FROM tour t
+                JOIN category c ON t.CategoryID = c.CategoryID
+                WHERE t.TourID = %s
+            """, (tour_id,))
+            tour = cur.fetchone()
+            if not tour:
+                raise HTTPException(status_code=404, detail="Tour not found")
+
+            # ảnh của tour
+            photo_sql = """
+                SELECT PhotoID AS photo_id, Caption AS caption, ImageURL AS image_url,
+                       UploadDate AS upload_date, IsPrimary AS is_primary
+                FROM photo
+                WHERE TourID = %s
+                ORDER BY IsPrimary DESC, PhotoID DESC
+            """
+            params = [tour_id]
+            if limit_photos:
+                photo_sql += " LIMIT %s"
+                params.append(limit_photos)
+            cur.execute(photo_sql, params)
+            photos = cur.fetchall()
+
+        tour_json = to_jsonable(tour)
+        tour_json["photos"] = [to_jsonable(p) for p in photos]
+        return tour_json
+    finally:
+        conn.close()
+
 # ---------- 6) Bookings của tour (guide của tour hoặc admin) ----------
-@router.get("/{tour_id}/bookings")
+@router.get(
+    "/{tour_id}/bookings",
+    summary="Danh sách booking của một tour (Guide / Admin)",
+    description="Xem danh sách khách đã đặt (Confirmed / Pending) cho một tour cụ thể.",
+)
 async def get_tour_bookings(
     tour_id: int,
     current_user: Dict[str, Any] = Depends(require_guide)
@@ -498,7 +523,11 @@ async def get_tour_bookings(
         conn.close()
 
 # ---------- 7) Tạo tour (admin) ----------
-@router.post("/")
+@router.post(
+    "/",
+    summary="Tạo tour mới (Admin)",
+    description="Thêm tour du lịch mới vào hệ thống, xóa cache và tự động rebuild RAG index ở nền.",
+)
 async def create_tour(
     background_tasks: BackgroundTasks,
     tour_data: CreateTourSchema,
@@ -540,7 +569,11 @@ async def create_tour(
 
 
 # ---------- 8) Cập nhật tour (admin) ----------
-@router.put("/{tour_id}")
+@router.put(
+    "/{tour_id}",
+    summary="Cập nhật thông tin tour (Admin)",
+    description="Cập nhật thông tin tour theo ID và tự động rebuild lại chỉ mục RAG ở nền.",
+)
 async def update_tour(
     tour_id: int,
     background_tasks: BackgroundTasks,
@@ -591,7 +624,11 @@ async def update_tour(
 
 
 # ---------- 9) Xóa tour (admin) ----------
-@router.delete("/{tour_id}")
+@router.delete(
+    "/{tour_id}",
+    summary="Xóa tour (Admin)",
+    description="Xóa tour chưa phát sinh đơn đặt chỗ (cùng ảnh, bình luận liên quan) và cập nhật lại RAG index.",
+)
 async def delete_tour(
     tour_id: int,
     background_tasks: BackgroundTasks,

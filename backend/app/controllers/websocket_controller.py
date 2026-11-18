@@ -77,7 +77,12 @@ async def websocket_endpoint(websocket: WebSocket, tour_id: int):
     except WebSocketDisconnect:
         manager.disconnect(websocket, tour_id)
 
-@router.get("/tours/{tour_id}/live-stats")
+@router.get(
+    "/tours/{tour_id}/live-stats",
+    tags=["Realtime & WebSocket"],
+    summary="Thống kê trực tuyến của tour",
+    description="Trả về số người đang xem trực tuyến, số booking, tổng số khách và điểm đánh giá trung bình của tour.",
+)
 async def get_tour_live_stats(tour_id: int):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -287,3 +292,31 @@ async def ws_support(websocket: WebSocket, user=Depends(get_current_user_ws)):
 
     except WebSocketDisconnect:
         await support_leave(websocket)
+
+
+@router.get(
+    "/ws/endpoints",
+    tags=["Realtime & WebSocket"],
+    summary="Danh sách các kênh WebSocket (Swagger Reference)",
+    description="Swagger/OpenAPI 3.0 chỉ liệt kê HTTP endpoints nên route này cung cấp tài liệu đầy đủ về 3 kênh WebSocket real-time hiện có trong hệ thống.",
+)
+async def list_websocket_endpoints():
+    return {
+        "websockets": [
+            {
+                "path": "/ws/tour/{tour_id}",
+                "auth": "Public",
+                "purpose": "Chat và bình luận real-time trong trang chi tiết tour.",
+            },
+            {
+                "path": "/ws/support",
+                "auth": "HttpOnly Cookie (`access_token`) hoặc query `?token=`",
+                "purpose": "Chat hỗ trợ khách hàng <-> Admin và sự kiện typing/tin nhắn mới.",
+            },
+            {
+                "path": "/ws/admin/dashboard",
+                "auth": "HttpOnly Cookie (`access_token`) với vai trò Admin",
+                "purpose": "Đẩy sự kiện `dashboard:refresh` real-time khi có booking/thanh toán/tour mới.",
+            },
+        ]
+    }

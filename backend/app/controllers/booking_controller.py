@@ -65,7 +65,12 @@ def parse_sort(sort_expr: Optional[str], allowed: Dict[str, str], default_sql: s
     return ("ORDER BY " + ", ".join(parts)) if parts else default_sql
 
 # -------------------- Create booking --------------------
-@router.post("/", response_model=dict)
+@router.post(
+    "/",
+    response_model=dict,
+    summary="Đặt tour mới",
+    description="Tạo đơn đặt tour mới (tự kiểm tra sức chứa, áp dụng mã giảm giá và tạo payment Pending cùng OrderCode).",
+)
 async def create_booking(
     booking_data: BookingCreate,
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -184,7 +189,11 @@ async def create_booking(
         conn.close()
 
 # -------------------- Get my bookings (must be before /{booking_id}) --------------------
-@router.get("/my-bookings")
+@router.get(
+    "/my-bookings",
+    summary="Danh sách booking của tôi",
+    description="Lấy toàn bộ đơn đặt tour của người dùng hiện tại kèm thông tin tour và ảnh đại diện.",
+)
 async def get_my_bookings(
     current_user: Dict[str, Any] = Depends(get_current_user),
 ):
@@ -247,7 +256,12 @@ async def get_my_bookings(
         conn.close()
 
 # -------------------- Get one booking --------------------
-@router.get("/{booking_id}", response_model=dict)
+@router.get(
+    "/{booking_id}",
+    response_model=dict,
+    summary="Chi tiết một đơn đặt tour",
+    description="Xem chi tiết đơn đặt tour theo ID (chủ đơn hoặc Admin).",
+)
 async def get_booking(
     booking_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -334,7 +348,11 @@ async def get_booking(
         conn.close()
 
 # -------------------- List bookings (pagination) --------------------
-@router.get("")
+@router.get(
+    "",
+    summary="Danh sách booking (có phân trang)",
+    description="Admin xem toàn bộ đơn đặt tour; người dùng thường chỉ xem các đơn của chính mình.",
+)
 async def get_bookings(
     current_user: Dict[str, Any] = Depends(get_current_user),
     page: int = Query(1, ge=1),
@@ -421,7 +439,11 @@ async def get_bookings(
 
 
 # -------------------- Update status --------------------
-@router.put("/{booking_id}/status")
+@router.put(
+    "/{booking_id}/status",
+    summary="Cập nhật trạng thái booking (Admin)",
+    description="Admin cập nhật trạng thái đơn đặt tour (`Pending`, `Confirmed`, `Cancelled`) và đồng bộ thanh toán nếu hủy.",
+)
 async def update_booking_status(
     booking_id: int,
     new_status: str,
@@ -453,7 +475,11 @@ async def update_booking_status(
         conn.close()
 
 # -------------------- Cancel booking --------------------
-@router.delete("/{booking_id}")
+@router.delete(
+    "/{booking_id}",
+    summary="Hủy đơn đặt tour",
+    description="Hủy đơn đặt tour (người dùng chỉ hủy được đơn chưa Confirmed; Admin có thể hủy mọi đơn).",
+)
 async def cancel_booking(
     booking_id: int,
     current_user: Dict[str, Any] = Depends(get_current_user)

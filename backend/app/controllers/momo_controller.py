@@ -65,7 +65,11 @@ def _process_momo_payment_result(payload: Dict[str, Any]) -> Dict[str, Any]:
         conn.close()
 
 
-@router.get("/available-methods")
+@router.get(
+    "/available-methods",
+    summary="Danh sách phương thức thanh toán MoMo khả dụng",
+    description="Kiểm tra các phương thức MoMo hỗ trợ (Ví MoMo, ATM/Internet Banking, Credit Card) theo môi trường.",
+)
 async def get_available_payment_methods():
     """
     Trả về danh sách phương thức thanh toán MoMo khả dụng
@@ -89,7 +93,12 @@ async def get_available_payment_methods():
         }
 
 
-@router.post("/create", response_model=MoMoCreatePaymentResponse)
+@router.post(
+    "/create",
+    response_model=MoMoCreatePaymentResponse,
+    summary="Tạo giao dịch thanh toán MoMo",
+    description="Ký HMAC-SHA256 và gọi cổng MoMo để tạo giao dịch, trả về `payUrl` chuyển hướng người dùng.",
+)
 async def create_momo_payment(
     req_body: MoMoCreatePaymentRequest, 
     current_user: dict = Depends(get_current_user)
@@ -179,7 +188,11 @@ async def create_momo_payment(
         conn.close()
 
 
-@router.post("/ipn")
+@router.post(
+    "/ipn",
+    summary="MoMo IPN Webhook",
+    description="Endpoint công khai để máy chủ MoMo gọi thông báo kết quả thanh toán (xác thực chữ ký và cập nhật DB).",
+)
 async def momo_ipn_handler(request: Request):
     """
     MoMo IPN (Instant Payment Notification) webhook
@@ -217,7 +230,11 @@ async def momo_ipn_handler(request: Request):
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/confirm")
+@router.post(
+    "/confirm",
+    summary="Xác nhận thanh toán MoMo từ Callback Frontend",
+    description="Frontend gửi dữ liệu callback MoMo lên để xác thực chữ ký và cập nhật đơn khi IPN chưa kịp tới.",
+)
 async def momo_confirm_from_callback(
     payload: Dict[str, Any],
     current_user: dict = Depends(get_current_user),
@@ -238,7 +255,12 @@ async def momo_confirm_from_callback(
     return processed
 
 
-@router.get("/callback", response_model=MoMoCallbackResponse)
+@router.get(
+    "/callback",
+    response_model=MoMoCallbackResponse,
+    summary="MoMo Redirect Callback",
+    description="Nhận các query parameters từ MoMo sau khi người dùng hoàn tất thanh toán.",
+)
 async def momo_callback(
     partnerCode: str,
     orderId: str,

@@ -20,7 +20,7 @@ def to_utc_iso(dt):
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.isoformat()
 
-router = APIRouter(prefix="/support", tags=["support"])
+router = APIRouter(prefix="/support", tags=["Support Chat"])
 
 
 def is_admin_user(user):
@@ -747,7 +747,11 @@ def queue_ai_support_reply(thread_id: int, owner_user_id: int, full_name: str, p
         db.close()
 
 # 🟢 Mở hoặc tạo thread
-@router.post("/threads/open-or-create")
+@router.post(
+    "/threads/open-or-create",
+    summary="Mở hoặc tạo mới luồng hỗ trợ",
+    description="Lấy luồng chat hỗ trợ hiện có của người dùng hoặc tạo mới nếu chưa có.",
+)
 def open_or_create_thread(user=Depends(get_current_user), db=Depends(get_db_connection)):
     cur = db.cursor()
     cur.execute("SELECT id FROM support_thread WHERE user_id=%s", (user["UserID"],))
@@ -762,7 +766,13 @@ def open_or_create_thread(user=Depends(get_current_user), db=Depends(get_db_conn
     return {"thread_id": thread_id}
 
 # 🟢 Danh sách tất cả các thread (dành cho admin)
-@router.get("/threads", response_model=List[ThreadOut], dependencies=[Depends(require_admin)])
+@router.get(
+    "/threads",
+    response_model=List[ThreadOut],
+    dependencies=[Depends(require_admin)],
+    summary="Danh sách tất cả luồng hỗ trợ (Admin)",
+    description="Admin xem toàn bộ hội thoại hỗ trợ của khách hàng kèm tin nhắn cuối cùng.",
+)
 def list_threads(db=Depends(get_db_connection)):
     cur = db.cursor()
     sql = """
@@ -790,7 +800,11 @@ def list_threads(db=Depends(get_db_connection)):
     return result
 
 # 🆕 Lấy tất cả threads của user hiện tại (ĐẶT TRƯỚC /{thread_id})
-@router.get("/threads/my/all")
+@router.get(
+    "/threads/my/all",
+    summary="Danh sách luồng hỗ trợ của tôi",
+    description="Trả về tất cả các cuộc hội thoại hỗ trợ do người dùng hiện tại tạo.",
+)
 def get_my_threads(user=Depends(get_current_user), db=Depends(get_db_connection)):
     cur = db.cursor()
     try:
@@ -826,7 +840,11 @@ def get_my_threads(user=Depends(get_current_user), db=Depends(get_db_connection)
 
 
 # 🆕 Tạo thread mới (luôn tạo thread mới)
-@router.post("/threads/new")
+@router.post(
+    "/threads/new",
+    summary="Tạo cuộc trò chuyện hỗ trợ mới",
+    description="Khởi tạo một luồng chat hỗ trợ hoàn toàn mới cho người dùng hiện tại.",
+)
 def create_new_thread(user=Depends(get_current_user), db=Depends(get_db_connection)):
     cur = db.cursor()
     try:
@@ -846,7 +864,11 @@ def create_new_thread(user=Depends(get_current_user), db=Depends(get_db_connecti
         db.close()
 
 # support_controller.py - Route động (ĐẶT SAU các route cụ thể)
-@router.get("/threads/{thread_id}")
+@router.get(
+    "/threads/{thread_id}",
+    summary="Thông tin chủ sở hữu thread hỗ trợ",
+    description="Lấy `user_id` sở hữu của một luồng hội thoại hỗ trợ theo `thread_id`.",
+)
 def get_thread_info(thread_id: int, db=Depends(get_db_connection), user=Depends(get_current_user)):
     cur = db.cursor()
     try:
@@ -860,7 +882,11 @@ def get_thread_info(thread_id: int, db=Depends(get_db_connection), user=Depends(
         db.close()
 
 # 🆕 Xóa thread (chỉ user sở hữu hoặc admin mới được xóa)
-@router.delete("/threads/{thread_id}")
+@router.delete(
+    "/threads/{thread_id}",
+    summary="Xóa luồng hội thoại hỗ trợ",
+    description="Chủ sở hữu hoặc Admin xóa cuộc trò chuyện cùng toàn bộ tin nhắn bên trong.",
+)
 def delete_thread(thread_id: int, user=Depends(get_current_user), db=Depends(get_db_connection)):
     cur = db.cursor()
     try:
@@ -889,7 +915,12 @@ def delete_thread(thread_id: int, user=Depends(get_current_user), db=Depends(get
 
 
 # 🟢 Lấy tin nhắn trong một thread
-@router.get("/threads/{thread_id}/messages", response_model=List[MessageOut])
+@router.get(
+    "/threads/{thread_id}/messages",
+    response_model=List[MessageOut],
+    summary="Lấy lịch sử tin nhắn trong thread",
+    description="Trả về tối đa 200 tin nhắn gần nhất trong cuộc hội thoại (chỉ chủ sở hữu hoặc Admin).",
+)
 def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_db_connection)):
     cur = db.cursor()
     cur.execute("SELECT user_id FROM support_thread WHERE id=%s", (thread_id,))
@@ -929,8 +960,11 @@ def get_messages(thread_id: int, user=Depends(get_current_user), db=Depends(get_
     return messages
 
 # 🟢 Gửi tin nhắn mới vào thread
-# 🟢 Gửi tin nhắn mới vào thread
-@router.post("/threads/{thread_id}/messages")
+@router.post(
+    "/threads/{thread_id}/messages",
+    summary="Gửi tin nhắn hỗ trợ mới",
+    description="Lưu tin nhắn, phát sự kiện real-time qua WebSocket và tự động kích hoạt Trợ lý AI phản hồi nền nếu người gửi là khách hàng.",
+)
 def post_message(
     thread_id: int,
     body: MessageIn,

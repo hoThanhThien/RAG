@@ -11,7 +11,11 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="Danh sách danh mục tour",
+    description="Lấy danh sách các danh mục tour có phân trang và sắp xếp.",
+)
 def list_categories(paging: PaginationParams = Depends()):
     conn = get_db_connection()
     try:
@@ -25,7 +29,11 @@ def list_categories(paging: PaginationParams = Depends()):
     finally:
         conn.close()
 
-@router.post("")
+@router.post(
+    "",
+    summary="Tạo danh mục tour mới (Admin)",
+    description="Thêm danh mục tour du lịch mới.",
+)
 def create_category(payload: CategoryCreateSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
@@ -39,7 +47,11 @@ def create_category(payload: CategoryCreateSchema, current_user: Dict[str, Any] 
     finally:
         conn.close()
 
-@router.put("/{category_id}")
+@router.put(
+    "/{category_id}",
+    summary="Cập nhật danh mục tour (Admin)",
+    description="Chỉnh sửa tên và mô tả danh mục tour theo ID.",
+)
 def update_category(category_id: int, payload: CategoryCreateSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:
@@ -57,7 +69,11 @@ def update_category(category_id: int, payload: CategoryCreateSchema, current_use
     finally:
         conn.close()
 
-@router.delete("/{category_id}")
+@router.delete(
+    "/{category_id}",
+    summary="Xóa danh mục tour (Admin)",
+    description="Xóa danh mục nếu chưa có tour nào thuộc danh mục đó.",
+)
 def delete_category(category_id: int, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:

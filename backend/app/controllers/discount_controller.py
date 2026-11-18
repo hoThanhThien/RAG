@@ -16,7 +16,12 @@ def validate_discount_payload(payload: DiscountSchema):
     if payload.end_date < payload.start_date:
         raise HTTPException(status_code=400, detail="Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu")
 
-@router.get("", response_model=List[DiscountResponse])
+@router.get(
+    "",
+    response_model=List[DiscountResponse],
+    summary="Danh sách mã giảm giá",
+    description="Lấy toàn bộ mã khuyến mãi hiện có trong hệ thống.",
+)
 def get_discounts():
     conn = get_db_connection()
     try:
@@ -37,7 +42,11 @@ def get_discounts():
     finally:
         conn.close()
 
-@router.post("")
+@router.post(
+    "",
+    summary="Tạo mã giảm giá mới (Admin)",
+    description="Thêm mã giảm giá theo số tiền cố định hoặc phần trăm kèm ngày hiệu lực.",
+)
 def create_discount(payload: DiscountSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     validate_discount_payload(payload)
     conn = get_db_connection()
@@ -62,7 +71,11 @@ def create_discount(payload: DiscountSchema, current_user: Dict[str, Any] = Depe
     finally:
         conn.close()
 
-@router.put("/{discount_id}")
+@router.put(
+    "/{discount_id}",
+    summary="Cập nhật mã giảm giá (Admin)",
+    description="Chỉnh sửa thông tin và thời gian hiệu lực của mã giảm giá.",
+)
 def update_discount(discount_id: int, payload: DiscountSchema, current_user: Dict[str, Any] = Depends(require_admin)):
     validate_discount_payload(payload)
     conn = get_db_connection()
@@ -93,7 +106,11 @@ def update_discount(discount_id: int, payload: DiscountSchema, current_user: Dic
     finally:
         conn.close()
 
-@router.delete("/{discount_id}")
+@router.delete(
+    "/{discount_id}",
+    summary="Xóa mã giảm giá (Admin)",
+    description="Xóa mã giảm giá nếu chưa từng được áp dụng trong đơn đặt tour.",
+)
 def delete_discount(discount_id: int, current_user: Dict[str, Any] = Depends(require_admin)):
     conn = get_db_connection()
     try:

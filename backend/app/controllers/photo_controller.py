@@ -17,7 +17,11 @@ def to_jsonable(row: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 # ---------- A) List ảnh (có thể lọc theo tour) ----------
-@router.get("")
+@router.get(
+    "",
+    summary="Danh sách ảnh (lọc theo tour)",
+    description="Lấy danh sách hình ảnh trong hệ thống, có thể lọc theo `tour_id` và phân trang.",
+)
 def list_photos(
     tour_id: Optional[int] = Query(None),
     page: int = 1,
@@ -45,7 +49,11 @@ def list_photos(
         conn.close()
 
 # ---------- B) Lấy 1 ảnh ----------
-@router.get("/{photo_id}")
+@router.get(
+    "/{photo_id}",
+    summary="Chi tiết 1 ảnh",
+    description="Lấy thông tin ảnh theo `photo_id`.",
+)
 def get_photo(photo_id: int):
     conn = get_db_connection()
     try:
@@ -63,7 +71,11 @@ def get_photo(photo_id: int):
         conn.close()
 
 # ---------- C) Ảnh của 1 tour ----------
-@router.get("/tour/{tour_id}")
+@router.get(
+    "/tour/{tour_id}",
+    summary="Danh sách ảnh của tour",
+    description="Lấy toàn bộ ảnh thuộc một tour, ưu tiên ảnh chính (`IsPrimary`) lên đầu.",
+)
 def list_photos_of_tour(tour_id: int):
     conn = get_db_connection()
     try:
@@ -80,7 +92,11 @@ def list_photos_of_tour(tour_id: int):
         conn.close()
 
 # ---------- D) Ảnh chính của tour ----------
-@router.get("/tour/{tour_id}/primary")
+@router.get(
+    "/tour/{tour_id}/primary",
+    summary="Ảnh đại diện chính của tour",
+    description="Lấy ảnh được đánh dấu `IsPrimary = 1` của tour.",
+)
 def get_primary_photo(tour_id: int):
     conn = get_db_connection()
     try:
@@ -99,7 +115,11 @@ def get_primary_photo(tour_id: int):
         conn.close()
 
 # ---------- E) Thêm 1 ảnh cho tour ----------
-@router.post("/tour/{tour_id}")
+@router.post(
+    "/tour/{tour_id}",
+    summary="Thêm 1 ảnh cho tour",
+    description="Gắn thêm một ảnh mới cho tour và cập nhật ảnh chính nếu `is_primary=true`.",
+)
 def add_photo_for_tour(
     tour_id: int,
     caption: Optional[str] = Body(None),
@@ -135,7 +155,11 @@ def add_photo_for_tour(
         conn.close()
 
 # ---------- F) Thêm nhiều ảnh cho tour (bulk) ----------
-@router.post("/tour/{tour_id}/bulk")
+@router.post(
+    "/tour/{tour_id}/bulk",
+    summary="Thêm nhiều ảnh cho tour (Bulk)",
+    description="Thêm hàng loạt danh sách ảnh cho một tour.",
+)
 def add_photos_bulk(tour_id: int, photos: List[Dict[str, Any]] = Body(...)):
     """
     photos = [
@@ -182,7 +206,11 @@ def add_photos_bulk(tour_id: int, photos: List[Dict[str, Any]] = Body(...)):
         conn.close()
 
 # ---------- G) Cập nhật 1 ảnh ----------
-@router.patch("/{photo_id}")
+@router.patch(
+    "/{photo_id}",
+    summary="Cập nhật thông tin ảnh",
+    description="Cập nhật caption, đường dẫn ảnh hoặc đặt làm ảnh chính (`is_primary`).",
+)
 def update_photo(
     photo_id: int,
     caption: Optional[str] = Body(None),
@@ -224,7 +252,12 @@ def update_photo(
         conn.close()
 
 # ---------- H) Xoá 1 ảnh ----------
-@router.delete("/{photo_id}", status_code=204)
+@router.delete(
+    "/{photo_id}",
+    status_code=204,
+    summary="Xóa 1 ảnh",
+    description="Xóa bản ghi ảnh khỏi tour theo `photo_id`.",
+)
 def delete_photo(photo_id: int):
     conn = get_db_connection()
     try:

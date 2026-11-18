@@ -7,7 +7,11 @@ from typing import Dict, Any, Optional
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-@router.get("/dashboard/stats")
+@router.get(
+    "/dashboard/stats",
+    summary="Thống kê tổng quan Dashboard (Admin)",
+    description="Trả về tổng số người dùng, tour, danh mục, mã giảm giá, booking và tổng doanh thu đã thanh toán.",
+)
 async def get_dashboard_stats(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Lấy thống kê tổng quan cho dashboard admin"""
     print(f"[DEBUG] User accessing dashboard: {current_user.get('Username')} with role: {current_user.get('RoleName')}")
@@ -57,7 +61,11 @@ async def get_dashboard_stats(current_user: Dict[str, Any] = Depends(get_current
     finally:
         conn.close()
 
-@router.get("/dashboard/revenue-chart")
+@router.get(
+    "/dashboard/revenue-chart",
+    summary="Biểu đồ doanh thu theo tuần/tháng/năm (Admin)",
+    description="Thống kê chuỗi thời gian doanh thu từ các giao dịch đã thanh toán (`week`, `month`, `year`).",
+)
 async def get_revenue_chart(
     period: str = "month",  # week, month, year
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -155,7 +163,11 @@ async def get_revenue_chart(
     finally:
         conn.close()
 
-@router.get("/dashboard/revenue-by-location")
+@router.get(
+    "/dashboard/revenue-by-location",
+    summary="Doanh thu theo địa điểm (Admin)",
+    description="Thống kê doanh thu và số lượng booking theo từng địa điểm, hỗ trợ lọc trong nước / nước ngoài.",
+)
 async def get_revenue_by_location(
     location_type: Optional[str] = Query(None, description="Filter: 'domestic' (trong nước) or 'international' (ngoài nước)"),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -214,7 +226,11 @@ async def get_revenue_by_location(
     finally:
         conn.close()
 
-@router.get("/dashboard/revenue-by-category")
+@router.get(
+    "/dashboard/revenue-by-category",
+    summary="Doanh thu theo từng tour / danh mục (Admin)",
+    description="Thống kê doanh thu và số lần booking theo từng tour dựa trên thanh toán thành công.",
+)
 async def get_revenue_by_category(
     location_type: Optional[str] = Query(None, description="Filter: 'domestic' (trong nước) or 'international' (ngoài nước)"),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -280,7 +296,11 @@ async def get_revenue_by_category(
     finally:
         conn.close()
 
-@router.get("/dashboard/top-customers")
+@router.get(
+    "/dashboard/top-customers",
+    summary="Top 5 khách hàng chi tiêu cao nhất (Admin)",
+    description="Xếp hạng 5 khách hàng có tổng thanh toán cao nhất.",
+)
 async def get_top_customers(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Top 5 khách hàng chi tiêu nhiều nhất"""
     if current_user.get("RoleName", "").lower() != "admin":
@@ -321,7 +341,11 @@ async def get_top_customers(current_user: Dict[str, Any] = Depends(get_current_u
     finally:
         conn.close()
 
-@router.get("/dashboard/booking-status")
+@router.get(
+    "/dashboard/booking-status",
+    summary="Thống kê booking theo trạng thái (Admin)",
+    description="Đếm số lượng đơn đặt tour theo từng trạng thái (`Pending`, `Confirmed`, `Cancelled`...).",
+)
 async def get_booking_status(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Thống kê booking theo trạng thái"""
     if current_user.get("RoleName", "").lower() != "admin":
